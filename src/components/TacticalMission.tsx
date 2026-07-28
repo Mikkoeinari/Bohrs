@@ -53,6 +53,15 @@ export interface Room {
   type: string;
 }
 
+type ObstacleType = 'wall' | 'server' | 'vat' | 'crate' | 'desk' | 'generator' | 'bed' | 'door';
+type PlacedObstacleType = Exclude<ObstacleType, 'door'>;
+
+interface ObstacleData {
+  type: ObstacleType;
+  hp: number;
+  maxHp: number;
+}
+
 const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, leftColor, rightColor, children }: any) => {
   return (
     <div 
@@ -139,7 +148,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
 
 const getLayoutForBuildingType = (buildingType: string) => {
   let rooms: Room[] = [];
-  let itemsToPlace: { x: number, y: number, type: 'wall' | 'server' | 'vat' | 'crate' | 'desk' | 'generator' | 'bed' }[] = [];
+  let itemsToPlace: { x: number, y: number, type: PlacedObstacleType }[] = [];
 
   if (buildingType === 'FACTORY' || buildingType === 'LAB') {
     rooms = [
@@ -233,7 +242,7 @@ const TacticalMission = () => {
   const [failedAction, setFailedAction] = useState<{ x: number, y: number, type: 'BLOCKED' | 'NO_AP' | 'OBSTRUCTED' } | null>(null);
   const GRID_SIZE = 12;
 
-  const [obstacles, setObstacles] = useState<Record<string, { type: 'wall' | 'server' | 'vat' | 'crate' | 'desk' | 'generator' | 'bed'; hp: number; maxHp: number }>>({});
+  const [obstacles, setObstacles] = useState<Record<string, ObstacleData>>({});
   const [rooms, setRooms] = useState<Room[]>([]);
   const [mortarTargetingMode, setMortarTargetingMode] = useState(false);
 
@@ -258,7 +267,7 @@ const TacticalMission = () => {
       }
       
       const obs = obstacles[`${currX},${currY}`];
-      if ((currX !== x2 || currY !== y2) && obs && obs.hp > 0) {
+      if ((currX !== x2 || currY !== y2) && obs && obs.hp > 0 && obs.type !== 'door') {
         return false;
       }
     }
@@ -267,7 +276,7 @@ const TacticalMission = () => {
 
   const isTileOccupied = (x: number, y: number, excludeUnitId?: string) => {
     const obs = obstacles[`${x},${y}`];
-    if (obs && obs.hp > 0) return true;
+    if (obs && obs.hp > 0 && obs.type !== 'door') return true;
     return units.some(u => u.x === x && u.y === y && u.hp > 0 && u.id !== excludeUnitId);
   };
 
@@ -422,7 +431,8 @@ const TacticalMission = () => {
     setRooms(genRooms);
 
     // Build base obstacles
-    const obs: Record<string, { type: 'wall' | 'server' | 'vat' | 'crate' | 'desk' | 'generator' | 'bed'; hp: number; maxHp: number }> = {};
+    const obs: Record<string, ObstacleData> = {};
+    const doorCoordinates = new Set(['5,3', '3,5', '5,8', '8,5']);
     
     // Outer walls of the 12x12 building (leave openings at y=3,8 and x=3,8)
     for (let x = 0; x < 12; x++) {
@@ -438,17 +448,34 @@ const TacticalMission = () => {
       }
     }
 
-    // Divider walls: x=5, y=5 (leaving doors at y=3,8 and x=3,8)
-    for (let y = 1; y < 11; y++) {
-      if (y !== 3 && y !== 8) {
-        obs[`5,${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+    // Build room perimeter walls so the layout becomes enclosed spaces with doors.
+    genRooms.forEach(room => {
+      for (let x = room.x1; x <= room.x2; x++) {
+        const topKey = `${x},${room.y1}`;
+        const bottomKey = `${x},${room.y2}`;
+        if (!doorCoordinates.has(topKey)) {
+          obs[topKey] = { type: 'wall', hp: 100, maxHp: 100 };
+        }
+        if (!doorCoordinates.has(bottomKey)) {
+          obs[bottomKey] = { type: 'wall', hp: 100, maxHp: 100 };
+        }
       }
-    }
-    for (let x = 1; x < 11; x++) {
-      if (x !== 3 && x !== 8) {
-        obs[`${x},5`] = { type: 'wall', hp: 100, maxHp: 100 };
+      for (let y = room.y1; y <= room.y2; y++) {
+        const leftKey = `${room.x1},${y}`;
+        const rightKey = `${room.x2},${y}`;
+        if (!doorCoordinates.has(leftKey)) {
+          obs[leftKey] = { type: 'wall', hp: 100, maxHp: 100 };
+        }
+        if (!doorCoordinates.has(rightKey)) {
+          obs[rightKey] = { type: 'wall', hp: 100, maxHp: 100 };
+        }
       }
-    }
+    });
+
+    // Recreate the door tiles as open navigable cells with a visible marker.
+    doorCoordinates.forEach(key => {
+      obs[key] = { type: 'door', hp: 0, maxHp: 0 };
+    });
 
     // Place thematic items
     itemsToPlace.forEach(item => {
@@ -705,7 +732,7 @@ const TacticalMission = () => {
     }
 
     const obs = obstacles[`${x},${y}`];
-    const isObstacle = obs && obs.hp > 0;
+    const isObstacle = !!(obs && obs.hp > 0 && obs.type !== 'door');
 
     if (pendingAction && pendingAction.unitId === selectedUnitId && pendingAction.x === x && pendingAction.y === y) {
       if (pendingAction.type === 'ATTACK') {
@@ -1910,7 +1937,7 @@ const TacticalMission = () => {
               const isSelected = selectedUnitId === unit?.id;
               const destruction = destructionGrid[`${x},${y}`] || 0;
               const obsData = obstacles[`${x},${y}`];
-              const isObstacle = obsData && obsData.hp > 0;
+              const isObstacle = !!(obsData && obsData.hp > 0 && obsData.type !== 'door');
               const room = rooms.find(r => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
 
               // Range calculations
@@ -1986,6 +2013,14 @@ const TacticalMission = () => {
                     <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center pointer-events-none z-20">
                       {!hasLos ? <Shield size={10} className="text-slate-500" /> : <Zap size={10} className="text-amber-600" />}
                       <span className="text-[5px] font-black uppercase text-slate-500 mt-0.5">{!hasLos ? 'BLOCKED' : 'NO AP'}</span>
+                    </div>
+                  )}
+
+                  {obsData && !isObstacle && obsData.type === 'door' && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
+                      <div className="w-8 h-8 rounded-sm border border-amber-400/70 bg-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.35)]" />
+                      <div className="absolute inset-x-2 bottom-2 h-1.5 rounded-full bg-amber-300/70" />
+                      <span className="absolute bottom-3 text-[6px] font-black uppercase tracking-[0.25em] text-amber-100">DOOR</span>
                     </div>
                   )}
 
