@@ -4,11 +4,12 @@
  */
 
 import { FactionType, Item, Technology, Building, Faction, Unit, Vehicle, VehicleUpgrade } from './types';
+import { buildBuildingName, buildFactionName, buildSoldierName } from './nameData';
 
 export const INITIAL_FACTIONS: Record<string, Faction> = {
   'player': {
     id: 'player',
-    name: 'The Pale Doctrine',
+    name: buildFactionName('player'),
     type: FactionType.PLAYER,
     color: '#00ff00',
     relations: { 'police': -20, 'corps': 10, 'rivals': -50 },
@@ -16,7 +17,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'police': {
     id: 'police',
-    name: 'District Enforcers',
+    name: buildFactionName('police'),
     type: FactionType.POLICE,
     color: '#0000ff',
     relations: { 'player': -20 },
@@ -24,7 +25,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'rivals': {
     id: 'rivals',
-    name: 'The Obsidian Mandate',
+    name: buildFactionName('rivals'),
     type: FactionType.ENEMY_GANG,
     color: '#ff0000',
     relations: { 'player': -50 },
@@ -32,7 +33,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'corps': {
     id: 'corps',
-    name: 'Vesper Megacorp',
+    name: buildFactionName('corps'),
     type: FactionType.CORPORATION,
     color: '#fbbf24',
     relations: { 'player': 0, 'police': 80 },
@@ -43,7 +44,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
 export const INITIAL_BUILDINGS: Record<string, Building> = {
   'player-hq': {
     id: 'player-hq',
-    name: 'Abandoned Subway Depot',
+    name: buildBuildingName('player-hq'),
     ownerId: 'player',
     x: 1,
     y: 1,
@@ -54,27 +55,27 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
     maxHealth: 1000,
     presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'INFIRMARY', 'QUARTERS', 'WORKSHOP']
   },
-  'house-1': { id: 'house-1', name: 'Apartment A1', ownerId: 'rivals', x: 5, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 200, maxHealth: 200, presetFacilities: ['QUARTERS'] },
-  'house-2': { id: 'house-2', name: 'Apartment A2', ownerId: 'rivals', x: 9, y: 1, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['WORKSHOP'] },
-  'house-3': { id: 'house-3', name: 'Apartment A3', ownerId: 'rivals', x: 13, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['QUARTERS'] },
-  'house-4': { id: 'house-4', name: 'Apartment B1', ownerId: 'rivals', x: 17, y: 1, width: 3, height: 3, type: 'OFFICE', health: 400, maxHealth: 400, presetFacilities: ['COMMAND'] },
-  'house-5': { id: 'house-5', name: 'Apartment B2', ownerId: 'rivals', x: 21, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['WORKSHOP'] },
-  'house-6': { id: 'house-6', name: 'Apartment C1', ownerId: 'rivals', x: 25, y: 1, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['POWER'] },
-  'house-7': { id: 'house-7', name: 'Apartment C2', ownerId: 'rivals', x: 29, y: 1, width: 3, height: 3, type: 'OFFICE', health: 400, maxHealth: 400, presetFacilities: ['INFIRMARY'] },
-  'house-8': { id: 'house-8', name: 'Apartment C3', ownerId: 'rivals', x: 1, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['QUARTERS'] },
-  'house-9': { id: 'house-9', name: 'Tower Block A', ownerId: 'corps', x: 5, y: 5, width: 3, height: 3, type: 'OFFICE', health: 1500, maxHealth: 1500, presetFacilities: ['QUARTERS', 'INFIRMARY', 'COMMAND'] },
-  'house-10': { id: 'house-10', name: 'Industrial Hub', ownerId: 'corps', x: 9, y: 5, width: 3, height: 3, type: 'FACTORY', health: 1200, maxHealth: 1200, presetFacilities: ['WORKSHOP', 'POWER', 'HYDROPONICS'] },
-  'house-11': { id: 'house-11', name: 'Docks Warehouse', ownerId: 'rivals', x: 13, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 600, maxHealth: 600, presetFacilities: ['GARAGE', 'WORKSHOP'] },
-  'house-12': { id: 'house-12', name: 'Sub-Level Lab', ownerId: 'corps', x: 17, y: 5, width: 3, height: 3, type: 'FACTORY', health: 500, maxHealth: 500, presetFacilities: ['LAB'] },
-  'house-13': { id: 'house-13', name: 'Apartment D1', ownerId: 'rivals', x: 21, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 300, maxHealth: 300, presetFacilities: ['QUARTERS'] },
-  'house-14': { id: 'house-14', name: 'Apartment D2', ownerId: 'rivals', x: 25, y: 5, width: 3, height: 3, type: 'OFFICE', health: 350, maxHealth: 350, presetFacilities: ['POWER'] },
-  'house-15': { id: 'house-15', name: 'Slum Block X', ownerId: 'rivals', x: 29, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 450, maxHealth: 450, presetFacilities: ['QUARTERS', 'WORKSHOP'] },
-  'house-16': { id: 'house-16', name: 'Data Center', ownerId: 'corps', x: 1, y: 9, width: 3, height: 3, type: 'FACTORY', health: 1800, maxHealth: 1800, presetFacilities: ['LAB', 'POWER'] },
-  'house-17': { id: 'house-17', name: 'Apartment E1', ownerId: 'rivals', x: 5, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 200, maxHealth: 200, presetFacilities: ['QUARTERS'] },
-  'house-18': { id: 'house-18', name: 'Apartment E2', ownerId: 'rivals', x: 9, y: 9, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['WORKSHOP'] },
+  'house-1': { id: 'house-1', name: buildBuildingName('house-1'), ownerId: 'rivals', x: 5, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 200, maxHealth: 200, presetFacilities: ['QUARTERS'] },
+  'house-2': { id: 'house-2', name: buildBuildingName('house-2'), ownerId: 'rivals', x: 9, y: 1, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['WORKSHOP'] },
+  'house-3': { id: 'house-3', name: buildBuildingName('house-3'), ownerId: 'rivals', x: 13, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['QUARTERS'] },
+  'house-4': { id: 'house-4', name: buildBuildingName('house-4'), ownerId: 'rivals', x: 17, y: 1, width: 3, height: 3, type: 'OFFICE', health: 400, maxHealth: 400, presetFacilities: ['COMMAND'] },
+  'house-5': { id: 'house-5', name: buildBuildingName('house-5'), ownerId: 'rivals', x: 21, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['WORKSHOP'] },
+  'house-6': { id: 'house-6', name: buildBuildingName('house-6'), ownerId: 'rivals', x: 25, y: 1, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['POWER'] },
+  'house-7': { id: 'house-7', name: buildBuildingName('house-7'), ownerId: 'rivals', x: 29, y: 1, width: 3, height: 3, type: 'OFFICE', health: 400, maxHealth: 400, presetFacilities: ['INFIRMARY'] },
+  'house-8': { id: 'house-8', name: buildBuildingName('house-8'), ownerId: 'rivals', x: 1, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['QUARTERS'] },
+  'house-9': { id: 'house-9', name: buildBuildingName('house-9'), ownerId: 'corps', x: 5, y: 5, width: 3, height: 3, type: 'OFFICE', health: 1500, maxHealth: 1500, presetFacilities: ['QUARTERS', 'INFIRMARY', 'COMMAND'] },
+  'house-10': { id: 'house-10', name: buildBuildingName('house-10'), ownerId: 'corps', x: 9, y: 5, width: 3, height: 3, type: 'FACTORY', health: 1200, maxHealth: 1200, presetFacilities: ['WORKSHOP', 'POWER', 'HYDROPONICS'] },
+  'house-11': { id: 'house-11', name: buildBuildingName('house-11'), ownerId: 'rivals', x: 13, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 600, maxHealth: 600, presetFacilities: ['GARAGE', 'WORKSHOP'] },
+  'house-12': { id: 'house-12', name: buildBuildingName('house-12'), ownerId: 'corps', x: 17, y: 5, width: 3, height: 3, type: 'FACTORY', health: 500, maxHealth: 500, presetFacilities: ['LAB'] },
+  'house-13': { id: 'house-13', name: buildBuildingName('house-13'), ownerId: 'rivals', x: 21, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 300, maxHealth: 300, presetFacilities: ['QUARTERS'] },
+  'house-14': { id: 'house-14', name: buildBuildingName('house-14'), ownerId: 'rivals', x: 25, y: 5, width: 3, height: 3, type: 'OFFICE', health: 350, maxHealth: 350, presetFacilities: ['POWER'] },
+  'house-15': { id: 'house-15', name: buildBuildingName('house-15'), ownerId: 'rivals', x: 29, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 450, maxHealth: 450, presetFacilities: ['QUARTERS', 'WORKSHOP'] },
+  'house-16': { id: 'house-16', name: buildBuildingName('house-16'), ownerId: 'corps', x: 1, y: 9, width: 3, height: 3, type: 'FACTORY', health: 1800, maxHealth: 1800, presetFacilities: ['LAB', 'POWER'] },
+  'house-17': { id: 'house-17', name: buildBuildingName('house-17'), ownerId: 'rivals', x: 5, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 200, maxHealth: 200, presetFacilities: ['QUARTERS'] },
+  'house-18': { id: 'house-18', name: buildBuildingName('house-18'), ownerId: 'rivals', x: 9, y: 9, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['WORKSHOP'] },
   'rival-base': {
     id: 'rival-base',
-    name: 'Skull Fortress',
+    name: buildBuildingName('rival-base'),
     ownerId: 'rivals',
     x: 13,
     y: 9,
@@ -87,7 +88,7 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
   },
   'city-hall': {
     id: 'city-hall',
-    name: 'Central Plaza',
+    name: buildBuildingName('city-hall'),
     ownerId: 'police',
     x: 17,
     y: 9,
@@ -98,9 +99,9 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
     maxHealth: 5000,
     presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY']
   },
-  'corp-lab': { id: 'corp-lab', name: 'Vesper Biotech', ownerId: 'police', x: 21, y: 9, width: 3, height: 3, type: 'FACTORY', health: 2000, maxHealth: 2000, presetFacilities: ['LAB', 'WORKSHOP'] },
-  'house-19': { id: 'house-19', name: 'Corp Plaza', ownerId: 'corps', x: 25, y: 9, width: 3, height: 3, type: 'OFFICE', health: 3000, maxHealth: 3000, presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'POWER'] },
-  'house-20': { id: 'house-20', name: 'Abandoned Mall', ownerId: 'rivals', x: 29, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 800, maxHealth: 800, presetFacilities: ['GARAGE', 'QUARTERS', 'WORKSHOP'] },
+  'corp-lab': { id: 'corp-lab', name: buildBuildingName('corp-lab'), ownerId: 'police', x: 21, y: 9, width: 3, height: 3, type: 'FACTORY', health: 2000, maxHealth: 2000, presetFacilities: ['LAB', 'WORKSHOP'] },
+  'house-19': { id: 'house-19', name: buildBuildingName('house-19'), ownerId: 'corps', x: 25, y: 9, width: 3, height: 3, type: 'OFFICE', health: 3000, maxHealth: 3000, presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'POWER'] },
+  'house-20': { id: 'house-20', name: buildBuildingName('house-20'), ownerId: 'rivals', x: 29, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 800, maxHealth: 800, presetFacilities: ['GARAGE', 'QUARTERS', 'WORKSHOP'] },
 };
 
 export const ITEMS: Record<string, Item> = {
@@ -491,7 +492,7 @@ export const VEHICLE_UPGRADES: Record<string, VehicleUpgrade> = {
 export const INITIAL_UNITS: Record<string, Unit> = {
   'u1': {
     id: 'u1',
-    name: 'Slick Rico',
+    name: buildSoldierName('u1'),
     factionId: 'player',
     stats: { hp: 50, maxHp: 50, accuracy: 65, reactions: 45, strength: 40, speed: 60, stamina: 50, bravery: 70 },
     equipment: { 
@@ -507,7 +508,7 @@ export const INITIAL_UNITS: Record<string, Unit> = {
   },
   'u2': {
     id: 'u2',
-    name: 'Tank',
+    name: buildSoldierName('u2'),
     factionId: 'player',
     stats: { hp: 80, maxHp: 80, accuracy: 45, reactions: 30, strength: 80, speed: 30, stamina: 40, bravery: 90 },
     equipment: { 
