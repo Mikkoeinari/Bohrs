@@ -205,9 +205,9 @@ function generateProceduralBuildings(): Record<string, Building> {
 
       if (reservedLots.has(lotKey)) continue;
 
-      // ~78% of non-reserved lots get a building — outer lots are sparser
-      const edgePenalty = (col === 0 || col === 7 || row === 0 || row === 7) ? 0.20 : 0;
-      if (rng.next() > 0.78 - edgePenalty) continue;
+      // ~78% of non-reserved lots get a building — outer edge lots are sparser (~58%)
+      const edgeSparsityReduction = (col === 0 || col === 7 || row === 0 || row === 7) ? 0.20 : 0;
+      if (rng.next() > 0.78 - edgeSparsityReduction) continue;
 
       const factionId = getZoneFaction(col, row, rng);
       const type = getZoneBuildingType(factionId, col, row, rng);
