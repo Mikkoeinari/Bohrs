@@ -1937,30 +1937,14 @@ const TacticalMission = () => {
                 }
               }
 
-              let tileBgClass = 'bg-[#0c0e14]/50 border-[#1a1f2b]';
-              if (isObstacle) {
-                tileBgClass = 'bg-[#1e293b]/20 border-[#1e293b]';
-              } else if (tileLabel === 'wall') {
-                tileBgClass = 'bg-slate-900/60 border-slate-700/40';
-              } else if (tileLabel === 'furniture') {
-                tileBgClass = 'bg-slate-800/30 border-slate-700/30';
-              } else if (tileLabel === 'accessway') {
-                tileBgClass = 'bg-slate-400/10 border-slate-600/20';
-              } else if (tileLabel === 'stairs') {
-                tileBgClass = 'bg-amber-600/20 border-amber-500/30';
-              } else if (room) {
-                tileBgClass = `${room.bgClass} border-dashed border-slate-700/30`;
-              } else if (destruction > 0) {
-                tileBgClass = 'bg-red-950/20 border-red-900/30';
-              } else if (isInMoveRange) {
-                tileBgClass = 'bg-cyan-500/10 border-cyan-800/20';
-              }
+              // Keep the tile cells visually transparent so the combat map stays as a continuous floor plane.
+              const tileCellClassName = 'absolute flex items-center justify-center transition-all group';
 
               return (
                 <div 
                   key={i}
                   onClick={() => handleTileClick(x, y)}
-                  className={`absolute border flex items-center justify-center transition-all group ${tileBgClass} ${isInMoveRange ? 'hover:bg-cyan-500/20 cursor-pointer' : ''} ${isInAttackRange && hasLos && hasAp ? 'hover:bg-red-500/20 cursor-crosshair' : ''}`}
+                  className={tileCellClassName}
                   style={{ 
                     width: CELL_SIZE, 
                     height: CELL_SIZE,
@@ -1971,18 +1955,6 @@ const TacticalMission = () => {
                     zIndex: 1,
                   }}
                 >
-                  {/* Range Highlight Border */}
-                  {isInMoveRange && (
-                    <div className="absolute inset-0 border border-cyan-400/30 animate-pulse pointer-events-none" />
-                  )}
-                  {isInAttackRange && hasLos && hasAp && (
-                    <div className="absolute inset-0 border border-red-500/40 animate-pulse pointer-events-none" />
-                  )}
-
-                  <span className={`absolute top-1 left-1 text-[4px] font-black uppercase tracking-[0.2em] pointer-events-none ${tileLabel === 'stairs' ? 'text-amber-200' : tileLabel === 'accessway' ? 'text-slate-300' : tileLabel === 'wall' ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {tileLabel.toUpperCase()}
-                  </span>
-
                   {/* Failed Action Overlay */}
                   <AnimatePresence>
                     {failedAction && failedAction.x === x && failedAction.y === y && (
@@ -2022,73 +1994,38 @@ const TacticalMission = () => {
                   {isObstacle && obsData && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
                       {obsData.type === 'wall' && (
-                        <VoxelCube 
-                          width={38} height={42} depth={38}
-                          topColor="#475569" frontColor="#334155" leftColor="#1e293b" rightColor="#334155"
-                        >
-                          <div className="w-full h-full flex flex-wrap p-0.5 opacity-30 gap-0.5">
-                            {Array.from({ length: 4 }).map((_, idx) => (
-                              <div key={idx} className="w-[16px] h-[16px] border border-white/40" />
-                            ))}
-                          </div>
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-sm border border-slate-500/70 bg-slate-700/70 shadow-[0_0_10px_rgba(71,85,105,0.35)]" />
                       )}
                       {obsData.type === 'server' && (
-                        <VoxelCube 
-                          width={34} height={36} depth={34}
-                          topColor="#1e293b" frontColor="#0f172a" leftColor="#020617" rightColor="#0f172a"
-                        >
-                          <div className="w-full h-full flex flex-col justify-around items-center p-1">
-                            <div className="w-4 h-1 bg-cyan-500 animate-pulse rounded-full" />
-                            <div className="w-4 h-1 bg-emerald-500 rounded-full" style={{ animationDelay: '0.3s' }} />
-                          </div>
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-sm border border-cyan-400/30 bg-slate-900/90 p-1 flex flex-col justify-center gap-1">
+                          <div className="h-1.5 bg-cyan-500/80 rounded-full animate-pulse" />
+                          <div className="h-1.5 bg-emerald-500/70 rounded-full" />
+                        </div>
                       )}
                       {obsData.type === 'vat' && (
-                        <VoxelCube 
-                          width={32} height={38} depth={32}
-                          topColor="#064e3b" frontColor="#022c22" leftColor="#022c22" rightColor="#064e3b"
-                        >
-                          <div className="w-full h-full flex items-center justify-center">
-                            <div className="w-4 h-4 rounded-full bg-emerald-500/80 animate-ping" />
-                          </div>
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-full border border-emerald-400/40 bg-emerald-900/70 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center">
+                          <div className="w-3.5 h-3.5 rounded-full bg-emerald-400/90 animate-ping" />
+                        </div>
                       )}
                       {obsData.type === 'crate' && (
-                        <VoxelCube 
-                          width={34} height={30} depth={34}
-                          topColor="#78350f" frontColor="#451a03" leftColor="#451a03" rightColor="#78350f"
-                        >
-                          <div className="w-full h-full border border-amber-950/40 flex items-center justify-center text-amber-900/50 font-black text-[14px]">X</div>
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-sm border border-amber-800/60 bg-amber-950/80 flex items-center justify-center text-amber-300/70 font-black text-[12px]">
+                          X
+                        </div>
                       )}
                       {obsData.type === 'desk' && (
-                        <VoxelCube 
-                          width={36} height={24} depth={36}
-                          topColor="#27272a" frontColor="#18181b" leftColor="#18181b" rightColor="#27272a"
-                        >
-                          <div className="w-full h-full border-t border-zinc-700/40" />
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-sm border border-zinc-600/50 bg-zinc-800/80" />
                       )}
                       {obsData.type === 'generator' && (
-                        <VoxelCube 
-                          width={36} height={40} depth={36}
-                          topColor="#7c2d12" frontColor="#ea580c" leftColor="#c2410c" rightColor="#9a3412"
-                        >
-                          <div className="w-full h-full flex items-center justify-center">
-                            <div className="w-3 h-3 bg-red-600 animate-pulse rounded-full shadow-[0_0_8px_#dc2626]" />
-                          </div>
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-sm border border-red-400/40 bg-red-950/80 flex items-center justify-center">
+                          <div className="w-3 h-3 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_#dc2626]" />
+                        </div>
                       )}
                       {obsData.type === 'bed' && (
-                        <VoxelCube 
-                          width={36} height={18} depth={36}
-                          topColor="#1e3a8a" frontColor="#172554" leftColor="#172554" rightColor="#1e3a8a"
-                        >
-                          <div className="w-full h-full bg-white/20 border-r border-white/30" style={{ width: '40%' }} />
-                        </VoxelCube>
+                        <div className="w-8 h-8 rounded-sm border border-sky-400/40 bg-sky-950/70 flex items-center justify-center">
+                          <div className="w-5 h-5 rounded-sm border border-white/20 bg-white/20" />
+                        </div>
                       )}
-
+ 
                       <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-black/80 px-1 py-0.2 rounded border border-white/20 flex items-center gap-0.5 shadow-md scale-75 z-50">
                         <span className="text-[6px] text-amber-400 font-bold tracking-tighter leading-none">{obsData.hp}</span>
                         <div className="w-6 h-1 bg-slate-900 rounded-full overflow-hidden">
