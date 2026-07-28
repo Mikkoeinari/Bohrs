@@ -65,10 +65,10 @@ interface ObstacleData {
   maxHp: number;
 }
 
-const VOXEL_MIN_FOOTPRINT_SIZE = 0;
+const VOXEL_MIN_FOOTPRINT_SIZE = 48;
 const VOXEL_FOOTPRINT_SIZE_SCALE = 1;
-const VOXEL_MIN_HEIGHT = 12;
-const VOXEL_HEIGHT_SIZE_SCALE = 0.28;
+const VOXEL_MIN_HEIGHT = 48;
+const VOXEL_HEIGHT_SIZE_SCALE = 1;
 
 const calculateVoxelDimension = (cellSize: number, scale: number, minSize: number) =>
   Math.max(minSize, Math.round(cellSize * scale));
