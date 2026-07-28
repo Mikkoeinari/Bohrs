@@ -62,9 +62,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         height: `${depth}px`,
         left: '50%',
         top: '50%',
-        transform: 'translate(-50%, -50%)',
-        transformStyle: 'preserve-3d',
-        transformOrigin: 'center center'
+        transform: `translate3d(-50%, -50%, ${height / 2}px)`,
+        transformStyle: 'preserve-3d'
       }}
     >
       {/* Top face */}
