@@ -41,68 +41,198 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
 };
 
-export const INITIAL_BUILDINGS: Record<string, Building> = {
-  'player-hq': {
+// Deterministic seeded PRNG (LCG) for procedural city generation
+function makeCityRng(initialSeed: number) {
+  let s = initialSeed >>> 0;
+  return {
+    next(): number {
+      s = Math.imul(s, 1664525) + 1013904223 >>> 0;
+      return s / 0x100000000;
+    },
+    intRange(min: number, max: number): number {
+      return min + Math.floor(this.next() * (max - min + 1));
+    },
+    pick<T>(arr: T[]): T {
+      return arr[Math.floor(this.next() * arr.length)];
+    },
+  };
+}
+
+type BuildingType = 'BASE' | 'WAREHOUSE' | 'FACTORY' | 'CLUB' | 'OFFICE';
+type FacilityType = 'EMPTY' | 'COMMAND' | 'LAB' | 'ARMORY' | 'INFIRMARY' | 'QUARTERS' | 'WORKSHOP' | 'POWER' | 'HYDROPONICS' | 'GARAGE';
+
+// Weighted faction selection tables per city zone (col, row in 0-7 range)
+function getZoneFaction(col: number, row: number, rng: ReturnType<typeof makeCityRng>): string {
+  const roll = rng.next();
+  // Player / suburbs zone (top-left quadrant)
+  if (col <= 2 && row <= 2) {
+    return roll < 0.55 ? 'rivals' : roll < 0.80 ? 'corps' : 'police';
+  }
+  // Industrial corridor (right half, upper)
+  if (col >= 5 && row <= 3) {
+    return roll < 0.65 ? 'corps' : roll < 0.85 ? 'rivals' : 'police';
+  }
+  // Government quarter (center-right, mid-lower)
+  if (col >= 4 && row >= 4) {
+    return roll < 0.45 ? 'police' : roll < 0.75 ? 'corps' : 'rivals';
+  }
+  // Underworld district (bottom-left)
+  if (col <= 3 && row >= 5) {
+    return roll < 0.70 ? 'rivals' : roll < 0.90 ? 'corps' : 'police';
+  }
+  // Central mixed zone
+  return roll < 0.40 ? 'rivals' : roll < 0.70 ? 'corps' : 'police';
+}
+
+function getZoneBuildingType(factionId: string, col: number, row: number, rng: ReturnType<typeof makeCityRng>): BuildingType {
+  const roll = rng.next();
+  if (factionId === 'corps') {
+    // Industrial/tech-heavy
+    if (col >= 4) return roll < 0.45 ? 'FACTORY' : roll < 0.80 ? 'OFFICE' : 'WAREHOUSE';
+    return roll < 0.35 ? 'FACTORY' : roll < 0.65 ? 'OFFICE' : roll < 0.85 ? 'WAREHOUSE' : 'CLUB';
+  }
+  if (factionId === 'police') {
+    return roll < 0.55 ? 'OFFICE' : roll < 0.80 ? 'FACTORY' : 'WAREHOUSE';
+  }
+  // rivals — street-level, mixed
+  if (row <= 2) return roll < 0.45 ? 'WAREHOUSE' : roll < 0.70 ? 'FACTORY' : roll < 0.88 ? 'OFFICE' : 'CLUB';
+  return roll < 0.40 ? 'WAREHOUSE' : roll < 0.60 ? 'CLUB' : roll < 0.80 ? 'FACTORY' : 'OFFICE';
+}
+
+function getBuildingHealth(type: BuildingType, factionId: string, rng: ReturnType<typeof makeCityRng>): number {
+  const base: Record<BuildingType, [number, number]> = {
+    BASE:      [800,  1000],
+    WAREHOUSE: [150,   600],
+    FACTORY:   [300,  1800],
+    OFFICE:    [400,  3000],
+    CLUB:      [150,   450],
+  };
+  const [lo, hi] = base[type];
+  const hp = rng.intRange(lo, hi);
+  // Corp & police buildings tend to be sturdier
+  const mult = factionId === 'corps' ? 1.4 : factionId === 'police' ? 1.6 : 1.0;
+  return Math.round(hp * mult);
+}
+
+function getBuildingFacilities(type: BuildingType, rng: ReturnType<typeof makeCityRng>): FacilityType[] {
+  const tables: Record<BuildingType, FacilityType[][]> = {
+    BASE:      [['COMMAND', 'ARMORY'], ['ARMORY', 'QUARTERS'], ['COMMAND', 'ARMORY', 'INFIRMARY']],
+    WAREHOUSE: [['QUARTERS'], ['WORKSHOP', 'QUARTERS'], ['GARAGE', 'QUARTERS'], ['WORKSHOP']],
+    FACTORY:   [['WORKSHOP'], ['WORKSHOP', 'POWER'], ['WORKSHOP', 'POWER', 'HYDROPONICS'], ['LAB', 'POWER']],
+    OFFICE:    [['COMMAND'], ['COMMAND', 'QUARTERS'], ['COMMAND', 'LAB'], ['QUARTERS', 'INFIRMARY'], ['COMMAND', 'LAB', 'ARMORY', 'POWER']],
+    CLUB:      [['QUARTERS'], ['QUARTERS', 'INFIRMARY'], ['EMPTY']],
+  };
+  return rng.pick(tables[type]);
+}
+
+function generateProceduralBuildings(): Record<string, Building> {
+  const rng = makeCityRng(0xB04D5);
+
+  const buildings: Record<string, Building> = {};
+
+  // Special named landmarks (always present at fixed lots)
+  buildings['player-hq'] = {
     id: 'player-hq',
     name: buildBuildingName('player-hq'),
     ownerId: 'player',
-    x: 1,
-    y: 1,
-    width: 3,
-    height: 3,
+    x: 1, y: 1, width: 3, height: 3,
     type: 'BASE',
-    health: 1000,
-    maxHealth: 1000,
-    presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'INFIRMARY', 'QUARTERS', 'WORKSHOP']
-  },
-  'house-1': { id: 'house-1', name: buildBuildingName('house-1'), ownerId: 'rivals', x: 5, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 200, maxHealth: 200, presetFacilities: ['QUARTERS'] },
-  'house-2': { id: 'house-2', name: buildBuildingName('house-2'), ownerId: 'rivals', x: 9, y: 1, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['WORKSHOP'] },
-  'house-3': { id: 'house-3', name: buildBuildingName('house-3'), ownerId: 'rivals', x: 13, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['QUARTERS'] },
-  'house-4': { id: 'house-4', name: buildBuildingName('house-4'), ownerId: 'rivals', x: 17, y: 1, width: 3, height: 3, type: 'OFFICE', health: 400, maxHealth: 400, presetFacilities: ['COMMAND'] },
-  'house-5': { id: 'house-5', name: buildBuildingName('house-5'), ownerId: 'rivals', x: 21, y: 1, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['WORKSHOP'] },
-  'house-6': { id: 'house-6', name: buildBuildingName('house-6'), ownerId: 'rivals', x: 25, y: 1, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['POWER'] },
-  'house-7': { id: 'house-7', name: buildBuildingName('house-7'), ownerId: 'rivals', x: 29, y: 1, width: 3, height: 3, type: 'OFFICE', health: 400, maxHealth: 400, presetFacilities: ['INFIRMARY'] },
-  'house-8': { id: 'house-8', name: buildBuildingName('house-8'), ownerId: 'rivals', x: 1, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 250, maxHealth: 250, presetFacilities: ['QUARTERS'] },
-  'house-9': { id: 'house-9', name: buildBuildingName('house-9'), ownerId: 'corps', x: 5, y: 5, width: 3, height: 3, type: 'OFFICE', health: 1500, maxHealth: 1500, presetFacilities: ['QUARTERS', 'INFIRMARY', 'COMMAND'] },
-  'house-10': { id: 'house-10', name: buildBuildingName('house-10'), ownerId: 'corps', x: 9, y: 5, width: 3, height: 3, type: 'FACTORY', health: 1200, maxHealth: 1200, presetFacilities: ['WORKSHOP', 'POWER', 'HYDROPONICS'] },
-  'house-11': { id: 'house-11', name: buildBuildingName('house-11'), ownerId: 'rivals', x: 13, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 600, maxHealth: 600, presetFacilities: ['GARAGE', 'WORKSHOP'] },
-  'house-12': { id: 'house-12', name: buildBuildingName('house-12'), ownerId: 'corps', x: 17, y: 5, width: 3, height: 3, type: 'FACTORY', health: 500, maxHealth: 500, presetFacilities: ['LAB'] },
-  'house-13': { id: 'house-13', name: buildBuildingName('house-13'), ownerId: 'rivals', x: 21, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 300, maxHealth: 300, presetFacilities: ['QUARTERS'] },
-  'house-14': { id: 'house-14', name: buildBuildingName('house-14'), ownerId: 'rivals', x: 25, y: 5, width: 3, height: 3, type: 'OFFICE', health: 350, maxHealth: 350, presetFacilities: ['POWER'] },
-  'house-15': { id: 'house-15', name: buildBuildingName('house-15'), ownerId: 'rivals', x: 29, y: 5, width: 3, height: 3, type: 'WAREHOUSE', health: 450, maxHealth: 450, presetFacilities: ['QUARTERS', 'WORKSHOP'] },
-  'house-16': { id: 'house-16', name: buildBuildingName('house-16'), ownerId: 'corps', x: 1, y: 9, width: 3, height: 3, type: 'FACTORY', health: 1800, maxHealth: 1800, presetFacilities: ['LAB', 'POWER'] },
-  'house-17': { id: 'house-17', name: buildBuildingName('house-17'), ownerId: 'rivals', x: 5, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 200, maxHealth: 200, presetFacilities: ['QUARTERS'] },
-  'house-18': { id: 'house-18', name: buildBuildingName('house-18'), ownerId: 'rivals', x: 9, y: 9, width: 3, height: 3, type: 'FACTORY', health: 300, maxHealth: 300, presetFacilities: ['WORKSHOP'] },
-  'rival-base': {
+    health: 1000, maxHealth: 1000,
+    presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'INFIRMARY', 'QUARTERS', 'WORKSHOP'],
+  };
+
+  buildings['rival-base'] = {
     id: 'rival-base',
     name: buildBuildingName('rival-base'),
     ownerId: 'rivals',
-    x: 13,
-    y: 9,
-    width: 3,
-    height: 3,
+    x: 13, y: 13, width: 3, height: 3,
     type: 'BASE',
-    health: 800,
-    maxHealth: 800,
-    presetFacilities: ['ARMORY', 'QUARTERS']
-  },
-  'city-hall': {
+    health: 800, maxHealth: 800,
+    presetFacilities: ['ARMORY', 'QUARTERS'],
+  };
+
+  buildings['city-hall'] = {
     id: 'city-hall',
     name: buildBuildingName('city-hall'),
     ownerId: 'police',
-    x: 17,
-    y: 9,
-    width: 3,
-    height: 3,
+    x: 17, y: 17, width: 3, height: 3,
     type: 'OFFICE',
-    health: 5000,
-    maxHealth: 5000,
-    presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY']
-  },
-  'corp-lab': { id: 'corp-lab', name: buildBuildingName('corp-lab'), ownerId: 'police', x: 21, y: 9, width: 3, height: 3, type: 'FACTORY', health: 2000, maxHealth: 2000, presetFacilities: ['LAB', 'WORKSHOP'] },
-  'house-19': { id: 'house-19', name: buildBuildingName('house-19'), ownerId: 'corps', x: 25, y: 9, width: 3, height: 3, type: 'OFFICE', health: 3000, maxHealth: 3000, presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'POWER'] },
-  'house-20': { id: 'house-20', name: buildBuildingName('house-20'), ownerId: 'rivals', x: 29, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 800, maxHealth: 800, presetFacilities: ['GARAGE', 'QUARTERS', 'WORKSHOP'] },
-};
+    health: 5000, maxHealth: 5000,
+    presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY'],
+  };
+
+  buildings['corp-tower'] = {
+    id: 'corp-tower',
+    name: buildBuildingName('corp-tower'),
+    ownerId: 'corps',
+    x: 25, y: 17, width: 3, height: 3,
+    type: 'OFFICE',
+    health: 3000, maxHealth: 3000,
+    presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'POWER'],
+  };
+
+  buildings['corp-lab'] = {
+    id: 'corp-lab',
+    name: buildBuildingName('corp-lab'),
+    ownerId: 'corps',
+    x: 21, y: 17, width: 3, height: 3,
+    type: 'FACTORY',
+    health: 2000, maxHealth: 2000,
+    presetFacilities: ['LAB', 'WORKSHOP'],
+  };
+
+  buildings['police-precinct'] = {
+    id: 'police-precinct',
+    name: buildBuildingName('police-precinct'),
+    ownerId: 'police',
+    x: 29, y: 21, width: 3, height: 3,
+    type: 'BASE',
+    health: 2500, maxHealth: 2500,
+    presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY', 'QUARTERS'],
+  };
+
+  // Lots occupied by special buildings (x,y top-left)
+  const reservedLots = new Set([
+    '1,1', '13,13', '17,17', '21,17', '25,17', '29,21',
+  ]);
+
+  // Grid: 8 columns × 8 rows of 3-cell lots (lot origin = col*4+1, row*4+1)
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const x = col * 4 + 1;
+      const y = row * 4 + 1;
+      const lotKey = `${x},${y}`;
+
+      if (reservedLots.has(lotKey)) continue;
+
+      // ~78% of non-reserved lots get a building — outer lots are sparser
+      const edgePenalty = (col === 0 || col === 7 || row === 0 || row === 7) ? 0.20 : 0;
+      if (rng.next() > 0.78 - edgePenalty) continue;
+
+      const factionId = getZoneFaction(col, row, rng);
+      const type = getZoneBuildingType(factionId, col, row, rng);
+      const hp = getBuildingHealth(type, factionId, rng);
+      const facilities = getBuildingFacilities(type, rng);
+
+      const id = `b-${x}-${y}`;
+      buildings[id] = {
+        id,
+        name: buildBuildingName(id),
+        ownerId: factionId,
+        x, y,
+        width: 3, height: 3,
+        type,
+        health: hp,
+        maxHealth: hp,
+        presetFacilities: facilities,
+      };
+    }
+  }
+
+  return buildings;
+}
+
+export const INITIAL_BUILDINGS: Record<string, Building> = generateProceduralBuildings();
 
 export const ITEMS: Record<string, Item> = {
   // Raw Raid Materials & Components for Workshop Manufacturing

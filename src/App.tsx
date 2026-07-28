@@ -34,7 +34,7 @@ const GameContent = () => {
       {/* Header / HUD */}
       <header className="h-10 bg-high-header border-b border-high-border flex items-center justify-between px-2 md:px-4 text-[11px] font-mono tracking-[0.2em] uppercase shrink-0 shadow-lg z-50">
         <div className="flex gap-4 md:gap-8 items-center overflow-hidden">
-          <div className="text-white font-black tracking-tighter text-glow-blue scale-110">NEON TURF v0.2.4</div>
+          <div className="text-white font-black tracking-tighter text-glow-blue scale-110">BOHRS v0.1.0</div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-high-dim hidden xs:inline font-black">FUNDS:</span>
             <span className="text-high-success font-black text-glow-green">₮{state.funds.toLocaleString()}</span>
