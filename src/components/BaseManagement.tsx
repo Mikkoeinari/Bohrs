@@ -506,7 +506,7 @@ export default function BaseManagement() {
               <div>
                 <h3 className="text-[12px] font-black text-white uppercase mb-2 tracking-tight group-hover:text-glow-blue transition-colors">Diplomatic Uplink</h3>
                 <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                  Access the city's diplomatic channels. Negotiate truces, declare formal vendettas, and monitor current standing with all major neon-city factions.
+                  Access the city's diplomatic channels. Negotiate truces, declare formal vendettas, and monitor current standing with all major Bohrs district factions.
                 </p>
               </div>
 
