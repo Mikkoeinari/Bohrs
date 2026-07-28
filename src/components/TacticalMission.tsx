@@ -1869,6 +1869,7 @@ const TacticalMission = () => {
               height: GRID_SIZE * CELL_SIZE,
               transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotateX(${pitch}deg) rotateZ(${rotation}deg) translateZ(50px)`,
               transformStyle: 'preserve-3d',
+              transformOrigin: 'center',
               zIndex: 10
             }}
           >
