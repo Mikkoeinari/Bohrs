@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useGame, getMaxInventorySlots, getUsedInventorySlots, getUnitTotalWeight, getUnitCarryLimit, getUnitEncumbrance } from '../store/GameContext';
 import { ITEMS, SOLDIER_SKILLS } from '../data';
 import { Unit, ItemId } from '../types';
@@ -32,6 +32,9 @@ export default function SquadManagement() {
     playerUnits.length > 0 ? playerUnits[0].id : null
   );
   const [activeTab, setActiveTab] = useState<'LOADOUT' | 'SKILLS'>('LOADOUT');
+  const recruitSeedRef = useRef(0);
+  const cryptoApi = typeof crypto !== 'undefined' ? crypto : undefined;
+  const performanceApi = typeof performance !== 'undefined' ? performance : undefined;
 
   const quartersSectors = state.baseSectors?.filter(s => s.type === 'QUARTERS') ?? [];
   const totalQuartersLevel = quartersSectors.reduce((sum, s) => sum + s.level, 0);
@@ -42,8 +45,17 @@ export default function SquadManagement() {
     return Array.from({ length: 3 }).map((_, idx) => generateRandomRecruit(idx));
   });
 
+  function createRecruitSeed(index: number): string {
+    const uniquePart = cryptoApi && 'randomUUID' in cryptoApi
+      ? cryptoApi.randomUUID()
+      : `${recruitSeedRef.current}-${index}-${performanceApi ? performanceApi.now().toString(36) : '0'}-${Math.random().toString(36).slice(2)}`;
+
+    recruitSeedRef.current += 1;
+    return `recruit-${index}-${recruitSeedRef.current}-${uniquePart}`;
+  }
+
   function generateRandomRecruit(index: number): GeneratedRecruit {
-    const name = buildSoldierName(`recruit-${Date.now()}-${index}-${Math.random()}`);
+    const name = buildSoldierName(createRecruitSeed(index));
     const hp = Math.floor(Math.random() * 41) + 50; // 50 to 90
     const accuracy = Math.floor(Math.random() * 31) + 45; // 45 to 75
     const reactions = Math.floor(Math.random() * 31) + 30; // 30 to 60
