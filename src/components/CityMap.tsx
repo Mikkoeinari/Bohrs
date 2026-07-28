@@ -288,7 +288,7 @@ const CityMap = () => {
 
   return (
     <div 
-      className="h-full w-full flex overflow-hidden bg-[#0a0d14] select-none relative touch-none font-sans isolation-isolate"
+      className="h-full w-full flex overflow-hidden bg-[#0a0d14] select-none relative touch-none font-sans"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
@@ -433,7 +433,7 @@ const CityMap = () => {
         onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onClick={() => setSelectedBuildingId(null)}
-        style={{ perspective: '2200px' }}
+        style={{ perspective: '2200px', perspectiveOrigin: 'center center' }}
       >
         {/* Subtle Ambient City Glow Background */}
         <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/30 via-slate-950 to-black" />
@@ -447,7 +447,7 @@ const CityMap = () => {
         >
           {/* Isometric World Container (Rotation & Pitch) */}
           <div 
-            className="relative pointer-events-auto will-change-transform"
+            className="relative pointer-events-auto"
             style={{ 
               width: GRID_SIZE * CELL_SIZE, 
               height: GRID_SIZE * CELL_SIZE,
