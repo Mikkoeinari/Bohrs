@@ -7,6 +7,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 
+const MIN_TRANSIT_TIME = 1;
+const DEFAULT_WALK_SPEED = 10;
+const DISTANCE_TO_TIME_MULTIPLIER = 100;
+
 export function getMaxInventorySlots(unit: Unit): number {
   let baseSlots = 3; // Base belt capacity
   if (!unit || !unit.equipment) return baseSlots;
@@ -626,12 +630,43 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fallbackBuildingId = activeMission.startBuildingId && prev.buildings[activeMission.startBuildingId]
         ? activeMission.startBuildingId
         : (playerBuilding?.id || 'player-hq');
+
+      let startPosX = activeMission.startPosX;
+      let startPosY = activeMission.startPosY;
+      const targetBuilding = prev.buildings[activeMission.buildingId];
+      const startBuilding = fallbackBuildingId ? prev.buildings[fallbackBuildingId] : prev.buildings['player-hq'];
+
+      if (typeof startPosX === 'number' && typeof startPosY === 'number' && targetBuilding) {
+        const totalTransitTime = activeMission.transitTimeTotal > 0 ? activeMission.transitTimeTotal : MIN_TRANSIT_TIME;
+        const progress = activeMission.transitTimeRemaining <= 0 ? 1 : 1 - (activeMission.transitTimeRemaining / totalTransitTime);
+        startPosX = startPosX + (targetBuilding.x - startPosX) * progress;
+        startPosY = startPosY + (targetBuilding.y - startPosY) * progress;
+      } else if (startBuilding) {
+        startPosX = startBuilding.x;
+        startPosY = startBuilding.y;
+      }
+
+      let activeVehicle = prev.activeVehicleId ? prev.vehicles[prev.activeVehicleId] : null;
+      const vehicleBaseBuildingId = activeVehicle?.currentBuildingId || fallbackBuildingId;
+      if (activeVehicle && vehicleBaseBuildingId !== activeMission.startBuildingId) {
+        activeVehicle = null;
+      }
+      const travelSpeed = activeVehicle ? activeVehicle.stats.speed : DEFAULT_WALK_SPEED;
+      const currentPosX = typeof startPosX === 'number' ? startPosX : (startBuilding?.x ?? prev.buildings['player-hq']?.x ?? 0);
+      const currentPosY = typeof startPosY === 'number' ? startPosY : (startBuilding?.y ?? prev.buildings['player-hq']?.y ?? 0);
+      const homeX = startBuilding?.x ?? prev.buildings['player-hq']?.x ?? 0;
+      const homeY = startBuilding?.y ?? prev.buildings['player-hq']?.y ?? 0;
+      const deltaX = currentPosX - homeX;
+      const deltaY = currentPosY - homeY;
+      const returnDistance = Math.hypot(deltaX, deltaY);
+      const returnTransitTime = Math.max(MIN_TRANSIT_TIME, Math.round((returnDistance * DISTANCE_TO_TIME_MULTIPLIER) / travelSpeed));
+
       activeMission.units.forEach(uId => {
         if (updatedUnits[uId]) {
           updatedUnits[uId] = {
             ...updatedUnits[uId],
-            location: 'BASE',
-            currentBuildingId: fallbackBuildingId
+            location: 'TRANSIT',
+            currentBuildingId: undefined
           };
         }
       });
@@ -639,7 +674,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         ...prev,
         units: updatedUnits,
-        activeMission: undefined
+        activeMission: {
+          ...activeMission,
+          status: 'RETURNING',
+          transitTimeRemaining: returnTransitTime,
+          transitTimeTotal: returnTransitTime,
+          startPosX,
+          startPosY
+        }
       };
     });
   }, []);
