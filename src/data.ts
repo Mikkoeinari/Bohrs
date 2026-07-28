@@ -8,7 +8,7 @@ import { FactionType, Item, Technology, Building, Faction, Unit, Vehicle, Vehicl
 export const INITIAL_FACTIONS: Record<string, Faction> = {
   'player': {
     id: 'player',
-    name: 'The Black Rats',
+    name: 'The Bohr Collective',
     type: FactionType.PLAYER,
     color: '#00ff00',
     relations: { 'police': -20, 'corps': 10, 'rivals': -50 },
@@ -24,7 +24,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'rivals': {
     id: 'rivals',
-    name: 'The Black Skulls',
+    name: 'The Bohr Directorate',
     type: FactionType.ENEMY_GANG,
     color: '#ff0000',
     relations: { 'player': -50 },
