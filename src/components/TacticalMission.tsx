@@ -65,8 +65,8 @@ interface ObstacleData {
   maxHp: number;
 }
 
-const VOXEL_MIN_FOOTPRINT_SIZE = 20;
-const VOXEL_FOOTPRINT_SIZE_SCALE = 0.85;
+const VOXEL_MIN_FOOTPRINT_SIZE = 0;
+const VOXEL_FOOTPRINT_SIZE_SCALE = 1;
 const VOXEL_MIN_HEIGHT = 12;
 const VOXEL_HEIGHT_SIZE_SCALE = 0.28;
 
@@ -86,7 +86,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         height: `${depth}px`,
         left: '50%',
         top: '50%',
-        transform: 'translate3d(-50%, -50%, 0px)',
+        transform: `translate3d(-50%, calc(-50% - ${halfHeight}px), 0px)`,
         transformStyle: 'preserve-3d'
       }}
     >
