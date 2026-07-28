@@ -70,10 +70,11 @@ const CityMap = () => {
 
   const GRID_SIZE = 36;
   const CELL_SIZE = 75;
-  const GROUND_PLANE_DEPTH_OFFSET = 0.35;
-  const BUILDING_BASE_DEPTH_OFFSET = 0.25;
-  const PATH_ADDITIONAL_OFFSET = 0.4;
-  const SELECTION_HIGHLIGHT_OFFSET = 0.1;
+  // Keep the terrain layers separated enough that they don't fight each other when the camera is rotated or pitched.
+  const GROUND_PLANE_DEPTH_OFFSET = 0.8;
+  const BUILDING_BASE_DEPTH_OFFSET = 0.45;
+  const PATH_ADDITIONAL_OFFSET = 0.7;
+  const SELECTION_HIGHLIGHT_OFFSET = 0.15;
   // Keep labels slightly above the building roofs so they remain readable while the camera moves.
   const LABEL_HEIGHT_OFFSET = 22;
 
@@ -252,8 +253,11 @@ const CityMap = () => {
   // Depth-sorted buildings to eliminate Z-fighting & overlapping glitches across camera angles
   const sortedBuildings = useMemo(() => {
     const rad = (rotation * Math.PI) / 180;
+    const pitchRad = (pitch * Math.PI) / 180;
     const sin = Math.sin(rad);
     const cos = Math.cos(rad);
+    const pitchCos = Math.cos(pitchRad);
+    const pitchSin = Math.sin(pitchRad);
 
     return Object.values(state.buildings).slice().sort((a: Building, b: Building) => {
       const { footprintW: fWa, footprintH: fHa } = getDynamicBuildingSize(a, state.baseSectors || []);
@@ -264,13 +268,14 @@ const CityMap = () => {
       const centerBx = (b.x + (3 - fWb)/2) + fWb / 2;
       const centerBy = (b.y + (3 - fHb)/2) + fHb / 2;
 
-      // Distance from camera view vector (buildings further back rendered first)
-      const depthA = -(centerAx * sin + centerAy * cos);
-      const depthB = -(centerBx * sin + centerBy * cos);
+      // Depth sort should account for both the orbit rotation and the tilt/pitch so the scene
+      // doesn't pop or shimmer when the camera is moved.
+      const depthA = (-(centerAx * sin + centerAy * cos) * pitchCos) + (centerAy * pitchSin);
+      const depthB = (-(centerBx * sin + centerBy * cos) * pitchCos) + (centerBy * pitchSin);
 
       return depthA - depthB;
     });
-  }, [state.buildings, state.baseSectors, rotation]);
+  }, [state.buildings, state.baseSectors, rotation, pitch]);
 
   // Determine building physical properties & visual height dynamically
   const getBuildingProps = (building: Building) => {
