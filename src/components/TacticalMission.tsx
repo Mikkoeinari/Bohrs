@@ -277,7 +277,21 @@ interface FloorPlanTile {
   roomName?: string;
 }
 
-const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = []) => {
+interface RoomPlacementSpec {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  roomType: string;
+}
+
+interface RoomConnectionSpec {
+  fromIndex: number;
+  toIndex: number;
+  axis: 'H' | 'V';
+}
+
+export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = []) => {
   const roomTypes = sectors
     .filter((sector): sector is BaseSector => Boolean(sector?.type && sector.type !== 'EMPTY'))
     .map((sector) => sector.type);
@@ -291,7 +305,8 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
         : ['WORKSHOP', 'POWER', 'QUARTERS', 'STAIRCASE'];
 
   const selectedRoomTypes = roomTypes.length > 0 ? roomTypes : fallbackRoomTypes;
-  const layoutRoomTypes = selectedRoomTypes.slice(0, 5);
+  const roomCount = Math.min(9, Math.max(1, selectedRoomTypes.length));
+  const resolvedRoomTypes = selectedRoomTypes.slice(0, roomCount);
 
   const rooms: Room[] = [];
   const floorPlan: Record<string, FloorPlanTile> = {};
@@ -312,6 +327,71 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
     LOBBY: { name: 'LOBBY', color: 'text-blue-400 border-blue-500/30', bgClass: 'bg-blue-950/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 0 }] },
   };
 
+  const roomBoxSize = 11;
+  const roomPadding = 1;
+
+  const buildRoomLayout = (count: number) => {
+    const placements: RoomPlacementSpec[] = [];
+    const connections: RoomConnectionSpec[] = [];
+
+    const makePlacement = (x1: number, y1: number, index: number) => {
+      const roomType = resolvedRoomTypes[index] || resolvedRoomTypes[resolvedRoomTypes.length - 1] || 'LOBBY';
+      placements.push({
+        x1,
+        y1,
+        x2: x1 + roomBoxSize - 1,
+        y2: y1 + roomBoxSize - 1,
+        roomType,
+      });
+    };
+
+    if (count === 1) {
+      makePlacement(6, 7, 0);
+      return { placements, connections };
+    }
+
+    if (count === 2) {
+      makePlacement(2, 7, 0);
+      makePlacement(13, 7, 1);
+      connections.push({ fromIndex: 0, toIndex: 1, axis: 'H' });
+      return { placements, connections };
+    }
+
+    if (count === 3) {
+      makePlacement(2, 2, 0);
+      makePlacement(2, 14, 1);
+      makePlacement(13, 2, 2);
+      connections.push({ fromIndex: 0, toIndex: 1, axis: 'V' });
+      connections.push({ fromIndex: 1, toIndex: 2, axis: 'H' });
+      return { placements, connections };
+    }
+
+    const columns = Math.min(3, Math.ceil(Math.sqrt(count)));
+    const rows = Math.ceil(count / columns);
+    const maxX = MAP_GRID_SIZE - roomBoxSize - 1;
+    const maxY = MAP_GRID_SIZE - roomBoxSize - 1;
+    const xStep = columns > 1 ? Math.floor(maxX / (columns - 1)) : 0;
+    const yStep = rows > 1 ? Math.floor(maxY / (rows - 1)) : 0;
+
+    for (let index = 0; index < count; index++) {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x1 = Math.min(1 + column * xStep, maxX);
+      const y1 = Math.min(1 + row * yStep, maxY);
+      makePlacement(x1, y1, index);
+    }
+
+    for (let index = 1; index < count; index++) {
+      const previousIndex = index - 1;
+      const previousPlacement = placements[previousIndex];
+      const currentPlacement = placements[index];
+      const axis = currentPlacement.x1 >= previousPlacement.x2 ? 'H' : 'V';
+      connections.push({ fromIndex: previousIndex, toIndex: index, axis });
+    }
+
+    return { placements, connections };
+  };
+
   const setTile = (x: number, y: number, label: FloorTileLabel, roomType?: string, roomName?: string) => {
     floorPlan[`${x},${y}`] = { label, roomType, roomName };
   };
@@ -322,6 +402,12 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
     if (type === 'server' || type === 'desk') return 60;
     if (type === 'bed') return 50;
     return 50;
+  };
+
+  const placeDoor = (x: number, y: number) => {
+    setTile(x, y, 'accessway');
+    delete obstacles[`${x},${y}`];
+    obstacles[`${x},${y}`] = { type: 'door', hp: 0, maxHp: 0 };
   };
 
   const carveRoom = (x1: number, y1: number, x2: number, y2: number, roomType: string, template: { name: string; color: string; bgClass: string; furnitureType: PlacedObstacleType; furniturePositions: Array<{ x: number; y: number }> }) => {
@@ -361,17 +447,35 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
     }
   };
 
-  const carveCorridor = (x1: number, y1: number, x2: number, y2: number) => {
-    const minX = Math.min(x1, x2);
-    const maxX = Math.max(x1, x2);
-    const minY = Math.min(y1, y2);
-    const maxY = Math.max(y1, y2);
+  const carveConnection = (fromPlacement: RoomPlacementSpec, toPlacement: RoomPlacementSpec) => {
+    if (toPlacement.x1 >= fromPlacement.x2) {
+      const corridorY = Math.round((fromPlacement.y1 + fromPlacement.y2) / 2);
+      const corridorStart = fromPlacement.x2 + roomPadding;
+      const corridorEnd = toPlacement.x1 - roomPadding;
+      const doorX = Math.max(corridorStart, Math.min(corridorEnd, Math.floor((corridorStart + corridorEnd) / 2)));
 
-    for (let tileX = minX; tileX <= maxX; tileX++) {
-      for (let tileY = minY; tileY <= maxY; tileY++) {
-        setTile(tileX, tileY, 'accessway');
-        delete obstacles[`${tileX},${tileY}`];
+      for (let tileX = corridorStart; tileX <= corridorEnd; tileX++) {
+        setTile(tileX, corridorY, 'accessway');
+        delete obstacles[`${tileX},${corridorY}`];
       }
+
+      placeDoor(doorX, corridorY);
+      return;
+    }
+
+    if (toPlacement.y1 >= fromPlacement.y2) {
+      const corridorX = Math.round((fromPlacement.x1 + fromPlacement.x2) / 2);
+      const corridorStart = fromPlacement.y2 + roomPadding;
+      const corridorEnd = toPlacement.y1 - roomPadding;
+      const doorY = Math.max(corridorStart, Math.min(corridorEnd, Math.floor((corridorStart + corridorEnd) / 2)));
+
+      for (let tileY = corridorStart; tileY <= corridorEnd; tileY++) {
+        setTile(corridorX, tileY, 'accessway');
+        delete obstacles[`${corridorX},${tileY}`];
+      }
+
+      placeDoor(corridorX, doorY);
+      return;
     }
   };
 
@@ -385,31 +489,21 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
     }
   }
 
-  const primaryRoomType = layoutRoomTypes[0] || 'LOBBY';
-  const primaryTemplate = roomStyles[primaryRoomType] || roomStyles.LOBBY;
-  carveRoom(7, 7, 16, 14, primaryRoomType, primaryTemplate);
-
-  const secondaryRoomTypes = layoutRoomTypes.slice(1);
-  const sideRoomSpecs = [
-    { x1: 2, y1: 8, x2: 5, y2: 13, type: secondaryRoomTypes[0] || 'COMMAND' },
-    { x1: 18, y1: 8, x2: 21, y2: 13, type: secondaryRoomTypes[1] || 'LAB' },
-    { x1: 9, y1: 2, x2: 14, y2: 5, type: secondaryRoomTypes[2] || 'ARMORY' },
-    { x1: 9, y1: 16, x2: 14, y2: 19, type: secondaryRoomTypes[3] || 'INFIRMARY' },
-  ];
-
-  sideRoomSpecs.forEach((spec, index) => {
-    const roomType = secondaryRoomTypes[index] || spec.type;
-    const template = roomStyles[roomType] || roomStyles.WORKSHOP;
-    carveRoom(spec.x1, spec.y1, spec.x2, spec.y2, roomType, template);
+  const { placements, connections } = buildRoomLayout(roomCount);
+  placements.forEach((placement) => {
+    const template = roomStyles[placement.roomType] || roomStyles.LOBBY;
+    carveRoom(placement.x1, placement.y1, placement.x2, placement.y2, placement.roomType, template);
   });
 
-  carveCorridor(5, 10, 7, 10);
-  carveCorridor(16, 10, 18, 10);
-  carveCorridor(11, 5, 11, 7);
-  carveCorridor(11, 14, 11, 16);
+  if (placements.length > 0) {
+    const firstPlacement = placements[0];
+    const exteriorDoorY = Math.round((firstPlacement.y1 + firstPlacement.y2) / 2);
+    placeDoor(firstPlacement.x1, exteriorDoorY);
+  }
 
-  setTile(11, 10, 'stairs', 'STAIRCASE', 'STAIRS');
-  delete obstacles['11,10'];
+  connections.forEach((connection) => {
+    carveConnection(placements[connection.fromIndex], placements[connection.toIndex]);
+  });
 
   return { rooms, floorPlan, obstacles, lootTiles: [] as { x: number; y: number; itemId: string; name: string }[] };
 };
