@@ -1937,30 +1937,14 @@ const TacticalMission = () => {
                 }
               }
 
-              let tileBgClass = 'bg-[#0c0e14]/50 border-[#1a1f2b]';
-              if (isObstacle) {
-                tileBgClass = 'bg-[#1e293b]/20 border-[#1e293b]';
-              } else if (tileLabel === 'wall') {
-                tileBgClass = 'bg-slate-900/60 border-slate-700/40';
-              } else if (tileLabel === 'furniture') {
-                tileBgClass = 'bg-slate-800/30 border-slate-700/30';
-              } else if (tileLabel === 'accessway') {
-                tileBgClass = 'bg-slate-400/10 border-slate-600/20';
-              } else if (tileLabel === 'stairs') {
-                tileBgClass = 'bg-amber-600/20 border-amber-500/30';
-              } else if (room) {
-                tileBgClass = `${room.bgClass} border-dashed border-slate-700/30`;
-              } else if (destruction > 0) {
-                tileBgClass = 'bg-red-950/20 border-red-900/30';
-              } else if (isInMoveRange) {
-                tileBgClass = 'bg-cyan-500/10 border-cyan-800/20';
-              }
+              // Keep the tile cells visually transparent so the combat map stays as a continuous floor plane.
+              const tileCellClassName = 'absolute flex items-center justify-center transition-all group';
 
               return (
                 <div 
                   key={i}
                   onClick={() => handleTileClick(x, y)}
-                  className={`absolute border flex items-center justify-center transition-all group ${tileBgClass} ${isInMoveRange ? 'hover:bg-cyan-500/20 cursor-pointer' : ''} ${isInAttackRange && hasLos && hasAp ? 'hover:bg-red-500/20 cursor-crosshair' : ''}`}
+                  className={tileCellClassName}
                   style={{ 
                     width: CELL_SIZE, 
                     height: CELL_SIZE,
@@ -1971,18 +1955,6 @@ const TacticalMission = () => {
                     zIndex: 1,
                   }}
                 >
-                  {/* Range Highlight Border */}
-                  {isInMoveRange && (
-                    <div className="absolute inset-0 border border-cyan-400/30 animate-pulse pointer-events-none" />
-                  )}
-                  {isInAttackRange && hasLos && hasAp && (
-                    <div className="absolute inset-0 border border-red-500/40 animate-pulse pointer-events-none" />
-                  )}
-
-                  <span className={`absolute top-1 left-1 text-[4px] font-black uppercase tracking-[0.2em] pointer-events-none ${tileLabel === 'stairs' ? 'text-amber-200' : tileLabel === 'accessway' ? 'text-slate-300' : tileLabel === 'wall' ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {tileLabel.toUpperCase()}
-                  </span>
-
                   {/* Failed Action Overlay */}
                   <AnimatePresence>
                     {failedAction && failedAction.x === x && failedAction.y === y && (
