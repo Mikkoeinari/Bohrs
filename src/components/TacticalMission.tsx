@@ -65,10 +65,10 @@ interface ObstacleData {
   maxHp: number;
 }
 
-const VOXEL_MIN_FOOTPRINT_SIZE = 48;
-const VOXEL_FOOTPRINT_SIZE_SCALE = 1;
-const VOXEL_MIN_HEIGHT = 48;
-const VOXEL_HEIGHT_SIZE_SCALE = 1;
+const VOXEL_MIN_FOOTPRINT_SIZE = 20;
+const VOXEL_FOOTPRINT_SIZE_SCALE = 0.85;
+const VOXEL_MIN_HEIGHT = 12;
+const VOXEL_HEIGHT_SIZE_SCALE = 0.28;
 
 const calculateVoxelDimension = (cellSize: number, scale: number, minSize: number) =>
   Math.max(minSize, Math.round(cellSize * scale));
@@ -797,6 +797,9 @@ const TacticalMission = () => {
   };
 
   const CELL_SIZE = 48;
+  const boardSize = GRID_SIZE * CELL_SIZE;
+  const boardPadding = CELL_SIZE * 2;
+  const boardViewportSize = boardSize + boardPadding * 2;
 
   // Initialize mission units
   useEffect(() => {
@@ -2240,17 +2243,20 @@ const TacticalMission = () => {
         >
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4a5568 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 	          
-          <div 
-            className="relative transition-transform duration-75 ease-out pointer-events-auto will-change-transform"
-            style={{
-              width: GRID_SIZE * CELL_SIZE,
-              height: GRID_SIZE * CELL_SIZE,
-              transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotateX(${pitch}deg) rotateZ(${rotation}deg) translateZ(50px)`,
-              transformStyle: 'preserve-3d',
-              transformOrigin: 'center',
-              zIndex: 10
-            }}
-          >
+          <div className="relative" style={{ width: boardViewportSize, height: boardViewportSize }}>
+            <div 
+              className="absolute transition-transform duration-75 ease-out pointer-events-auto will-change-transform"
+              style={{
+                width: boardSize,
+                height: boardSize,
+                left: boardPadding,
+                top: boardPadding,
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotateX(${pitch}deg) rotateZ(${rotation}deg) translateZ(50px)`,
+                transformStyle: 'preserve-3d',
+                transformOrigin: 'center',
+                zIndex: 10
+              }}
+            >
             {/* Ground Plane */}
             <div
               className="absolute inset-0 overflow-hidden rounded-sm border border-[#1a1f2b] shadow-[0_0_100px_rgba(0,0,0,0.5)]"
@@ -2498,8 +2504,7 @@ const TacticalMission = () => {
                 {popup.text}
               </motion.div>
             ))}
-          </div>
-          
+           
           <div className="absolute top-2 right-2 flex flex-col gap-2 z-20">
             <div className="flex gap-2 justify-end">
               <button 
@@ -2511,6 +2516,8 @@ const TacticalMission = () => {
             </div>
           </div>
         </div>
+      </div>
+      </div>
       </div>
 
       {/* COMBAT HUD - FALLOUT STYLE */}
