@@ -8,6 +8,7 @@ import { useGame, getUnitEncumbrance } from '../store/GameContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Target, Swords, ArrowRight, User, X, ChevronLeft, ChevronRight, List, Move, Crosshair, Package, RefreshCw, Zap, Sparkles, Scale, Gauge } from 'lucide-react';
 import { ITEMS } from '../data';
+import type { BaseSector } from '../types';
 
 export type BehavioralStance = 'AMOK' | 'AGGRESSIVE' | 'SUPPORT' | 'DEFENSIVE' | 'PASSIVE';
 
@@ -146,76 +147,136 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
   );
 };
 
-const getLayoutForBuildingType = (buildingType: string) => {
-  let rooms: Room[] = [];
-  let itemsToPlace: { x: number, y: number, type: PlacedObstacleType }[] = [];
+const GRID_SIZE = 12;
 
-  if (buildingType === 'FACTORY' || buildingType === 'LAB') {
-    rooms = [
-      { name: 'REACTOR CELL', x1: 1, y1: 1, x2: 4, y2: 4, color: 'text-amber-400 border-amber-500/30', bgClass: 'bg-amber-950/10', type: 'REACTOR' },
-      { name: 'CHEMISTRY LAB', x1: 6, y1: 1, x2: 10, y2: 4, color: 'text-emerald-400 border-emerald-500/30', bgClass: 'bg-emerald-950/10', type: 'CHEM' },
-      { name: 'SERVER CORE', x1: 6, y1: 6, x2: 10, y2: 10, color: 'text-cyan-400 border-cyan-500/30', bgClass: 'bg-cyan-950/10', type: 'SERVER' },
-      { name: 'DISPATCH STORAGE', x1: 1, y1: 6, x2: 4, y2: 10, color: 'text-slate-400 border-slate-500/30', bgClass: 'bg-slate-900/10', type: 'DECONTAM' },
-    ];
-    itemsToPlace = [
-      { x: 2, y: 2, type: 'generator' },
-      { x: 3, y: 2, type: 'generator' },
-      { x: 8, y: 2, type: 'vat' },
-      { x: 8, y: 3, type: 'vat' },
-      { x: 7, y: 8, type: 'server' },
-      { x: 8, y: 8, type: 'server' },
-      { x: 2, y: 8, type: 'crate' },
-      { x: 3, y: 7, type: 'crate' },
-    ];
-  } else if (buildingType === 'OFFICE' || buildingType === 'CLUB') {
-    rooms = [
-      { name: 'RECEPTION LOBBY', x1: 1, y1: 1, x2: 4, y2: 4, color: 'text-blue-400 border-blue-500/30', bgClass: 'bg-blue-950/10', type: 'LOBBY' },
-      { name: 'WORKSTATIONS', x1: 6, y1: 1, x2: 10, y2: 4, color: 'text-cyan-400 border-cyan-500/30', bgClass: 'bg-cyan-950/10', type: 'CUBICLES' },
-      { name: 'CONFERENCE RM', x1: 6, y1: 6, x2: 10, y2: 10, color: 'text-teal-400 border-teal-500/30', bgClass: 'bg-teal-950/10', type: 'CONF' },
-      { name: 'REST LOUNGE', x1: 1, y1: 6, x2: 4, y2: 10, color: 'text-purple-400 border-purple-500/30', bgClass: 'bg-purple-950/10', type: 'LOUNGE' },
-    ];
-    itemsToPlace = [
-      { x: 2, y: 2, type: 'desk' },
-      { x: 8, y: 2, type: 'desk' },
-      { x: 8, y: 3, type: 'desk' },
-      { x: 7, y: 8, type: 'desk' },
-      { x: 8, y: 8, type: 'desk' },
-      { x: 2, y: 8, type: 'bed' },
-    ];
-  } else if (buildingType === 'BASE') {
-    rooms = [
-      { name: 'HQ COMMAND', x1: 1, y1: 1, x2: 4, y2: 4, color: 'text-red-400 border-red-500/30', bgClass: 'bg-red-950/10', type: 'COMMAND' },
-      { name: 'SQUAD ARMORY', x1: 6, y1: 1, x2: 10, y2: 4, color: 'text-orange-400 border-orange-500/30', bgClass: 'bg-orange-950/10', type: 'ARMORY' },
-      { name: 'HQ INFIRMARY', x1: 6, y1: 6, x2: 10, y2: 10, color: 'text-emerald-400 border-emerald-500/30', bgClass: 'bg-emerald-950/10', type: 'INFIRMARY' },
-      { name: 'BUNK QUARTERS', x1: 1, y1: 6, x2: 4, y2: 10, color: 'text-slate-400 border-slate-500/30', bgClass: 'bg-slate-900/10', type: 'QUARTERS' },
-    ];
-    itemsToPlace = [
-      { x: 2, y: 2, type: 'server' },
-      { x: 8, y: 2, type: 'crate' },
-      { x: 8, y: 3, type: 'crate' },
-      { x: 7, y: 8, type: 'bed' },
-      { x: 8, y: 8, type: 'bed' },
-      { x: 2, y: 8, type: 'bed' },
-    ];
-  } else {
-    rooms = [
-      { name: 'LOADING DOCK A', x1: 1, y1: 1, x2: 4, y2: 4, color: 'text-zinc-400 border-zinc-500/30', bgClass: 'bg-zinc-900/10', type: 'DOCK_A' },
-      { name: 'STORAGE GRID B', x1: 6, y1: 1, x2: 10, y2: 4, color: 'text-yellow-400 border-yellow-500/30', bgClass: 'bg-yellow-950/10', type: 'GRID_B' },
-      { name: 'MAIN RECOVERY', x1: 6, y1: 6, x2: 10, y2: 10, color: 'text-amber-400 border-amber-500/30', bgClass: 'bg-amber-950/10', type: 'MAIN' },
-      { name: 'SHIPPING AREA C', x1: 1, y1: 6, x2: 4, y2: 10, color: 'text-orange-400 border-orange-500/30', bgClass: 'bg-orange-950/10', type: 'AREA_C' },
-    ];
-    itemsToPlace = [
-      { x: 2, y: 2, type: 'crate' },
-      { x: 3, y: 2, type: 'crate' },
-      { x: 8, y: 2, type: 'crate' },
-      { x: 8, y: 3, type: 'crate' },
-      { x: 7, y: 8, type: 'crate' },
-      { x: 8, y: 8, type: 'crate' },
-      { x: 2, y: 8, type: 'crate' },
-    ];
+type FloorTileLabel = 'floor' | 'wall' | 'furniture' | 'accessway' | 'stairs';
+
+interface FloorPlanTile {
+  label: FloorTileLabel;
+  roomType?: string;
+  roomName?: string;
+}
+
+const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = []) => {
+  const roomTypes = sectors
+    .filter((sector): sector is BaseSector => Boolean(sector?.type && sector.type !== 'EMPTY'))
+    .map((sector) => sector.type);
+
+  const fallbackRoomTypes = buildingType === 'FACTORY' || buildingType === 'LAB'
+    ? ['LAB', 'WORKSHOP', 'POWER', 'STAIRCASE']
+    : buildingType === 'BASE'
+      ? ['COMMAND', 'ARMORY', 'INFIRMARY', 'QUARTERS']
+      : buildingType === 'OFFICE' || buildingType === 'CLUB'
+        ? ['COMMAND', 'ARMORY', 'INFIRMARY', 'LOUNGE']
+        : ['WORKSHOP', 'POWER', 'QUARTERS', 'STAIRCASE'];
+
+  const selectedRoomTypes = roomTypes.length > 0 ? roomTypes : fallbackRoomTypes;
+  const roomCount = Math.min(selectedRoomTypes.length, 6);
+  const columns = roomCount <= 2 ? 2 : roomCount <= 4 ? 2 : 3;
+  const rows = Math.ceil(roomCount / columns);
+  const roomWidth = 3;
+  const roomHeight = 3;
+  const gap = 1;
+  const maxWidth = columns * roomWidth + (columns - 1) * gap;
+  const maxHeight = rows * roomHeight + (rows - 1) * gap;
+  const offsetX = Math.max(1, Math.floor((GRID_SIZE - maxWidth) / 2));
+  const offsetY = Math.max(1, Math.floor((GRID_SIZE - maxHeight) / 2));
+
+  const rooms: Room[] = [];
+  const floorPlan: Record<string, FloorPlanTile> = {};
+  const obstacles: Record<string, ObstacleData> = {};
+
+  const roomStyles: Record<string, { name: string; color: string; bgClass: string; furnitureType: PlacedObstacleType; furniturePositions: Array<{ x: number; y: number }> }> = {
+    COMMAND: { name: 'COMMAND BAY', color: 'text-red-400 border-red-500/30', bgClass: 'bg-red-950/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 0 }, { x: 0, y: 1 }] },
+    LAB: { name: 'LAB BAY', color: 'text-cyan-400 border-cyan-500/30', bgClass: 'bg-cyan-950/10', furnitureType: 'server', furniturePositions: [{ x: 0, y: 0 }, { x: 1, y: 0 }] },
+    ARMORY: { name: 'ARMORY BAY', color: 'text-orange-400 border-orange-500/30', bgClass: 'bg-orange-950/10', furnitureType: 'generator', furniturePositions: [{ x: 0, y: 1 }, { x: 1, y: 1 }] },
+    INFIRMARY: { name: 'MED BAY', color: 'text-emerald-400 border-emerald-500/30', bgClass: 'bg-emerald-950/10', furnitureType: 'bed', furniturePositions: [{ x: 0, y: 0 }] },
+    QUARTERS: { name: 'QUARTERS', color: 'text-slate-400 border-slate-500/30', bgClass: 'bg-slate-900/10', furnitureType: 'bed', furniturePositions: [{ x: 0, y: 0 }] },
+    WORKSHOP: { name: 'WORKSHOP', color: 'text-amber-400 border-amber-500/30', bgClass: 'bg-amber-950/10', furnitureType: 'generator', furniturePositions: [{ x: 0, y: 0 }] },
+    POWER: { name: 'POWER BAY', color: 'text-purple-400 border-purple-500/30', bgClass: 'bg-purple-950/10', furnitureType: 'vat', furniturePositions: [{ x: 1, y: 0 }] },
+    HYDROPONICS: { name: 'HYDROPONICS', color: 'text-lime-400 border-lime-500/30', bgClass: 'bg-lime-950/10', furnitureType: 'vat', furniturePositions: [{ x: 0, y: 0 }, { x: 1, y: 1 }] },
+    GARAGE: { name: 'GARAGE', color: 'text-zinc-400 border-zinc-500/30', bgClass: 'bg-zinc-900/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 1 }] },
+    STAIRCASE: { name: 'STAIRS', color: 'text-yellow-400 border-yellow-500/30', bgClass: 'bg-yellow-950/10', furnitureType: 'desk', furniturePositions: [] },
+    LOUNGE: { name: 'LOUNGE', color: 'text-indigo-400 border-indigo-500/30', bgClass: 'bg-indigo-950/10', furnitureType: 'bed', furniturePositions: [{ x: 0, y: 0 }] },
+    LOBBY: { name: 'LOBBY', color: 'text-blue-400 border-blue-500/30', bgClass: 'bg-blue-950/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 0 }] },
+  };
+
+  const setTile = (x: number, y: number, label: FloorTileLabel, roomType?: string, roomName?: string) => {
+    floorPlan[`${x},${y}`] = { label, roomType, roomName };
+  };
+
+  const getTileHp = (type: PlacedObstacleType) => {
+    if (type === 'generator') return 120;
+    if (type === 'vat') return 80;
+    if (type === 'server' || type === 'desk') return 60;
+    if (type === 'bed') return 50;
+    return 50;
+  };
+
+  for (let x = 0; x < GRID_SIZE; x++) {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      const isBoundary = x === 0 || x === GRID_SIZE - 1 || y === 0 || y === GRID_SIZE - 1;
+      setTile(x, y, isBoundary ? 'wall' : 'floor');
+      if (isBoundary) {
+        obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+      }
+    }
   }
 
-  return { rooms, itemsToPlace };
+  selectedRoomTypes.slice(0, roomCount).forEach((roomType, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const x = offsetX + column * (roomWidth + gap);
+    const y = offsetY + row * (roomHeight + gap);
+    const x2 = x + roomWidth - 1;
+    const y2 = y + roomHeight - 1;
+    const template = roomStyles[roomType] || roomStyles.WORKSHOP;
+
+    rooms.push({
+      name: template.name,
+      x1: x,
+      y1: y,
+      x2,
+      y2,
+      color: template.color,
+      bgClass: template.bgClass,
+      type: roomType,
+    });
+
+    for (let tileX = x; tileX <= x2; tileX++) {
+      for (let tileY = y; tileY <= y2; tileY++) {
+        const isBorder = tileX === x || tileX === x2 || tileY === y || tileY === y2;
+        setTile(tileX, tileY, isBorder ? 'wall' : 'floor', roomType, template.name);
+        if (isBorder) {
+          obstacles[`${tileX},${tileY}`] = { type: 'wall', hp: 100, maxHp: 100 };
+        }
+      }
+    }
+
+    if (roomType === 'STAIRCASE') {
+      const stairsX = x + 1;
+      const stairsY = y + 1;
+      setTile(stairsX, stairsY, 'stairs', roomType, template.name);
+    } else {
+      template.furniturePositions.forEach((slot) => {
+        const furnitureX = x + 1 + slot.x;
+        const furnitureY = y + 1 + slot.y;
+        const hp = getTileHp(template.furnitureType);
+        setTile(furnitureX, furnitureY, 'furniture', roomType, template.name);
+        obstacles[`${furnitureX},${furnitureY}`] = { type: template.furnitureType, hp, maxHp: hp };
+      });
+    }
+  });
+
+  for (let x = 1; x < GRID_SIZE - 1; x++) {
+    setTile(x, Math.floor(GRID_SIZE / 2), 'accessway');
+  }
+  for (let y = 1; y < GRID_SIZE - 1; y++) {
+    setTile(Math.floor(GRID_SIZE / 2), y, 'accessway');
+  }
+  setTile(Math.floor(GRID_SIZE / 2), Math.floor(GRID_SIZE / 2), 'stairs', 'STAIRCASE', 'STAIRS');
+
+  return { rooms, floorPlan, obstacles, lootTiles: [] as { x: number; y: number; itemId: string; name: string }[] };
 };
 
 const TacticalMission = () => {
@@ -224,11 +285,7 @@ const TacticalMission = () => {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [showInventory, setShowInventory] = useState(false);
-  const [lootTiles, setLootTiles] = useState<{ x: number, y: number, itemId: string, name: string }[]>([
-    { x: 5, y: 5, itemId: 'medkit', name: 'Field Medkit' },
-    { x: 8, y: 3, itemId: 'pistol', name: 'Abandoned Handgun' },
-    { x: 2, y: 8, itemId: 'grenade', name: 'Crate of Grenades' }
-  ]);
+  const [lootTiles, setLootTiles] = useState<{ x: number, y: number, itemId: string, name: string }[]>([]);
   const [isPaused, setIsPaused] = useState(true);
   const [tick, setTick] = useState(0);
   const [unitKills, setUnitKills] = useState<Record<string, number>>({});
@@ -244,6 +301,7 @@ const TacticalMission = () => {
 
   const [obstacles, setObstacles] = useState<Record<string, ObstacleData>>({});
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [floorPlan, setFloorPlan] = useState<Record<string, FloorPlanTile>>({});
   const [mortarTargetingMode, setMortarTargetingMode] = useState(false);
 
   const hasLineOfSight = (x1: number, y1: number, x2: number, y2: number) => {
@@ -422,96 +480,18 @@ const TacticalMission = () => {
 
   // Initialize mission units
   useEffect(() => {
-    // Generate map based on building type!
     const activeMission = state.activeMission;
     const activeBuilding = activeMission ? state.buildings[activeMission.buildingId] : null;
     const buildingType = activeBuilding?.type || 'WAREHOUSE';
+    const buildingSectors = (state.baseSectors || []).filter(
+      (sector: BaseSector) => (sector.buildingId || 'player-hq') === (activeMission?.buildingId || 'player-hq')
+    );
 
-    const { rooms: genRooms, itemsToPlace } = getLayoutForBuildingType(buildingType);
+    const { rooms: genRooms, floorPlan: generatedFloorPlan, obstacles: generatedObstacles, lootTiles: generatedLootTiles } = getLayoutForBuildingType(buildingType, buildingSectors);
     setRooms(genRooms);
-
-    // Build base obstacles
-    const obs: Record<string, ObstacleData> = {};
-    const doorCoordinates = new Set(['5,3', '3,5', '5,8', '8,5']);
-    
-    // Outer walls of the 12x12 building (leave openings at y=3,8 and x=3,8)
-    for (let x = 0; x < 12; x++) {
-      if (x !== 3 && x !== 8) {
-        obs[`${x},0`] = { type: 'wall', hp: 100, maxHp: 100 };
-        obs[`${x},11`] = { type: 'wall', hp: 100, maxHp: 100 };
-      }
-    }
-    for (let y = 0; y < 12; y++) {
-      if (y !== 3 && y !== 8) {
-        obs[`0,${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
-        obs[`11,${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
-      }
-    }
-
-    // Build room perimeter walls so the layout becomes enclosed spaces with doors.
-    genRooms.forEach(room => {
-      for (let x = room.x1; x <= room.x2; x++) {
-        const topKey = `${x},${room.y1}`;
-        const bottomKey = `${x},${room.y2}`;
-        if (!doorCoordinates.has(topKey)) {
-          obs[topKey] = { type: 'wall', hp: 100, maxHp: 100 };
-        }
-        if (!doorCoordinates.has(bottomKey)) {
-          obs[bottomKey] = { type: 'wall', hp: 100, maxHp: 100 };
-        }
-      }
-      for (let y = room.y1; y <= room.y2; y++) {
-        const leftKey = `${room.x1},${y}`;
-        const rightKey = `${room.x2},${y}`;
-        if (!doorCoordinates.has(leftKey)) {
-          obs[leftKey] = { type: 'wall', hp: 100, maxHp: 100 };
-        }
-        if (!doorCoordinates.has(rightKey)) {
-          obs[rightKey] = { type: 'wall', hp: 100, maxHp: 100 };
-        }
-      }
-    });
-
-    // Recreate the door tiles as open navigable cells with a visible marker.
-    doorCoordinates.forEach(key => {
-      obs[key] = { type: 'door', hp: 0, maxHp: 0 };
-    });
-
-    // Place thematic items
-    itemsToPlace.forEach(item => {
-      let maxHp = 50;
-      if (item.type === 'generator') maxHp = 120;
-      else if (item.type === 'vat') maxHp = 80;
-      else if (item.type === 'server' || item.type === 'desk') maxHp = 60;
-      
-      obs[`${item.x},${item.y}`] = {
-        type: item.type,
-        hp: maxHp,
-        maxHp: maxHp
-      };
-    });
-
-    setObstacles(obs);
-
-    // Thematic loot placement inside rooms
-    const newLoot: { x: number, y: number, itemId: string, name: string }[] = [];
-    if (buildingType === 'FACTORY' || buildingType === 'LAB') {
-      newLoot.push({ x: 8, y: 3, itemId: 'medkit', name: 'Synth Bio-Chemicals' });
-      newLoot.push({ x: 7, y: 7, itemId: 'stim', name: 'Neuro-Stim' });
-      newLoot.push({ x: 2, y: 8, itemId: 'mat_nanites', name: 'Nanite Powder' });
-    } else if (buildingType === 'BASE') {
-      newLoot.push({ x: 9, y: 2, itemId: 'pistol', name: 'Tactical Handgun' });
-      newLoot.push({ x: 3, y: 8, itemId: 'grenade', name: 'Flash-Bang' });
-      newLoot.push({ x: 8, y: 7, itemId: 'medkit', name: 'Medi-Patch' });
-    } else if (buildingType === 'OFFICE' || buildingType === 'CLUB') {
-      newLoot.push({ x: 2, y: 2, itemId: 'mat_circuits', name: 'Microcircuits' });
-      newLoot.push({ x: 7, y: 3, itemId: 'mat_circuits', name: 'Logic Board' });
-    } else { // WAREHOUSE
-      newLoot.push({ x: 2, y: 3, itemId: 'mat_scrap', name: 'Alloys' });
-      newLoot.push({ x: 8, y: 3, itemId: 'mat_scrap', name: 'Assault Rucksack' });
-      newLoot.push({ x: 7, y: 7, itemId: 'mat_weapon_parts', name: 'Weapon Components' });
-    }
-    setLootTiles(newLoot);
+    setFloorPlan(generatedFloorPlan);
+    setObstacles(generatedObstacles);
+    setLootTiles(generatedLootTiles);
 
     const playerUnits: TacticalUnit[] = Object.values(state.units)
       .filter((u: any) => u.location === 'MISSION')
@@ -1929,33 +1909,6 @@ const TacticalMission = () => {
               />
             </div>
 
-            {/* Render Loot Tiles */}
-            {lootTiles.map((loot, idx) => (
-              <motion.div
-                key={`loot-${idx}`}
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="absolute bg-yellow-500/20 border border-yellow-500/40 rounded flex items-center justify-center overflow-hidden"
-                style={{
-                  left: loot.x * CELL_SIZE + 4,
-                  top: loot.y * CELL_SIZE + 4,
-                  width: CELL_SIZE - 8,
-                  height: CELL_SIZE - 8,
-                  transform: 'translateZ(3px)',
-                  transformStyle: 'preserve-3d',
-                  zIndex: 5,
-                }}
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="text-yellow-400"
-                >
-                  <Package size={16} />
-                </motion.div>
-              </motion.div>
-            ))}
-
             {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
               const x = i % GRID_SIZE;
               const y = Math.floor(i / GRID_SIZE);
@@ -1965,6 +1918,8 @@ const TacticalMission = () => {
               const obsData = obstacles[`${x},${y}`];
               const isObstacle = !!(obsData && obsData.hp > 0 && obsData.type !== 'door');
               const room = rooms.find(r => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
+              const tileInfo = floorPlan[`${x},${y}`];
+              const tileLabel = tileInfo?.label ?? 'floor';
 
               // Range calculations
               let isInMoveRange = false;
@@ -1985,6 +1940,14 @@ const TacticalMission = () => {
               let tileBgClass = 'bg-[#0c0e14]/50 border-[#1a1f2b]';
               if (isObstacle) {
                 tileBgClass = 'bg-[#1e293b]/20 border-[#1e293b]';
+              } else if (tileLabel === 'wall') {
+                tileBgClass = 'bg-slate-900/60 border-slate-700/40';
+              } else if (tileLabel === 'furniture') {
+                tileBgClass = 'bg-slate-800/30 border-slate-700/30';
+              } else if (tileLabel === 'accessway') {
+                tileBgClass = 'bg-slate-400/10 border-slate-600/20';
+              } else if (tileLabel === 'stairs') {
+                tileBgClass = 'bg-amber-600/20 border-amber-500/30';
               } else if (room) {
                 tileBgClass = `${room.bgClass} border-dashed border-slate-700/30`;
               } else if (destruction > 0) {
@@ -2015,6 +1978,10 @@ const TacticalMission = () => {
                   {isInAttackRange && hasLos && hasAp && (
                     <div className="absolute inset-0 border border-red-500/40 animate-pulse pointer-events-none" />
                   )}
+
+                  <span className={`absolute top-1 left-1 text-[4px] font-black uppercase tracking-[0.2em] pointer-events-none ${tileLabel === 'stairs' ? 'text-amber-200' : tileLabel === 'accessway' ? 'text-slate-300' : tileLabel === 'wall' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {tileLabel.toUpperCase()}
+                  </span>
 
                   {/* Failed Action Overlay */}
                   <AnimatePresence>
