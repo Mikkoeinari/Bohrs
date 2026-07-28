@@ -217,6 +217,15 @@ const CityMap = () => {
     startScout(building.id);
   };
 
+  const handleRaidAction = () => {
+    if (isInTransit) {
+      cancelMission();
+      dismissInfoPanel();
+    } else {
+      handleStartMission(selectedBuilding);
+    }
+  };
+
   const mission = state.activeMission;
   const isInTransit = mission?.status === 'TRANSIT' || mission?.status === 'RETURNING';
   const getTransitProgressPercent = (remaining: number, total: number) => {
@@ -1225,7 +1234,7 @@ const CityMap = () => {
 
                 {selectedBuilding.ownerId !== 'player' ? (
                   <button 
-                    onClick={isInTransit ? () => { cancelMission(); dismissInfoPanel(); } : () => handleStartMission(selectedBuilding)}
+                    onClick={handleRaidAction}
                     disabled={raidButtonDisabled}
                     className="relative w-full py-3.5 overflow-hidden bg-red-700 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-600 text-white text-[12px] font-black uppercase tracking-[0.2em] transition-all border border-red-900/50 flex items-center justify-center gap-3 group shadow-lg rounded-sm cursor-pointer"
                   >

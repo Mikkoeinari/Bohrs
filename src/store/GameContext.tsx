@@ -7,6 +7,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 
+const MIN_TRANSIT_TIME = 1;
+const DEFAULT_WALK_SPEED = 10;
+const DISTANCE_TO_TIME_MULTIPLIER = 100;
+
 export function getMaxInventorySlots(unit: Unit): number {
   let baseSlots = 3; // Base belt capacity
   if (!unit || !unit.equipment) return baseSlots;
@@ -629,34 +633,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let startPosX = activeMission.startPosX;
       let startPosY = activeMission.startPosY;
-      let currentTarget = prev.buildings[activeMission.buildingId];
+      const targetBuilding = prev.buildings[activeMission.buildingId];
       const startBuilding = fallbackBuildingId ? prev.buildings[fallbackBuildingId] : prev.buildings['player-hq'];
 
-      if (typeof startPosX === 'number' && typeof startPosY === 'number' && currentTarget) {
-        const progress = 1 - (activeMission.transitTimeRemaining / Math.max(1, activeMission.transitTimeTotal));
-        startPosX = startPosX + (currentTarget.x - startPosX) * progress;
-        startPosY = startPosY + (currentTarget.y - startPosY) * progress;
+      if (typeof startPosX === 'number' && typeof startPosY === 'number' && targetBuilding) {
+        const totalTransitTime = activeMission.transitTimeTotal > 0 ? activeMission.transitTimeTotal : MIN_TRANSIT_TIME;
+        const progress = activeMission.transitTimeRemaining <= 0 ? 1 : 1 - (activeMission.transitTimeRemaining / totalTransitTime);
+        startPosX = startPosX + (targetBuilding.x - startPosX) * progress;
+        startPosY = startPosY + (targetBuilding.y - startPosY) * progress;
       } else if (startBuilding) {
         startPosX = startBuilding.x;
         startPosY = startBuilding.y;
       }
 
       let activeVehicle = prev.activeVehicleId ? prev.vehicles[prev.activeVehicleId] : null;
-      if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== activeMission.startBuildingId) {
+      const vehicleBaseBuildingId = activeVehicle?.currentBuildingId || fallbackBuildingId;
+      if (activeVehicle && vehicleBaseBuildingId !== activeMission.startBuildingId) {
         activeVehicle = null;
       }
-      const travelSpeed = activeVehicle ? activeVehicle.stats.speed : 10;
-      const returnDistance = Math.sqrt(
-        Math.pow((startPosX ?? (startBuilding?.x ?? 0)) - (startBuilding?.x ?? 0), 2) +
-        Math.pow((startPosY ?? (startBuilding?.y ?? 0)) - (startBuilding?.y ?? 0), 2)
-      );
-      const returnTransitTime = Math.max(1, Math.round((returnDistance * 100) / travelSpeed));
+      const travelSpeed = activeVehicle ? activeVehicle.stats.speed : DEFAULT_WALK_SPEED;
+      const currentPosX = typeof startPosX === 'number' ? startPosX : (startBuilding?.x ?? prev.buildings['player-hq']?.x ?? 0);
+      const currentPosY = typeof startPosY === 'number' ? startPosY : (startBuilding?.y ?? prev.buildings['player-hq']?.y ?? 0);
+      const homeX = startBuilding?.x ?? prev.buildings['player-hq']?.x ?? 0;
+      const homeY = startBuilding?.y ?? prev.buildings['player-hq']?.y ?? 0;
+      const deltaX = currentPosX - homeX;
+      const deltaY = currentPosY - homeY;
+      const returnDistance = Math.hypot(deltaX, deltaY);
+      const returnTransitTime = Math.max(MIN_TRANSIT_TIME, Math.round((returnDistance * DISTANCE_TO_TIME_MULTIPLIER) / travelSpeed));
 
       activeMission.units.forEach(uId => {
         if (updatedUnits[uId]) {
           updatedUnits[uId] = {
             ...updatedUnits[uId],
-            location: 'TRANSIT'
+            location: 'TRANSIT',
+            currentBuildingId: undefined
           };
         }
       });
