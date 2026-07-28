@@ -56,12 +56,15 @@ export interface Room {
 const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, leftColor, rightColor, children }: any) => {
   return (
     <div 
-      className="relative pointer-events-none"
+      className="absolute pointer-events-none"
       style={{
         width: `${width}px`,
         height: `${depth}px`,
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
         transformStyle: 'preserve-3d',
-        transform: `translateZ(${height / 2}px)`
+        transformOrigin: 'center center'
       }}
     >
       {/* Top face */}
