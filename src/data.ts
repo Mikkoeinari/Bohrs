@@ -8,7 +8,7 @@ import { FactionType, Item, Technology, Building, Faction, Unit, Vehicle, Vehicl
 export const INITIAL_FACTIONS: Record<string, Faction> = {
   'player': {
     id: 'player',
-    name: 'The Bohr Rats',
+    name: 'The Black Rats',
     type: FactionType.PLAYER,
     color: '#00ff00',
     relations: { 'police': -20, 'corps': 10, 'rivals': -50 },
@@ -455,7 +455,7 @@ export const TECH_TREE: Record<string, Technology> = {
 export const VEHICLES: Record<string, Vehicle> = {
   'scouter': {
     id: 'scouter',
-    name: 'Bohr Cycle',
+    name: 'Black Cycle',
     type: 'SCOUTER',
     stats: { speed: 100, armor: 5, capacity: 1, fuelEfficiency: 1.5 },
     upgrades: [],
