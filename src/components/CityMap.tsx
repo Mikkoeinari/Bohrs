@@ -70,6 +70,12 @@ const CityMap = () => {
 
   const GRID_SIZE = 36;
   const CELL_SIZE = 75;
+  const GROUND_PLANE_DEPTH_OFFSET = 0.35;
+  const BUILDING_BASE_DEPTH_OFFSET = 0.25;
+  const PATH_ADDITIONAL_OFFSET = 0.4;
+  const SELECTION_HIGHLIGHT_OFFSET = 0.1;
+  // Keep labels slightly above the building roofs so they remain readable while the camera moves.
+  const LABEL_HEIGHT_OFFSET = 22;
 
   // Evenly spaced road axes (Grid lines where roads run every 4 cells)
   const ROAD_AXES_X = useMemo(() => new Set([0, 4, 8, 12, 16, 20, 24, 28, 32]), []);
@@ -451,7 +457,7 @@ const CityMap = () => {
                 top: -200,
                 width: GRID_SIZE * CELL_SIZE + 400,
                 height: GRID_SIZE * CELL_SIZE + 400,
-                transform: 'translateZ(-2px)',
+                transform: `translateZ(${-GROUND_PLANE_DEPTH_OFFSET}px)`,
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden'
               }}
@@ -470,7 +476,7 @@ const CityMap = () => {
             <div 
               className="absolute inset-0 bg-[#161b26] border-2 border-slate-700/60 shadow-2xl"
               style={{
-                transform: 'translateZ(0px)',
+                transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET}px)`,
                 transformStyle: 'flat'
               }}
             >
@@ -581,7 +587,7 @@ const CityMap = () => {
 
             {/* Transit Path Line */}
             {isInTransit && targetBuilding && (
-              <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: 'translateZ(2px)' }}>
+              <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET + PATH_ADDITIONAL_OFFSET}px)` }}>
                 <line 
                   x1={startPos.x * CELL_SIZE + CELL_SIZE / 2}
                   y1={startPos.y * CELL_SIZE + CELL_SIZE / 2}
@@ -600,7 +606,7 @@ const CityMap = () => {
               const tb = state.buildings[scout.buildingId];
               if (!tb) return null;
               return (
-                <svg key={`path-${scout.id}`} className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: 'translateZ(2px)' }}>
+                <svg key={`path-${scout.id}`} className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET + PATH_ADDITIONAL_OFFSET}px)` }}>
                   <line 
                     x1={scout.startPosX * CELL_SIZE + CELL_SIZE / 2}
                     y1={scout.startPosY * CELL_SIZE + CELL_SIZE / 2}
@@ -695,6 +701,7 @@ const CityMap = () => {
                     top: posY,
                     width: W,
                     height: D,
+                    transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px)`,
                     transformStyle: 'preserve-3d'
                   }}
                 >
@@ -702,7 +709,7 @@ const CityMap = () => {
                   <div 
                     className="absolute inset-0 bg-[#0f141d] border border-slate-700/80 shadow-[0_10px_30px_rgba(0,0,0,0.9)]"
                     style={{ 
-                      transform: 'translateZ(1px)'
+                      transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px)`
                     }}
                   />
 
@@ -711,7 +718,7 @@ const CityMap = () => {
                     <div 
                       className="absolute inset-[-8px] border-2 border-high-primary rounded-sm shadow-[0_0_25px_rgba(96,165,250,0.8)] animate-pulse pointer-events-none"
                       style={{ 
-                        transform: 'translateZ(2px)'
+                        transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET + SELECTION_HIGHLIGHT_OFFSET}px)`
                       }}
                     />
                   )}
@@ -728,7 +735,7 @@ const CityMap = () => {
                               : 'border-slate-700'
                         }`}
                         style={{ 
-                          transform: `translateZ(${height}px)`,
+                          transform: `translateZ(${height + BUILDING_BASE_DEPTH_OFFSET}px)`,
                           backgroundColor: isSelected 
                             ? `${faction.color}ee` 
                             : building.id === 'player-hq' 
@@ -819,15 +826,15 @@ const CityMap = () => {
                       {/* FRONT / SOUTH WALL (Facing South/Viewer) */}
                       <div 
                         className="absolute bg-[#182030] border border-slate-700/90 overflow-hidden" 
-                        style={{ 
-                          width: W, 
-                          height: height, 
-                          top: D, 
-                          left: 0, 
-                          transform: 'rotateX(-90deg)', 
-                          transformOrigin: 'top',
-                          filter: 'brightness(95%)'
-                        }} 
+                        style={{
+                         width: W,
+                         height: height,
+                         top: D,
+                         left: 0,
+                         transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateX(-90deg)`,
+                         transformOrigin: 'top',
+                         filter: 'brightness(95%)'
+                        }}
                       >
                         {/* Vertical Floors / Levels Matrix */}
                         <div className="w-full h-full flex flex-col justify-between bg-[linear-gradient(180deg,rgba(30,41,59,0.8)_0%,rgba(15,23,42,0.95)_100%)] p-0.5">
@@ -851,11 +858,11 @@ const CityMap = () => {
                           width: W, 
                           height: height, 
                           top: 0, 
-                          left: 0, 
-                          transform: 'rotateX(-90deg)', 
+                          left: 0,
+                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateX(-90deg)`,
                           transformOrigin: 'top',
                           filter: 'brightness(70%)'
-                        }} 
+                        }}
                       >
                         <div className="w-full h-full flex flex-col justify-between bg-[linear-gradient(180deg,rgba(15,23,42,0.95)_0%,rgba(30,41,59,0.8)_100%)] p-0.5">
                           {Array.from({ length: Math.max(1, level) }).map((_, floorIdx) => (
@@ -875,11 +882,11 @@ const CityMap = () => {
                           width: height, 
                           height: D, 
                           top: 0, 
-                          left: 0, 
-                          transform: 'rotateY(-90deg)', 
+                          left: 0,
+                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateY(-90deg)`,
                           transformOrigin: 'left',
                           filter: 'brightness(80%)'
-                        }} 
+                        }}
                       >
                         <div className="w-full h-full flex flex-col justify-around bg-[linear-gradient(90deg,rgba(15,23,42,0.9)_0%,rgba(30,41,59,0.85)_100%)] p-0.5">
                           {Array.from({ length: Math.max(1, level) }).map((_, floorIdx) => (
@@ -899,11 +906,11 @@ const CityMap = () => {
                           width: height, 
                           height: D, 
                           top: 0, 
-                          left: W, 
-                          transform: 'rotateY(-90deg)', 
+                          left: W,
+                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateY(-90deg)`,
                           transformOrigin: 'left',
                           filter: 'brightness(75%)'
-                        }} 
+                        }}
                       >
                         <div className="w-full h-full flex flex-col justify-around bg-[linear-gradient(90deg,rgba(30,41,59,0.85)_0%,rgba(15,23,42,0.9)_100%)] p-0.5">
                           {Array.from({ length: Math.max(1, level) }).map((_, floorIdx) => (
@@ -937,7 +944,7 @@ const CityMap = () => {
                         height: 250,
                         left: W / 2,
                         top: D / 2,
-                        transform: `translateZ(${height}px) rotateX(90deg)`,
+                        transform: `translateZ(${height + BUILDING_BASE_DEPTH_OFFSET}px) rotateX(90deg)`,
                         transformOrigin: 'bottom center',
                         boxShadow: '0 0 15px rgba(96,165,250,0.9)'
                       }}
@@ -948,10 +955,10 @@ const CityMap = () => {
                   <div 
                     className="absolute pointer-events-none transition-all duration-200"
                     style={{
-                      left: W / 2,
-                      top: 0,
-                      transform: `translate3d(-50%, -100%, ${height + 22}px) rotateZ(-${rotation}deg) rotateX(-${pitch}deg)`,
-                      transformOrigin: 'center center'
+                     left: W / 2,
+                     top: 0,
+                     transform: `translate3d(-50%, -100%, ${height + LABEL_HEIGHT_OFFSET + BUILDING_BASE_DEPTH_OFFSET}px) rotateZ(-${rotation}deg) rotateX(-${pitch}deg)`,
+                     transformOrigin: 'center center'
                     }}
                   >
                     <div className={`px-2 py-1 rounded-sm shadow-2xl backdrop-blur-md flex items-center gap-1.5 whitespace-nowrap border ${
