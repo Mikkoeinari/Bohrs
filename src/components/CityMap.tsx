@@ -257,7 +257,6 @@ const CityMap = () => {
     const sin = Math.sin(rad);
     const cos = Math.cos(rad);
     const pitchCos = Math.cos(pitchRad);
-    const pitchSin = Math.sin(pitchRad);
 
     return Object.values(state.buildings).slice().sort((a: Building, b: Building) => {
       const { footprintW: fWa, footprintH: fHa } = getDynamicBuildingSize(a, state.baseSectors || []);
@@ -270,8 +269,10 @@ const CityMap = () => {
 
       // Depth sort should account for both the orbit rotation and the tilt/pitch so the scene
       // doesn't pop or shimmer when the camera is moved.
-      const depthA = (-(centerAx * sin + centerAy * cos) * pitchCos) + (centerAy * pitchSin);
-      const depthB = (-(centerBx * sin + centerBy * cos) * pitchCos) + (centerBy * pitchSin);
+      const rotatedAxisA = centerAx * sin + centerAy * cos;
+      const rotatedAxisB = centerBx * sin + centerBy * cos;
+      const depthA = -rotatedAxisA * pitchCos;
+      const depthB = -rotatedAxisB * pitchCos;
 
       return depthA - depthB;
     });
