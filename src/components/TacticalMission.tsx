@@ -29,6 +29,7 @@ interface TacticalUnit {
   path?: {x: number, y: number}[];
   targetEnemyId?: string;
   targetObstacleCoords?: {x: number, y: number};
+  moveTarget?: {x: number, y: number};
   cooldown?: number;
   behavior?: BehavioralStance;
   specialty?: string;
@@ -1060,16 +1061,34 @@ const TacticalMission = () => {
       if (pendingAction.type === 'ATTACK') {
          const target = units.find(u => u.x === x && u.y === y && u.hp > 0);
          if (target) {
-            setUnits(prev => prev.map(u => u.id === selectedUnit.id ? {...u, targetEnemyId: target.id, targetObstacleCoords: undefined, path: []} : u));
+            setUnits(prev => prev.map(u => u.id === selectedUnit.id ? {
+              ...u,
+              targetEnemyId: target.id,
+              targetObstacleCoords: undefined,
+              moveTarget: undefined,
+              path: []
+            } : u));
             setLog(prev => [`[COMMAND] ${selectedUnit.name} targeting ${target.name}.`, ...prev]);
          } else if (isObstacle) {
-            setUnits(prev => prev.map(u => u.id === selectedUnit.id ? {...u, targetObstacleCoords: {x, y}, targetEnemyId: undefined, path: []} : u));
+            setUnits(prev => prev.map(u => u.id === selectedUnit.id ? {
+              ...u,
+              targetObstacleCoords: {x, y},
+              targetEnemyId: undefined,
+              moveTarget: undefined,
+              path: []
+            } : u));
             setLog(prev => [`[COMMAND] ${selectedUnit.name} targeting ${obs.type.toUpperCase()} wall at (${x},${y}).`, ...prev]);
          }
       } else if (pendingAction.type === 'MOVE') {
          const path = findPath(selectedUnit.x, selectedUnit.y, x, y);
          if (path.length > 0) {
-            setUnits(prev => prev.map(u => u.id === selectedUnit.id ? {...u, path, targetEnemyId: undefined, targetObstacleCoords: undefined} : u));
+            setUnits(prev => prev.map(u => u.id === selectedUnit.id ? {
+              ...u,
+              path,
+              targetEnemyId: undefined,
+              targetObstacleCoords: undefined,
+              moveTarget: { x, y }
+            } : u));
             setLog(prev => [`[COMMAND] ${selectedUnit.name} moving to ${x},${y}.`, ...prev]);
          } else {
             setLog(prev => [`[ERROR] No valid route.`, ...prev]);
@@ -1502,20 +1521,8 @@ const TacticalMission = () => {
                   u.targetEnemyId = enemiesInLos[0].id;
                 }
               }
-              // Regroup if no target and far from allies
-              if (!u.targetEnemyId && (!u.path || u.path.length === 0)) {
-                const allies = newUnits.filter(p => p.faction === 'PLAYER' && p.hp > 0 && p.id !== u.id);
-                if (allies.length > 0) {
-                  allies.sort((a, b) => (Math.abs(a.x - u.x) + Math.abs(a.y - u.y)) - (Math.abs(b.x - u.x) + Math.abs(b.y - u.y)));
-                  const closestAlly = allies[0];
-                  if (Math.abs(closestAlly.x - u.x) + Math.abs(closestAlly.y - u.y) > 3) {
-                    const p = findPath(u.x, u.y, closestAlly.x, closestAlly.y);
-                    if (p.length > 0) u.path = p.slice(0, 3);
-                  }
-                }
-              }
             } else if (stance === 'AGGRESSIVE') {
-              // AGGRESSIVE: Engage nearby enemies in sight, advance toward spotted enemies if clear.
+              // AGGRESSIVE: Engage nearby enemies in sight; leave movement to player-issued orders.
               let currentTarget = u.targetEnemyId ? aliveEnemies.find(t => t.id === u.targetEnemyId) : null;
               if (currentTarget) {
                 const dist = Math.abs(currentTarget.x - u.x) + Math.abs(currentTarget.y - u.y);
@@ -1529,13 +1536,6 @@ const TacticalMission = () => {
                 if (enemiesInLos.length > 0) {
                   enemiesInLos.sort((a, b) => (Math.abs(a.x - u.x) + Math.abs(a.y - u.y)) - (Math.abs(b.x - u.x) + Math.abs(b.y - u.y)));
                   u.targetEnemyId = enemiesInLos[0].id;
-                } else if (!u.path || u.path.length === 0) {
-                  const spotted = aliveEnemies.filter(e => spottedEnemyIds.has(e.id));
-                  if (spotted.length > 0) {
-                    spotted.sort((a, b) => (Math.abs(a.x - u.x) + Math.abs(a.y - u.y)) - (Math.abs(b.x - u.x) + Math.abs(b.y - u.y)));
-                    const p = findPath(u.x, u.y, spotted[0].x, spotted[0].y);
-                    if (p.length > 0) u.path = p;
-                  }
                 }
               }
             } else if (stance === 'AMOK') {
@@ -1576,6 +1576,10 @@ const TacticalMission = () => {
               u.ap -= moveStepAp;
               u.cooldown = Math.max(2, moveStepAp);
               u.path = u.path.slice(1);
+
+              if (u.moveTarget && u.x === u.moveTarget.x && u.y === u.moveTarget.y) {
+                u.moveTarget = undefined;
+              }
 
               // REACTION SHOT / AMBUSH: Check if stepping into opponent's line of sight triggers reaction fire
               const opposingFaction = u.faction === 'PLAYER' ? 'ENEMY' : 'PLAYER';
@@ -1931,6 +1935,31 @@ const TacticalMission = () => {
   }, [units, missionOutcome]);
 
 
+  const activeOrderTarget = useMemo(() => {
+    if (!selectedUnit) return null;
+    if (selectedUnit.moveTarget) {
+      return { type: 'MOVE' as const, x: selectedUnit.moveTarget.x, y: selectedUnit.moveTarget.y };
+    }
+
+    const targetEnemy = selectedUnit.targetEnemyId
+      ? units.find(u => u.id === selectedUnit.targetEnemyId && u.hp > 0) ?? null
+      : null;
+    if (targetEnemy) {
+      return { type: 'ATTACK_ENEMY' as const, x: targetEnemy.x, y: targetEnemy.y };
+    }
+
+    if (selectedUnit.targetObstacleCoords) {
+      const obstacleTarget = selectedUnit.targetObstacleCoords;
+      const obstacleKey = `${obstacleTarget.x},${obstacleTarget.y}`;
+      const obstacle = obstacles[obstacleKey];
+      if (obstacle && obstacle.hp > 0 && obstacle.type !== 'door') {
+        return { type: 'ATTACK_OBSTACLE' as const, x: obstacleTarget.x, y: obstacleTarget.y };
+      }
+    }
+
+    return null;
+  }, [selectedUnit, units, obstacles]);
+
   if (missionOutcome !== 'IN_PROGRESS') {
     const isVictory = missionOutcome === 'VICTORY';
     return (
@@ -2262,6 +2291,9 @@ const TacticalMission = () => {
               const room = rooms.find(r => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
               const tileInfo = floorPlan[`${x},${y}`];
               const tileLabel = tileInfo?.label ?? 'floor';
+              const targetMarkerType = activeOrderTarget && activeOrderTarget.x === x && activeOrderTarget.y === y
+                ? activeOrderTarget.type
+                : null;
 
               // Range calculations
               let isInMoveRange = false;
@@ -2359,6 +2391,23 @@ const TacticalMission = () => {
                         <div className="absolute -bottom-6 whitespace-nowrap text-[8px] font-black uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded border border-white/20">
                           Confirm {pendingAction.type}
                         </div>
+                      </motion.div>
+                    </div>
+                  )}
+
+                  {targetMarkerType && (
+                    <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0.6 }}
+                        animate={{ scale: [1, 1.1, 1], opacity: [0.8, 1, 0.8] }}
+                        transition={{ duration: 1.2, repeat: Infinity }}
+                        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center shadow-[0_0_16px_currentColor] ${
+                          targetMarkerType === 'MOVE'
+                            ? 'border-cyan-400 text-cyan-300 bg-cyan-950/80'
+                            : 'border-amber-400 text-amber-300 bg-amber-950/80'
+                        }`}
+                      >
+                        {targetMarkerType === 'MOVE' ? <Move size={16} /> : <Target size={16} />}
                       </motion.div>
                     </div>
                   )}
