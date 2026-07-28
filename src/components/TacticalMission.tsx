@@ -448,11 +448,19 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
   };
 
   const carveConnection = (fromPlacement: RoomPlacementSpec, toPlacement: RoomPlacementSpec) => {
+    const clearConnectionTile = (x: number, y: number) => {
+      setTile(x, y, 'accessway');
+      delete obstacles[`${x},${y}`];
+    };
+
     if (toPlacement.x1 >= fromPlacement.x2) {
       const corridorY = Math.round((fromPlacement.y1 + fromPlacement.y2) / 2);
       const corridorStart = fromPlacement.x2 + roomPadding;
       const corridorEnd = toPlacement.x1 - roomPadding;
       const doorX = Math.max(corridorStart, Math.min(corridorEnd, Math.floor((corridorStart + corridorEnd) / 2)));
+
+      clearConnectionTile(fromPlacement.x2, corridorY);
+      clearConnectionTile(toPlacement.x1, corridorY);
 
       for (let tileX = corridorStart; tileX <= corridorEnd; tileX++) {
         setTile(tileX, corridorY, 'accessway');
@@ -468,6 +476,9 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
       const corridorStart = fromPlacement.y2 + roomPadding;
       const corridorEnd = toPlacement.y1 - roomPadding;
       const doorY = Math.max(corridorStart, Math.min(corridorEnd, Math.floor((corridorStart + corridorEnd) / 2)));
+
+      clearConnectionTile(corridorX, fromPlacement.y2);
+      clearConnectionTile(corridorX, toPlacement.y1);
 
       for (let tileY = corridorStart; tileY <= corridorEnd; tileY++) {
         setTile(corridorX, tileY, 'accessway');
