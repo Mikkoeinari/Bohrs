@@ -8,7 +8,7 @@ import { FactionType, Item, Technology, Building, Faction, Unit, Vehicle, Vehicl
 export const INITIAL_FACTIONS: Record<string, Faction> = {
   'player': {
     id: 'player',
-    name: 'The Neon Rats',
+    name: 'The Bohr Rats',
     type: FactionType.PLAYER,
     color: '#00ff00',
     relations: { 'police': -20, 'corps': 10, 'rivals': -50 },
@@ -16,7 +16,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'police': {
     id: 'police',
-    name: 'Metropolis Enforcers',
+    name: 'District Enforcers',
     type: FactionType.POLICE,
     color: '#0000ff',
     relations: { 'player': -20 },
@@ -24,7 +24,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'rivals': {
     id: 'rivals',
-    name: 'The Chrome Skulls',
+    name: 'The Black Skulls',
     type: FactionType.ENEMY_GANG,
     color: '#ff0000',
     relations: { 'player': -50 },
@@ -32,7 +32,7 @@ export const INITIAL_FACTIONS: Record<string, Faction> = {
   },
   'corps': {
     id: 'corps',
-    name: 'Zenco Megacorp',
+    name: 'Vesper Megacorp',
     type: FactionType.CORPORATION,
     color: '#fbbf24',
     relations: { 'player': 0, 'police': 80 },
@@ -98,7 +98,7 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
     maxHealth: 5000,
     presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY']
   },
-  'corp-lab': { id: 'corp-lab', name: 'Zenco Biotech', ownerId: 'police', x: 21, y: 9, width: 3, height: 3, type: 'FACTORY', health: 2000, maxHealth: 2000, presetFacilities: ['LAB', 'WORKSHOP'] },
+  'corp-lab': { id: 'corp-lab', name: 'Vesper Biotech', ownerId: 'police', x: 21, y: 9, width: 3, height: 3, type: 'FACTORY', health: 2000, maxHealth: 2000, presetFacilities: ['LAB', 'WORKSHOP'] },
   'house-19': { id: 'house-19', name: 'Corp Plaza', ownerId: 'corps', x: 25, y: 9, width: 3, height: 3, type: 'OFFICE', health: 3000, maxHealth: 3000, presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'POWER'] },
   'house-20': { id: 'house-20', name: 'Abandoned Mall', ownerId: 'rivals', x: 29, y: 9, width: 3, height: 3, type: 'WAREHOUSE', health: 800, maxHealth: 800, presetFacilities: ['GARAGE', 'QUARTERS', 'WORKSHOP'] },
 };
@@ -455,7 +455,7 @@ export const TECH_TREE: Record<string, Technology> = {
 export const VEHICLES: Record<string, Vehicle> = {
   'scouter': {
     id: 'scouter',
-    name: 'Neon Cycle',
+    name: 'Bohr Cycle',
     type: 'SCOUTER',
     stats: { speed: 100, armor: 5, capacity: 1, fuelEfficiency: 1.5 },
     upgrades: [],

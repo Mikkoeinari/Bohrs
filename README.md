@@ -1,6 +1,6 @@
-# Neon Turf
+# Bohrs
 
-Neon Turf is a neon-drenched strategy game where you run a city-based operation, manage your base, and launch tactical missions. The game is built as a Vite + React app and is ready to play from the repository.
+Bohrs is a dystopian strategy game where you run a city-based operation, manage your base, and launch tactical missions. The game is built as a Vite + React app and is ready to play from the repository.
 
 ## Play now
 
