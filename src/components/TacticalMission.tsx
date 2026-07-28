@@ -85,7 +85,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute inset-0 border border-black/10"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(90deg) translateZ(${halfHeight}px)`
+          transform: `rotateX(90deg) translateZ(${halfDepth}px)`
         }}
       >
         {children}
@@ -96,7 +96,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute inset-0 border border-black/10"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(-90deg) translateZ(${halfHeight}px)`
+          transform: `rotateX(-90deg) translateZ(${halfDepth}px)`
         }}
       />
 
@@ -128,11 +128,11 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
       <div 
         className="absolute top-0 bottom-0 border border-black/10"
         style={{
-          width: `${depth}px`,
-          height: `${height}px`,
+          width: `${height}px`,
+          height: `${depth}px`,
           backgroundColor: leftColor,
           left: 0,
-          transform: `rotateY(-90deg) translateZ(${halfWidth}px)`,
+          transform: `rotateY(-90deg)`,
           transformOrigin: 'left'
         }}
       />
@@ -141,11 +141,11 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
       <div 
         className="absolute top-0 bottom-0 border border-black/10"
         style={{
-          width: `${depth}px`,
-          height: `${height}px`,
+          width: `${height}px`,
+          height: `${depth}px`,
           backgroundColor: rightColor,
           right: 0,
-          transform: `rotateY(90deg) translateZ(${halfWidth}px)`,
+          transform: `rotateY(90deg)`,
           transformOrigin: 'right'
         }}
       />
