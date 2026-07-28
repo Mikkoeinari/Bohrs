@@ -153,14 +153,11 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
   );
 };
 
-const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; maxHp: number }) => {
+const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType; hp: number; maxHp: number; cellSize?: number }) => {
   const palette = (() => {
     switch (type) {
       case 'wall':
         return {
-          width: 30,
-          height: 16,
-          depth: 24,
           topColor: '#64748b',
           frontColor: '#475569',
           leftColor: '#334155',
@@ -168,9 +165,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       case 'server':
         return {
-          width: 28,
-          height: 18,
-          depth: 28,
           topColor: '#0f172a',
           frontColor: '#1d4ed8',
           leftColor: '#1e3a8a',
@@ -178,9 +172,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       case 'vat':
         return {
-          width: 28,
-          height: 20,
-          depth: 26,
           topColor: '#065f46',
           frontColor: '#047857',
           leftColor: '#064e3b',
@@ -188,9 +179,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       case 'crate':
         return {
-          width: 28,
-          height: 16,
-          depth: 24,
           topColor: '#b45309',
           frontColor: '#92400e',
           leftColor: '#78350f',
@@ -198,9 +186,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       case 'desk':
         return {
-          width: 34,
-          height: 14,
-          depth: 24,
           topColor: '#4b5563',
           frontColor: '#374151',
           leftColor: '#1f2937',
@@ -208,9 +193,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       case 'generator':
         return {
-          width: 28,
-          height: 18,
-          depth: 24,
           topColor: '#7f1d1d',
           frontColor: '#991b1b',
           leftColor: '#b91c1c',
@@ -218,9 +200,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       case 'bed':
         return {
-          width: 32,
-          height: 14,
-          depth: 24,
           topColor: '#1e3a8a',
           frontColor: '#2563eb',
           leftColor: '#1d4ed8',
@@ -228,9 +207,6 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
         };
       default:
         return {
-          width: 28,
-          height: 16,
-          depth: 24,
           topColor: '#64748b',
           frontColor: '#475569',
           leftColor: '#334155',
@@ -258,25 +234,22 @@ const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; ma
     }
   })();
 
+  const footprintSize = Math.max(24, Math.round(cellSize * 0.95));
+  const voxelHeight = Math.max(18, Math.round(cellSize * 0.5));
+
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
       <VoxelCube
-        width={palette.width}
-        height={palette.height}
-        depth={palette.depth}
+        width={footprintSize}
+        height={voxelHeight}
+        depth={footprintSize}
         topColor={palette.topColor}
         frontColor={palette.frontColor}
         leftColor={palette.leftColor}
         rightColor={palette.rightColor}
       >
-        <div className={`absolute inset-[18%] rounded-[2px] ${detailClassName}`} />
+        <div className={`absolute inset-[16%] rounded-[2px] ${detailClassName}`} />
       </VoxelCube>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[60] bg-black/75 px-1.5 py-0.5 rounded border border-white/20 flex items-center gap-0.5 shadow-md scale-75">
-        <span className="text-[6px] text-amber-400 font-bold tracking-tighter leading-none">{hp}</span>
-        <div className="w-6 h-1 bg-slate-900 rounded-full overflow-hidden">
-          <div className="h-full bg-amber-500" style={{ width: `${(hp / maxHp) * 100}%` }} />
-        </div>
-      </div>
     </div>
   );
 };
@@ -2141,7 +2114,7 @@ const TacticalMission = () => {
                   )}
 
                   {isObstacle && obsData && (
-                    <ObstacleVoxel type={obsData.type} hp={obsData.hp} maxHp={obsData.maxHp} />
+                    <ObstacleVoxel type={obsData.type} hp={obsData.hp} maxHp={obsData.maxHp} cellSize={CELL_SIZE} />
                   )}
 
                   {destruction > 0 && (
