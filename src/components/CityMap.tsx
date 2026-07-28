@@ -866,7 +866,7 @@ const CityMap = () => {
                           top: 0, 
                           left: 0,
                           transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateX(-90deg)`,
-                          transformOrigin: 'top',
+                          transformOrigin: 'bottom',
                           filter: 'brightness(70%)'
                         }}
                       >
