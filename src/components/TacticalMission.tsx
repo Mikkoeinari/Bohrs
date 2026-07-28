@@ -147,6 +147,134 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
   );
 };
 
+const ObstacleVoxel = ({ type, hp, maxHp }: { type: ObstacleType; hp: number; maxHp: number }) => {
+  const palette = (() => {
+    switch (type) {
+      case 'wall':
+        return {
+          width: 30,
+          height: 16,
+          depth: 24,
+          topColor: '#64748b',
+          frontColor: '#475569',
+          leftColor: '#334155',
+          rightColor: '#64748b',
+        };
+      case 'server':
+        return {
+          width: 28,
+          height: 18,
+          depth: 28,
+          topColor: '#0f172a',
+          frontColor: '#1d4ed8',
+          leftColor: '#1e3a8a',
+          rightColor: '#2563eb',
+        };
+      case 'vat':
+        return {
+          width: 28,
+          height: 20,
+          depth: 26,
+          topColor: '#065f46',
+          frontColor: '#047857',
+          leftColor: '#064e3b',
+          rightColor: '#10b981',
+        };
+      case 'crate':
+        return {
+          width: 28,
+          height: 16,
+          depth: 24,
+          topColor: '#b45309',
+          frontColor: '#92400e',
+          leftColor: '#78350f',
+          rightColor: '#d97706',
+        };
+      case 'desk':
+        return {
+          width: 34,
+          height: 14,
+          depth: 24,
+          topColor: '#4b5563',
+          frontColor: '#374151',
+          leftColor: '#1f2937',
+          rightColor: '#6b7280',
+        };
+      case 'generator':
+        return {
+          width: 28,
+          height: 18,
+          depth: 24,
+          topColor: '#7f1d1d',
+          frontColor: '#991b1b',
+          leftColor: '#b91c1c',
+          rightColor: '#dc2626',
+        };
+      case 'bed':
+        return {
+          width: 32,
+          height: 14,
+          depth: 24,
+          topColor: '#1e3a8a',
+          frontColor: '#2563eb',
+          leftColor: '#1d4ed8',
+          rightColor: '#60a5fa',
+        };
+      default:
+        return {
+          width: 28,
+          height: 16,
+          depth: 24,
+          topColor: '#64748b',
+          frontColor: '#475569',
+          leftColor: '#334155',
+          rightColor: '#64748b',
+        };
+    }
+  })();
+
+  const detailClassName = (() => {
+    switch (type) {
+      case 'server':
+        return 'border border-cyan-300/60 bg-cyan-400/25';
+      case 'vat':
+        return 'border border-emerald-200/60 bg-emerald-300/20';
+      case 'crate':
+        return 'border border-amber-200/50 bg-amber-200/20';
+      case 'desk':
+        return 'border border-zinc-200/40 bg-zinc-100/15';
+      case 'generator':
+        return 'border border-red-200/50 bg-red-300/20';
+      case 'bed':
+        return 'border border-sky-200/50 bg-sky-100/15';
+      default:
+        return 'border border-slate-100/20 bg-slate-100/10';
+    }
+  })();
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
+      <VoxelCube
+        width={palette.width}
+        height={palette.height}
+        depth={palette.depth}
+        topColor={palette.topColor}
+        frontColor={palette.frontColor}
+        leftColor={palette.leftColor}
+        rightColor={palette.rightColor}
+      >
+        <div className={`absolute inset-[18%] rounded-[2px] ${detailClassName}`} />
+      </VoxelCube>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[60] bg-black/75 px-1.5 py-0.5 rounded border border-white/20 flex items-center gap-0.5 shadow-md scale-75">
+        <span className="text-[6px] text-amber-400 font-bold tracking-tighter leading-none">{hp}</span>
+        <div className="w-6 h-1 bg-slate-900 rounded-full overflow-hidden">
+          <div className="h-full bg-amber-500" style={{ width: `${(hp / maxHp) * 100}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MAP_GRID_SIZE = 24;
 
 type FloorTileLabel = 'floor' | 'wall' | 'furniture' | 'accessway' | 'stairs';
@@ -2007,47 +2135,7 @@ const TacticalMission = () => {
                   )}
 
                   {isObstacle && obsData && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
-                      {obsData.type === 'wall' && (
-                        <div className="w-8 h-8 rounded-sm border border-slate-500/70 bg-slate-700/70 shadow-[0_0_10px_rgba(71,85,105,0.35)]" />
-                      )}
-                      {obsData.type === 'server' && (
-                        <div className="w-8 h-8 rounded-sm border border-cyan-400/30 bg-slate-900/90 p-1 flex flex-col justify-center gap-1">
-                          <div className="h-1.5 bg-cyan-500/80 rounded-full animate-pulse" />
-                          <div className="h-1.5 bg-emerald-500/70 rounded-full" />
-                        </div>
-                      )}
-                      {obsData.type === 'vat' && (
-                        <div className="w-8 h-8 rounded-full border border-emerald-400/40 bg-emerald-900/70 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center">
-                          <div className="w-3.5 h-3.5 rounded-full bg-emerald-400/90 animate-ping" />
-                        </div>
-                      )}
-                      {obsData.type === 'crate' && (
-                        <div className="w-8 h-8 rounded-sm border border-amber-800/60 bg-amber-950/80 flex items-center justify-center text-amber-300/70 font-black text-[12px]">
-                          X
-                        </div>
-                      )}
-                      {obsData.type === 'desk' && (
-                        <div className="w-8 h-8 rounded-sm border border-zinc-600/50 bg-zinc-800/80" />
-                      )}
-                      {obsData.type === 'generator' && (
-                        <div className="w-8 h-8 rounded-sm border border-red-400/40 bg-red-950/80 flex items-center justify-center">
-                          <div className="w-3 h-3 bg-red-500 animate-pulse rounded-full shadow-[0_0_8px_#dc2626]" />
-                        </div>
-                      )}
-                      {obsData.type === 'bed' && (
-                        <div className="w-8 h-8 rounded-sm border border-sky-400/40 bg-sky-950/70 flex items-center justify-center">
-                          <div className="w-5 h-5 rounded-sm border border-white/20 bg-white/20" />
-                        </div>
-                      )}
- 
-                      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-black/80 px-1 py-0.2 rounded border border-white/20 flex items-center gap-0.5 shadow-md scale-75 z-50">
-                        <span className="text-[6px] text-amber-400 font-bold tracking-tighter leading-none">{obsData.hp}</span>
-                        <div className="w-6 h-1 bg-slate-900 rounded-full overflow-hidden">
-                          <div className="h-full bg-amber-500" style={{ width: `${(obsData.hp / obsData.maxHp) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
+                    <ObstacleVoxel type={obsData.type} hp={obsData.hp} maxHp={obsData.maxHp} />
                   )}
 
                   {destruction > 0 && (
