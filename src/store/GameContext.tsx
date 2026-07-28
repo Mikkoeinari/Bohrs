@@ -626,12 +626,37 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const fallbackBuildingId = activeMission.startBuildingId && prev.buildings[activeMission.startBuildingId]
         ? activeMission.startBuildingId
         : (playerBuilding?.id || 'player-hq');
+
+      let startPosX = activeMission.startPosX;
+      let startPosY = activeMission.startPosY;
+      let currentTarget = prev.buildings[activeMission.buildingId];
+      const startBuilding = fallbackBuildingId ? prev.buildings[fallbackBuildingId] : prev.buildings['player-hq'];
+
+      if (typeof startPosX === 'number' && typeof startPosY === 'number' && currentTarget) {
+        const progress = 1 - (activeMission.transitTimeRemaining / Math.max(1, activeMission.transitTimeTotal));
+        startPosX = startPosX + (currentTarget.x - startPosX) * progress;
+        startPosY = startPosY + (currentTarget.y - startPosY) * progress;
+      } else if (startBuilding) {
+        startPosX = startBuilding.x;
+        startPosY = startBuilding.y;
+      }
+
+      let activeVehicle = prev.activeVehicleId ? prev.vehicles[prev.activeVehicleId] : null;
+      if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== activeMission.startBuildingId) {
+        activeVehicle = null;
+      }
+      const travelSpeed = activeVehicle ? activeVehicle.stats.speed : 10;
+      const returnDistance = Math.sqrt(
+        Math.pow((startPosX ?? (startBuilding?.x ?? 0)) - (startBuilding?.x ?? 0), 2) +
+        Math.pow((startPosY ?? (startBuilding?.y ?? 0)) - (startBuilding?.y ?? 0), 2)
+      );
+      const returnTransitTime = Math.max(1, Math.round((returnDistance * 100) / travelSpeed));
+
       activeMission.units.forEach(uId => {
         if (updatedUnits[uId]) {
           updatedUnits[uId] = {
             ...updatedUnits[uId],
-            location: 'BASE',
-            currentBuildingId: fallbackBuildingId
+            location: 'TRANSIT'
           };
         }
       });
@@ -639,7 +664,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         ...prev,
         units: updatedUnits,
-        activeMission: undefined
+        activeMission: {
+          ...activeMission,
+          status: 'RETURNING',
+          transitTimeRemaining: returnTransitTime,
+          transitTimeTotal: returnTransitTime,
+          startPosX,
+          startPosY
+        }
       };
     });
   }, []);

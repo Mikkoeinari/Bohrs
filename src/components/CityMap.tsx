@@ -182,6 +182,11 @@ const CityMap = () => {
   const scoutTravelTimeMinutes = Math.round((distance * 100) / scoutTravelSpeed);
   const scoutCost = (selectedBuilding?.width || 1) * (selectedBuilding?.height || 1) * 100;
 
+  const dismissInfoPanel = () => {
+    setShowInfo(false);
+    setSelectedBuildingId(null);
+  };
+
   const handleStartMission = (building: any) => {
     let squadUnits: string[] = [];
     if (state.activeMission) {
@@ -205,6 +210,7 @@ const CityMap = () => {
       transitTimeRemaining: travelTimeMinutes,
       transitTimeTotal: travelTimeMinutes
     });
+    dismissInfoPanel();
   };
 
   const handleStartScout = (building: any) => {
@@ -1219,7 +1225,7 @@ const CityMap = () => {
 
                 {selectedBuilding.ownerId !== 'player' ? (
                   <button 
-                    onClick={isInTransit ? () => cancelMission() : () => handleStartMission(selectedBuilding)}
+                    onClick={isInTransit ? () => { cancelMission(); dismissInfoPanel(); } : () => handleStartMission(selectedBuilding)}
                     disabled={raidButtonDisabled}
                     className="relative w-full py-3.5 overflow-hidden bg-red-700 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-600 text-white text-[12px] font-black uppercase tracking-[0.2em] transition-all border border-red-900/50 flex items-center justify-center gap-3 group shadow-lg rounded-sm cursor-pointer"
                   >
