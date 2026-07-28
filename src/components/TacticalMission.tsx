@@ -95,7 +95,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute inset-0 border border-black/10"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(90deg) translateY(-${halfHeight}px) translateZ(${halfDepth}px)`
+          transform: `rotateX(90deg) translateZ(${halfHeight}px)`
         }}
       >
         {children}
@@ -106,7 +106,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute inset-0 border border-black/10"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(-90deg) translateY(-${halfHeight}px) translateZ(${halfDepth}px)`
+          transform: `rotateX(-90deg) translateZ(${halfHeight}px)`
         }}
       />
 
@@ -117,7 +117,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
           height: `${height}px`,
           backgroundColor: frontColor,
           bottom: 0,
-          transform: `translateY(-${halfHeight}px) translateZ(${halfDepth}px)`,
+          transform: `translateZ(${halfDepth}px)`,
           transformOrigin: 'bottom'
         }}
       />
@@ -129,7 +129,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
           height: `${height}px`,
           backgroundColor: frontColor,
           top: 0,
-          transform: `rotateY(180deg) translateY(-${halfHeight}px) translateZ(${halfDepth}px)`,
+          transform: `rotateY(180deg) translateZ(${halfDepth}px)`,
           transformOrigin: 'top'
         }}
       />
@@ -142,7 +142,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
           height: `${depth}px`,
           backgroundColor: leftColor,
           left: 0,
-          transform: `rotateY(-90deg)`,
+          transform: `rotateY(-90deg) translateZ(${halfWidth}px)`,
           transformOrigin: 'left'
         }}
       />
@@ -155,7 +155,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
           height: `${depth}px`,
           backgroundColor: rightColor,
           right: 0,
-          transform: `rotateY(90deg)`,
+          transform: `rotateY(90deg) translateZ(${halfWidth}px)`,
           transformOrigin: 'right'
         }}
       />
