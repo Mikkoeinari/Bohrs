@@ -1888,7 +1888,7 @@ const TacticalMission = () => {
           style={{ perspective: '2000px' }}
         >
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4a5568 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-          
+	          
           <div 
             className="relative transition-transform duration-75 ease-out pointer-events-auto will-change-transform"
             style={{
@@ -1901,13 +1901,31 @@ const TacticalMission = () => {
             }}
           >
             {/* Ground Plane */}
-            <div className="absolute inset-0 bg-[#0c0e14] border border-[#1a1f2b] shadow-[0_0_100px_rgba(0,0,0,0.5)]">
-               <div 
-                className="absolute inset-0 opacity-20" 
-                style={{ 
-                  backgroundImage: `linear-gradient(#1a1f2b 1px, transparent 1px), linear-gradient(90deg, #1a1f2b 1px, transparent 1px)`,
-                  backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`
-                }} 
+            <div
+              className="absolute inset-0 overflow-hidden rounded-sm border border-[#1a1f2b] shadow-[0_0_100px_rgba(0,0,0,0.5)]"
+              style={{
+                backgroundColor: '#0c0e14',
+                transform: 'translateZ(-1px)',
+                transformStyle: 'preserve-3d',
+              }}
+            >
+              <div
+                className="absolute inset-0 opacity-70"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px)`,
+                  backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
+                  transform: 'translateZ(0.5px)',
+                  transformStyle: 'preserve-3d',
+                }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: 'radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 70%)',
+                  transform: 'translateZ(0.75px)',
+                  transformStyle: 'preserve-3d',
+                  opacity: 0.35,
+                }}
               />
             </div>
 
@@ -1917,8 +1935,16 @@ const TacticalMission = () => {
                 key={`loot-${idx}`}
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="absolute bg-yellow-500/20 border border-yellow-500/40 rounded flex items-center justify-center overflow-hidden z-10"
-                style={{ left: loot.x * CELL_SIZE + 4, top: loot.y * CELL_SIZE + 4, width: CELL_SIZE - 8, height: CELL_SIZE - 8 }}
+                className="absolute bg-yellow-500/20 border border-yellow-500/40 rounded flex items-center justify-center overflow-hidden"
+                style={{
+                  left: loot.x * CELL_SIZE + 4,
+                  top: loot.y * CELL_SIZE + 4,
+                  width: CELL_SIZE - 8,
+                  height: CELL_SIZE - 8,
+                  transform: 'translateZ(3px)',
+                  transformStyle: 'preserve-3d',
+                  zIndex: 5,
+                }}
               >
                 <motion.div
                   animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
@@ -1977,7 +2003,9 @@ const TacticalMission = () => {
                     height: CELL_SIZE,
                     left: x * CELL_SIZE,
                     top: y * CELL_SIZE,
-                    transformStyle: 'preserve-3d'
+                    transform: 'translateZ(1px)',
+                    transformStyle: 'preserve-3d',
+                    zIndex: 1,
                   }}
                 >
                   {/* Range Highlight Border */}
@@ -2138,8 +2166,9 @@ const TacticalMission = () => {
                           : 'text-[#f56565] drop-shadow-[0_0_8px_rgba(245,101,101,0.6)]'
                       }`}
                       style={{ 
-                        transform: `rotateZ(${-rotation}deg) rotateX(${-pitch}deg) translateY(-10px)`,
-                        transformStyle: 'preserve-3d'
+                        transform: `translateZ(12px) rotateZ(${-rotation}deg) rotateX(${-pitch}deg) translateY(-10px)`,
+                        transformStyle: 'preserve-3d',
+                        zIndex: 20,
                       }}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ 
@@ -2201,13 +2230,14 @@ const TacticalMission = () => {
                 initial={{ opacity: 1, scale: 1.5, y: 0 }}
                 animate={{ opacity: 0, scale: 1, y: -35 }}
                 transition={{ duration: 0.8 }}
-                className="absolute z-40 pointer-events-none text-[13px] font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                className="absolute pointer-events-none text-[13px] font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
                 style={{
                   left: popup.x * CELL_SIZE + 10,
                   top: popup.y * CELL_SIZE,
                   color: popup.color,
-                  transform: `rotateZ(${-rotation}deg) rotateX(${-pitch}deg) translateY(-25px)`,
-                  transformStyle: 'preserve-3d'
+                  transform: `translateZ(16px) rotateZ(${-rotation}deg) rotateX(${-pitch}deg) translateY(-25px)`,
+                  transformStyle: 'preserve-3d',
+                  zIndex: 40,
                 }}
               >
                 {popup.text}
