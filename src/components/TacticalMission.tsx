@@ -65,6 +65,7 @@ interface ObstacleData {
 
 const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, leftColor, rightColor, children }: any) => {
   const halfWidth = width / 2;
+  const halfHeight = height / 2;
   const halfDepth = depth / 2;
 
   return (
@@ -84,7 +85,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute inset-0 border border-black/10"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(90deg) translateZ(${halfDepth}px)`
+          transform: `rotateX(90deg) translateZ(${halfHeight}px)`
         }}
       >
         {children}
@@ -95,7 +96,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute inset-0 border border-black/10"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(-90deg) translateZ(${halfDepth}px)`
+          transform: `rotateX(-90deg) translateZ(${halfHeight}px)`
         }}
       />
 
