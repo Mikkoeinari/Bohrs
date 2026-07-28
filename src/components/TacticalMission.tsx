@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useGame, getUnitEncumbrance } from '../store/GameContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Target, Swords, ArrowRight, User, X, ChevronLeft, ChevronRight, List, Move, Crosshair, Package, RefreshCw, Zap, Sparkles, Scale, Gauge } from 'lucide-react';
@@ -62,6 +62,14 @@ interface ObstacleData {
   hp: number;
   maxHp: number;
 }
+
+const VOXEL_MIN_FOOTPRINT_SIZE = 24;
+const VOXEL_FOOTPRINT_SIZE_SCALE = 0.95;
+const VOXEL_MIN_HEIGHT = 18;
+const VOXEL_HEIGHT_SIZE_SCALE = 0.5;
+
+const calculateVoxelDimension = (cellSize: number, scale: number, minSize: number) =>
+  Math.max(minSize, Math.round(cellSize * scale));
 
 const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, leftColor, rightColor, children }: any) => {
   const halfWidth = width / 2;
@@ -234,8 +242,13 @@ const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType;
     }
   })();
 
-  const footprintSize = Math.max(24, Math.round(cellSize * 0.95));
-  const voxelHeight = Math.max(18, Math.round(cellSize * 0.5));
+  const voxelMetrics = useMemo(() => {
+    const footprintSize = calculateVoxelDimension(cellSize, VOXEL_FOOTPRINT_SIZE_SCALE, VOXEL_MIN_FOOTPRINT_SIZE);
+    const voxelHeight = calculateVoxelDimension(cellSize, VOXEL_HEIGHT_SIZE_SCALE, VOXEL_MIN_HEIGHT);
+    return { footprintSize, voxelHeight };
+  }, [cellSize]);
+
+  const { footprintSize, voxelHeight } = voxelMetrics;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
