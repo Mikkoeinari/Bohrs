@@ -1833,6 +1833,31 @@ const TacticalMission = () => {
   }, [units, missionOutcome]);
 
 
+  const activeOrderTarget = useMemo(() => {
+    if (!selectedUnit) return null;
+    if (selectedUnit.moveTarget) {
+      return { type: 'MOVE' as const, x: selectedUnit.moveTarget.x, y: selectedUnit.moveTarget.y };
+    }
+
+    const targetEnemy = selectedUnit.targetEnemyId
+      ? units.find(u => u.id === selectedUnit.targetEnemyId && u.hp > 0) ?? null
+      : null;
+    if (targetEnemy) {
+      return { type: 'ATTACK_ENEMY' as const, x: targetEnemy.x, y: targetEnemy.y };
+    }
+
+    if (selectedUnit.targetObstacleCoords) {
+      const obstacleTarget = selectedUnit.targetObstacleCoords;
+      const obstacleKey = `${obstacleTarget.x},${obstacleTarget.y}`;
+      const obstacle = obstacles[obstacleKey];
+      if (obstacle && obstacle.hp > 0 && obstacle.type !== 'door') {
+        return { type: 'ATTACK_OBSTACLE' as const, x: obstacleTarget.x, y: obstacleTarget.y };
+      }
+    }
+
+    return null;
+  }, [selectedUnit, units, obstacles]);
+
   if (missionOutcome !== 'IN_PROGRESS') {
     const isVictory = missionOutcome === 'VICTORY';
     return (
@@ -2164,30 +2189,9 @@ const TacticalMission = () => {
               const room = rooms.find(r => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
               const tileInfo = floorPlan[`${x},${y}`];
               const tileLabel = tileInfo?.label ?? 'floor';
-              const targetMarker = (() => {
-                if (!selectedUnit) return null;
-
-                const moveTarget = selectedUnit.moveTarget;
-                if (moveTarget?.x === x && moveTarget?.y === y) {
-                  return { type: 'MOVE' as const };
-                }
-
-                const enemyTarget = selectedUnit.targetEnemyId
-                  ? units.find(u => u.id === selectedUnit.targetEnemyId && u.hp > 0)
-                  : null;
-                if (enemyTarget?.x === x && enemyTarget?.y === y) {
-                  return { type: 'ATTACK_ENEMY' as const };
-                }
-
-                const obstacleTarget = selectedUnit.targetObstacleCoords;
-                const obstacleKey = obstacleTarget ? `${obstacleTarget.x},${obstacleTarget.y}` : null;
-                const obstacle = obstacleKey ? obstacles[obstacleKey] : null;
-                if (obstacleTarget?.x === x && obstacleTarget?.y === y && obstacle && obstacle.hp > 0 && obstacle.type !== 'door') {
-                  return { type: 'ATTACK_OBSTACLE' as const };
-                }
-
-                return null;
-              })();
+              const targetMarkerType = activeOrderTarget && activeOrderTarget.x === x && activeOrderTarget.y === y
+                ? activeOrderTarget.type
+                : null;
 
               // Range calculations
               let isInMoveRange = false;
@@ -2289,19 +2293,19 @@ const TacticalMission = () => {
                     </div>
                   )}
 
-                  {targetMarker && (
-                    <div className="absolute inset-0 flex items-center justify-center z-25 pointer-events-none">
+                  {targetMarkerType && (
+                    <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
                       <motion.div
                         initial={{ scale: 0.8, opacity: 0.6 }}
                         animate={{ scale: [1, 1.1, 1], opacity: [0.8, 1, 0.8] }}
                         transition={{ duration: 1.2, repeat: Infinity }}
                         className={`w-9 h-9 rounded-full border-2 flex items-center justify-center shadow-[0_0_16px_currentColor] ${
-                          targetMarker.type === 'MOVE'
+                          targetMarkerType === 'MOVE'
                             ? 'border-cyan-400 text-cyan-300 bg-cyan-950/80'
                             : 'border-amber-400 text-amber-300 bg-amber-950/80'
                         }`}
                       >
-                        {targetMarker.type === 'MOVE' ? <Move size={16} /> : <Target size={16} />}
+                        {targetMarkerType === 'MOVE' ? <Move size={16} /> : <Target size={16} />}
                       </motion.div>
                     </div>
                   )}
