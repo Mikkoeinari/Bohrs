@@ -91,6 +91,5 @@ export function buildSoldierName(seed: string): string {
   const set = NAME_SETS['soldiers'];
   const prefixIndex = hashSeed(seed) % set.prefixes.length;
   const suffixIndex = hashSeed(`${seed}:suffix`) % set.suffixes.length;
-  const surname = suffixIndex + 1;
-  return `${set.prefixes[prefixIndex]} ${surname}`;
+  return `${set.prefixes[prefixIndex]} ${set.suffixes[suffixIndex]}`;
 }
