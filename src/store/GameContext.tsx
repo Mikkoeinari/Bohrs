@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob } from '../types';
+import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 
 export function getMaxInventorySlots(unit: Unit): number {
@@ -175,6 +175,8 @@ interface GameContextType {
   advanceTime: (minutes: number) => void;
   startMission: (mission: TacticalMission) => void;
   startScout: (buildingId: string) => void;
+  cancelMission: () => void;
+  cancelScout: (scoutId: string) => void;
   finishMission: (victory: boolean, lootItems?: Record<ItemId, number>, extraFunds?: number, updatedUnitHps?: Record<string, number>, capturedSector?: boolean, unitKills?: Record<string, number>) => void;
   buyItem: (itemId: ItemId, count: number) => void;
   startResearch: (techId: TechId) => void;
@@ -612,6 +614,41 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ]
       };
     });
+  }, []);
+
+  const cancelMission = useCallback(() => {
+    setState(prev => {
+      const activeMission = prev.activeMission;
+      if (!activeMission) return prev;
+
+      const updatedUnits = { ...prev.units };
+      const playerBuilding = Object.values(prev.buildings as Record<string, Building>).find((building: Building) => building.ownerId === 'player');
+      const fallbackBuildingId = activeMission.startBuildingId && prev.buildings[activeMission.startBuildingId]
+        ? activeMission.startBuildingId
+        : (playerBuilding?.id || 'player-hq');
+      activeMission.units.forEach(uId => {
+        if (updatedUnits[uId]) {
+          updatedUnits[uId] = {
+            ...updatedUnits[uId],
+            location: 'BASE',
+            currentBuildingId: fallbackBuildingId
+          };
+        }
+      });
+
+      return {
+        ...prev,
+        units: updatedUnits,
+        activeMission: undefined
+      };
+    });
+  }, []);
+
+  const cancelScout = useCallback((scoutId: string) => {
+    setState(prev => ({
+      ...prev,
+      activeScouts: (prev.activeScouts || []).filter(scout => scout.id !== scoutId)
+    }));
   }, []);
 
   const finishMission = useCallback((victory: boolean, lootItems?: Record<ItemId, number>, extraFunds?: number, updatedUnitHps?: Record<string, number>, capturedSector?: boolean, unitKills?: Record<string, number>) => {
@@ -1523,7 +1560,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      state, advanceTime, startMission, startScout, finishMission, buyItem, startResearch, cancelResearch, setUnitBase,
+      state, advanceTime, startMission, startScout, cancelMission, cancelScout, finishMission, buyItem, startResearch, cancelResearch, setUnitBase,
       startManufacturing, cancelManufacturing, salvageItem, equipItem, hireUnit,
       upgradeUnitSkill, trainUnitAttribute, learnUnitSkill, expandBase, buildNewFloor, repairBase, buildFacility, deconstructFacility,
       buyVehicle, upgradeVehicle, setActiveVehicle, setVehicleBase, manageUnitInventory,

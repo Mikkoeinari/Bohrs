@@ -52,7 +52,7 @@ export function getDynamicBuildingSize(building: Building, baseSectors: any[] = 
 }
 
 const CityMap = () => {
-  const { state, startMission, startScout } = useGame();
+  const { state, startMission, startScout, cancelMission, cancelScout } = useGame();
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const [hoveredBuildingId, setHoveredBuildingId] = useState<string | null>(null);
@@ -213,6 +213,12 @@ const CityMap = () => {
 
   const mission = state.activeMission;
   const isInTransit = mission?.status === 'TRANSIT' || mission?.status === 'RETURNING';
+  const getTransitProgressPercent = (remaining: number, total: number) => {
+    if (!total) return 0;
+    return Math.max(0, Math.min(100, (1 - remaining / total) * 100));
+  };
+  const raidProgressPercent = mission ? getTransitProgressPercent(mission.transitTimeRemaining, mission.transitTimeTotal) : 0;
+  const raidButtonDisabled = selectedBuilding ? (!isInTransit && selectedBuilding.health <= 0) : true;
   const targetBuilding = mission ? state.buildings[mission.buildingId] : null;
   
   let squadPos = { x: 0, y: 0 };
@@ -311,18 +317,26 @@ const CityMap = () => {
           <div className="pointer-events-auto w-64 md:w-80 flex flex-col gap-2">
             {isInTransit && mission && targetBuilding && (
               <div className="bg-slate-900/95 border-2 border-high-primary p-3 shadow-[0_0_20px_rgba(96,165,250,0.4)] backdrop-blur-md rounded-sm">
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-2 gap-2">
                   <span className="text-[10px] font-mono font-black text-white uppercase tracking-[0.2em] flex items-center gap-1.5">
                     <Truck size={12} className="text-high-primary animate-bounce" />
                     {mission.status === 'RETURNING' ? 'Squad Returning' : 'Squad in Transit'}
                   </span>
-                  <span className="text-[10px] font-mono font-black text-high-primary animate-pulse">ETA: {mission.transitTimeRemaining} MIN</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-black text-high-primary animate-pulse">ETA: {mission.transitTimeRemaining} MIN</span>
+                    <button
+                      onClick={() => cancelMission()}
+                      className="px-2 py-1 border border-high-primary/40 bg-slate-800/80 text-[8px] font-mono font-black uppercase tracking-[0.15em] text-high-primary hover:bg-slate-700 transition-colors rounded-sm"
+                    >
+                      Cancel Raid
+                    </button>
+                  </div>
                 </div>
                 <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                   <motion.div 
                     className="h-full bg-high-primary shadow-[0_0_10px_rgba(96,165,250,0.8)]"
                     initial={{ width: 0 }}
-                    animate={{ width: `${(1 - mission.transitTimeRemaining / mission.transitTimeTotal) * 100}%` }}
+                    animate={{ width: `${raidProgressPercent}%` }}
                   />
                 </div>
                 <div className="mt-2 text-[8px] font-mono text-slate-400 uppercase flex justify-between font-bold">
@@ -337,18 +351,26 @@ const CityMap = () => {
               if (!tb) return null;
               return (
                 <div key={`hud-${scout.id}`} className="bg-slate-900/95 border border-emerald-500/50 p-2 shadow-[0_0_15px_rgba(16,185,129,0.2)] backdrop-blur-md rounded-sm">
-                  <div className="flex justify-between items-center mb-1.5">
+                  <div className="flex justify-between items-center mb-1.5 gap-2">
                     <span className="text-[9px] font-mono font-bold text-emerald-400 uppercase tracking-[0.1em] flex items-center gap-1">
                       <Radio size={10} className="animate-spin text-emerald-400" />
                       Scout: {tb.name}
                     </span>
-                    <span className="text-[9px] font-mono text-emerald-400 font-bold">ETA: {scout.transitTimeRemaining}m</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-mono text-emerald-400 font-bold">ETA: {scout.transitTimeRemaining}m</span>
+                      <button
+                        onClick={() => cancelScout(scout.id)}
+                        className="px-2 py-1 border border-emerald-500/30 bg-slate-800/80 text-[8px] font-mono font-black uppercase tracking-[0.15em] text-emerald-400 hover:bg-slate-700 transition-colors rounded-sm"
+                      >
+                        Cancel Scout
+                      </button>
+                    </div>
                   </div>
                   <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
                     <motion.div 
                       className="h-full bg-emerald-500"
                       initial={{ width: 0 }}
-                      animate={{ width: `${(1 - scout.transitTimeRemaining / scout.transitTimeTotal) * 100}%` }}
+                      animate={{ width: `${getTransitProgressPercent(scout.transitTimeRemaining, scout.transitTimeTotal)}%` }}
                     />
                   </div>
                 </div>
@@ -1197,12 +1219,18 @@ const CityMap = () => {
 
                 {selectedBuilding.ownerId !== 'player' ? (
                   <button 
-                    onClick={() => handleStartMission(selectedBuilding)}
-                    disabled={selectedBuilding.health <= 0}
-                    className="w-full py-3.5 bg-red-700 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-600 text-white text-[12px] font-black uppercase tracking-[0.2em] transition-all border border-red-900/50 flex items-center justify-center gap-3 group shadow-lg rounded-sm cursor-pointer"
+                    onClick={isInTransit ? () => cancelMission() : () => handleStartMission(selectedBuilding)}
+                    disabled={raidButtonDisabled}
+                    className="relative w-full py-3.5 overflow-hidden bg-red-700 hover:bg-red-600 disabled:bg-slate-800 disabled:text-slate-600 text-white text-[12px] font-black uppercase tracking-[0.2em] transition-all border border-red-900/50 flex items-center justify-center gap-3 group shadow-lg rounded-sm cursor-pointer"
                   >
-                    <Target size={16} className="group-hover:scale-125 transition-transform" />
-                    Commence Raid
+                    <div
+                      className="absolute inset-0 bg-white/10 transition-all"
+                      style={{ width: `${isInTransit ? raidProgressPercent : 0}%` }}
+                    />
+                    <span className="relative z-10 flex items-center justify-center gap-3">
+                      <Target size={16} className="group-hover:scale-125 transition-transform" />
+                      {isInTransit ? 'Cancel Raid' : 'Commence Raid'}
+                    </span>
                   </button>
                 ) : (
                   <div className="p-4 border-2 border-dashed border-high-border text-center text-[10px] text-high-dim uppercase font-bold tracking-[0.1em] rounded-sm">
