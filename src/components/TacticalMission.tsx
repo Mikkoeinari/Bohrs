@@ -31,6 +31,7 @@ interface TacticalUnit {
   targetObstacleCoords?: {x: number, y: number};
   cooldown?: number;
   behavior?: BehavioralStance;
+  specialty?: string;
   totalWeight?: number;
   carryLimit?: number;
   movementApCost?: number;
@@ -670,6 +671,84 @@ const TacticalMission = () => {
     }
   };
 
+  const calculateEnemyLoadoutWeight = (itemIds: string[]) =>
+    itemIds.reduce((sum, itemId) => sum + (ITEMS[itemId]?.weight || 0), 0);
+
+  const createEnemyBehaviorProfile = (stance: BehavioralStance) => {
+    switch (stance) {
+      case 'AMOK': {
+        const primaryWeapon = Math.random() < 0.5 ? 'shotgun' : 'plasma_smg';
+        return {
+          stance,
+          specialty: Math.random() < 0.5 ? 'Berserker' : 'Rampager',
+          weapons: [primaryWeapon, primaryWeapon === 'shotgun' ? 'pistol' : 'smg'],
+          inventory: [Math.random() < 0.5 ? 'grenade' : 'stim'],
+          hp: 58,
+          accuracy: 58,
+          ap: 10,
+          movementApCost: 2,
+          carryLimit: 10,
+        };
+      }
+      case 'AGGRESSIVE': {
+        const primaryWeapon = Math.random() < 0.5 ? 'rifle' : 'polymer_carbine';
+        return {
+          stance,
+          specialty: Math.random() < 0.5 ? 'Rifleman' : 'Flanker',
+          weapons: [primaryWeapon, primaryWeapon === 'rifle' ? 'pistol' : 'smg'],
+          inventory: [Math.random() < 0.5 ? 'grenade' : 'stim'],
+          hp: 52,
+          accuracy: 64,
+          ap: 10,
+          movementApCost: 2,
+          carryLimit: 10,
+        };
+      }
+      case 'SUPPORT': {
+        const primaryWeapon = Math.random() < 0.5 ? 'smg' : 'plasma_smg';
+        return {
+          stance,
+          specialty: Math.random() < 0.5 ? 'Medic' : 'Field Tech',
+          weapons: [primaryWeapon, 'pistol'],
+          inventory: ['medkit', Math.random() < 0.5 ? 'stim' : 'trauma_kit'],
+          hp: 48,
+          accuracy: 56,
+          ap: 10,
+          movementApCost: 2,
+          carryLimit: 12,
+        };
+      }
+      case 'DEFENSIVE': {
+        const primaryWeapon = Math.random() < 0.5 ? 'shotgun' : 'rifle';
+        return {
+          stance,
+          specialty: Math.random() < 0.5 ? 'Bulwark' : 'Sentinel',
+          weapons: [primaryWeapon, primaryWeapon === 'shotgun' ? 'pistol' : 'smg'],
+          inventory: ['medkit', 'trauma_kit'],
+          hp: 64,
+          accuracy: 54,
+          ap: 10,
+          movementApCost: 2,
+          carryLimit: 12,
+        };
+      }
+      case 'PASSIVE': {
+        const primaryWeapon = Math.random() < 0.5 ? 'precision_rifle' : 'magnetic_rail_driver';
+        return {
+          stance,
+          specialty: Math.random() < 0.5 ? 'Marksman' : 'Sniper',
+          weapons: [primaryWeapon, 'pistol'],
+          inventory: [Math.random() < 0.5 ? 'stim' : 'medkit'],
+          hp: 44,
+          accuracy: 82,
+          ap: 10,
+          movementApCost: 2,
+          carryLimit: 10,
+        };
+      }
+    }
+  };
+
   const setUnitStance = (unitId: string, stance: BehavioralStance) => {
     setUnits(prev => prev.map(u => u.id === unitId ? { ...u, behavior: stance } : u));
     const targetUnit = units.find(u => u.id === unitId);
@@ -770,10 +849,33 @@ const TacticalMission = () => {
       });
 
     // Populate enemies: place them nicely in Quadrants
-    const enemyUnits: TacticalUnit[] = [
-     { id: 'e1', name: 'Sector Defender A', faction: 'ENEMY', x: 15, y: 10, hp: 45, maxHp: 45, ap: 10, maxAp: 10, accuracy: 52, weapons: ['pistol'], activeWeaponId: 'pistol', inventory: [], totalWeight: 4, carryLimit: 10, movementApCost: 2 },
-     { id: 'e2', name: 'Sector Defender B', faction: 'ENEMY', x: 14, y: 12, hp: 45, maxHp: 45, ap: 10, maxAp: 10, accuracy: 52, weapons: ['pistol'], activeWeaponId: 'pistol', inventory: [], totalWeight: 4, carryLimit: 10, movementApCost: 2 }
-    ];
+    const enemyUnits: TacticalUnit[] = Array.from({ length: 2 }, (_, i) => {
+      const stance = ['AMOK', 'AGGRESSIVE', 'SUPPORT', 'DEFENSIVE', 'PASSIVE'][Math.floor(Math.random() * 5)] as BehavioralStance;
+      const profile = createEnemyBehaviorProfile(stance);
+      const loadoutItems = [...profile.weapons, ...profile.inventory];
+      const totalWeight = calculateEnemyLoadoutWeight(loadoutItems);
+
+      return {
+        id: `e${i + 1}`,
+        name: `${profile.specialty} ${i + 1}`,
+        faction: 'ENEMY',
+        x: i === 0 ? 15 : 14,
+        y: i === 0 ? 10 : 12,
+        hp: profile.hp,
+        maxHp: profile.hp,
+        ap: profile.ap,
+        maxAp: profile.ap,
+        accuracy: profile.accuracy,
+        weapons: profile.weapons,
+        activeWeaponId: profile.weapons[0],
+        inventory: profile.inventory,
+        behavior: profile.stance,
+        specialty: profile.specialty,
+        totalWeight,
+        carryLimit: profile.carryLimit,
+        movementApCost: profile.movementApCost,
+      };
+    });
 
     setUnits([...playerUnits, ...enemyUnits]);
     if (playerUnits.length > 0) {
