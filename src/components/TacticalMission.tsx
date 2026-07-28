@@ -147,7 +147,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
   );
 };
 
-const GRID_SIZE = 12;
+const MAP_GRID_SIZE = 24;
 
 type FloorTileLabel = 'floor' | 'wall' | 'furniture' | 'accessway' | 'stairs';
 
@@ -171,16 +171,7 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
         : ['WORKSHOP', 'POWER', 'QUARTERS', 'STAIRCASE'];
 
   const selectedRoomTypes = roomTypes.length > 0 ? roomTypes : fallbackRoomTypes;
-  const roomCount = Math.min(selectedRoomTypes.length, 6);
-  const columns = roomCount <= 2 ? 2 : roomCount <= 4 ? 2 : 3;
-  const rows = Math.ceil(roomCount / columns);
-  const roomWidth = 3;
-  const roomHeight = 3;
-  const gap = 1;
-  const maxWidth = columns * roomWidth + (columns - 1) * gap;
-  const maxHeight = rows * roomHeight + (rows - 1) * gap;
-  const offsetX = Math.max(1, Math.floor((GRID_SIZE - maxWidth) / 2));
-  const offsetY = Math.max(1, Math.floor((GRID_SIZE - maxHeight) / 2));
+  const layoutRoomTypes = selectedRoomTypes.slice(0, 5);
 
   const rooms: Room[] = [];
   const floorPlan: Record<string, FloorPlanTile> = {};
@@ -213,29 +204,11 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
     return 50;
   };
 
-  for (let x = 0; x < GRID_SIZE; x++) {
-    for (let y = 0; y < GRID_SIZE; y++) {
-      const isBoundary = x === 0 || x === GRID_SIZE - 1 || y === 0 || y === GRID_SIZE - 1;
-      setTile(x, y, isBoundary ? 'wall' : 'floor');
-      if (isBoundary) {
-        obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
-      }
-    }
-  }
-
-  selectedRoomTypes.slice(0, roomCount).forEach((roomType, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    const x = offsetX + column * (roomWidth + gap);
-    const y = offsetY + row * (roomHeight + gap);
-    const x2 = x + roomWidth - 1;
-    const y2 = y + roomHeight - 1;
-    const template = roomStyles[roomType] || roomStyles.WORKSHOP;
-
+  const carveRoom = (x1: number, y1: number, x2: number, y2: number, roomType: string, template: { name: string; color: string; bgClass: string; furnitureType: PlacedObstacleType; furniturePositions: Array<{ x: number; y: number }> }) => {
     rooms.push({
       name: template.name,
-      x1: x,
-      y1: y,
+      x1,
+      y1,
       x2,
       y2,
       color: template.color,
@@ -243,9 +216,9 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
       type: roomType,
     });
 
-    for (let tileX = x; tileX <= x2; tileX++) {
-      for (let tileY = y; tileY <= y2; tileY++) {
-        const isBorder = tileX === x || tileX === x2 || tileY === y || tileY === y2;
+    for (let tileX = x1; tileX <= x2; tileX++) {
+      for (let tileY = y1; tileY <= y2; tileY++) {
+        const isBorder = tileX === x1 || tileX === x2 || tileY === y1 || tileY === y2;
         setTile(tileX, tileY, isBorder ? 'wall' : 'floor', roomType, template.name);
         if (isBorder) {
           obstacles[`${tileX},${tileY}`] = { type: 'wall', hp: 100, maxHp: 100 };
@@ -254,27 +227,69 @@ const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = 
     }
 
     if (roomType === 'STAIRCASE') {
-      const stairsX = x + 1;
-      const stairsY = y + 1;
+      const stairsX = x1 + 1;
+      const stairsY = y1 + 1;
       setTile(stairsX, stairsY, 'stairs', roomType, template.name);
     } else {
       template.furniturePositions.forEach((slot) => {
-        const furnitureX = x + 1 + slot.x;
-        const furnitureY = y + 1 + slot.y;
+        const furnitureX = x1 + 1 + slot.x;
+        const furnitureY = y1 + 1 + slot.y;
         const hp = getTileHp(template.furnitureType);
         setTile(furnitureX, furnitureY, 'furniture', roomType, template.name);
         obstacles[`${furnitureX},${furnitureY}`] = { type: template.furnitureType, hp, maxHp: hp };
       });
     }
+  };
+
+  const carveCorridor = (x1: number, y1: number, x2: number, y2: number) => {
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+
+    for (let tileX = minX; tileX <= maxX; tileX++) {
+      for (let tileY = minY; tileY <= maxY; tileY++) {
+        setTile(tileX, tileY, 'accessway');
+        delete obstacles[`${tileX},${tileY}`];
+      }
+    }
+  };
+
+  for (let x = 0; x < MAP_GRID_SIZE; x++) {
+    for (let y = 0; y < MAP_GRID_SIZE; y++) {
+      const isBoundary = x === 0 || x === MAP_GRID_SIZE - 1 || y === 0 || y === MAP_GRID_SIZE - 1;
+      setTile(x, y, isBoundary ? 'wall' : 'floor');
+      if (isBoundary) {
+        obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+      }
+    }
+  }
+
+  const primaryRoomType = layoutRoomTypes[0] || 'LOBBY';
+  const primaryTemplate = roomStyles[primaryRoomType] || roomStyles.LOBBY;
+  carveRoom(7, 7, 16, 14, primaryRoomType, primaryTemplate);
+
+  const secondaryRoomTypes = layoutRoomTypes.slice(1);
+  const sideRoomSpecs = [
+    { x1: 2, y1: 8, x2: 5, y2: 13, type: secondaryRoomTypes[0] || 'COMMAND' },
+    { x1: 18, y1: 8, x2: 21, y2: 13, type: secondaryRoomTypes[1] || 'LAB' },
+    { x1: 9, y1: 2, x2: 14, y2: 5, type: secondaryRoomTypes[2] || 'ARMORY' },
+    { x1: 9, y1: 16, x2: 14, y2: 19, type: secondaryRoomTypes[3] || 'INFIRMARY' },
+  ];
+
+  sideRoomSpecs.forEach((spec, index) => {
+    const roomType = secondaryRoomTypes[index] || spec.type;
+    const template = roomStyles[roomType] || roomStyles.WORKSHOP;
+    carveRoom(spec.x1, spec.y1, spec.x2, spec.y2, roomType, template);
   });
 
-  for (let x = 1; x < GRID_SIZE - 1; x++) {
-    setTile(x, Math.floor(GRID_SIZE / 2), 'accessway');
-  }
-  for (let y = 1; y < GRID_SIZE - 1; y++) {
-    setTile(Math.floor(GRID_SIZE / 2), y, 'accessway');
-  }
-  setTile(Math.floor(GRID_SIZE / 2), Math.floor(GRID_SIZE / 2), 'stairs', 'STAIRCASE', 'STAIRS');
+  carveCorridor(5, 10, 7, 10);
+  carveCorridor(16, 10, 18, 10);
+  carveCorridor(11, 5, 11, 7);
+  carveCorridor(11, 14, 11, 16);
+
+  setTile(11, 10, 'stairs', 'STAIRCASE', 'STAIRS');
+  delete obstacles['11,10'];
 
   return { rooms, floorPlan, obstacles, lootTiles: [] as { x: number; y: number; itemId: string; name: string }[] };
 };
@@ -297,7 +312,7 @@ const TacticalMission = () => {
   const [loot, setLoot] = useState<{ id: string; itemId?: string; name: string; type: string; credits?: number; secured: boolean }[]>([]);
   const [isConquerPhase, setIsConquerPhase] = useState(false);
   const [failedAction, setFailedAction] = useState<{ x: number, y: number, type: 'BLOCKED' | 'NO_AP' | 'OBSTRUCTED' } | null>(null);
-  const GRID_SIZE = 12;
+  const GRID_SIZE = MAP_GRID_SIZE;
 
   const [obstacles, setObstacles] = useState<Record<string, ObstacleData>>({});
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -512,8 +527,8 @@ const TacticalMission = () => {
           id: u.id,
           name: u.name,
           faction: 'PLAYER',
-          x: 1,
-          y: 2 + i * 2,
+          x: 8 + i,
+          y: 10,
           hp: u.stats.hp,
           maxHp: u.stats.maxHp,
           ap: calculatedMaxAp,
@@ -531,8 +546,8 @@ const TacticalMission = () => {
 
     // Populate enemies: place them nicely in Quadrants
     const enemyUnits: TacticalUnit[] = [
-      { id: 'e1', name: 'Sector Defender A', faction: 'ENEMY', x: 9, y: 3, hp: 45, maxHp: 45, ap: 10, maxAp: 10, accuracy: 52, weapons: ['pistol'], activeWeaponId: 'pistol', inventory: [], totalWeight: 4, carryLimit: 10, movementApCost: 2 },
-      { id: 'e2', name: 'Sector Defender B', faction: 'ENEMY', x: 9, y: 8, hp: 45, maxHp: 45, ap: 10, maxAp: 10, accuracy: 52, weapons: ['pistol'], activeWeaponId: 'pistol', inventory: [], totalWeight: 4, carryLimit: 10, movementApCost: 2 }
+     { id: 'e1', name: 'Sector Defender A', faction: 'ENEMY', x: 15, y: 10, hp: 45, maxHp: 45, ap: 10, maxAp: 10, accuracy: 52, weapons: ['pistol'], activeWeaponId: 'pistol', inventory: [], totalWeight: 4, carryLimit: 10, movementApCost: 2 },
+     { id: 'e2', name: 'Sector Defender B', faction: 'ENEMY', x: 14, y: 12, hp: 45, maxHp: 45, ap: 10, maxAp: 10, accuracy: 52, weapons: ['pistol'], activeWeaponId: 'pistol', inventory: [], totalWeight: 4, carryLimit: 10, movementApCost: 2 }
     ];
 
     setUnits([...playerUnits, ...enemyUnits]);
