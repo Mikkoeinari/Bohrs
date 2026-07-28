@@ -291,7 +291,7 @@ const CityMap = () => {
           <div className="pointer-events-auto flex items-center gap-3">
             <div className="bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-sm shadow-xl backdrop-blur-md flex items-center gap-2">
               <Navigation size={14} className="text-high-primary animate-pulse" />
-              <span className="text-[10px] font-mono font-black text-white uppercase tracking-widest">NEON METROPOLIS</span>
+              <span className="text-[10px] font-mono font-black text-white uppercase tracking-widest">BOHRS METROPOLITAN ZONE</span>
               <span className="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.5 border border-emerald-500/30 rounded-xs">SECTOR 09</span>
             </div>
           </div>
