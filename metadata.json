@@ -1,0 +1,6 @@
+{
+  "name": "Neon Turf",
+  "description": "An X-COM: Apocalypse style strategy game with gang management and tactical combat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

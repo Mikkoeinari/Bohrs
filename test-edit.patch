@@ -1,0 +1,16 @@
+--- src/components/TacticalMission.tsx
++++ src/components/TacticalMission.tsx
+@@ -783,16 +783,18 @@
+       </div>
+ 
+-      <div className="flex-1 flex min-h-0 relative">
++      <div className="flex-1 flex min-h-0 relative overflow-hidden">
+         {/* Combat Grid */}
+         <div 
+-          className="flex-1 bg-[#090c12] relative cursor-grab active:cursor-grabbing overflow-hidden"
++          className="absolute inset-0 bg-[#090c12] cursor-grab active:cursor-grabbing"
+           onMouseDown={handleMouseDown}
+           onWheel={handleWheel}
+           onTouchStart={handleTouchStart}
+           style={{ perspective: '2000px' }}
+         >
