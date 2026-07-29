@@ -10,6 +10,98 @@ import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, V
 const MIN_TRANSIT_TIME = 1;
 const DEFAULT_WALK_SPEED = 10;
 const DISTANCE_TO_TIME_MULTIPLIER = 100;
+const GAME_STATE_COOKIE_NAME = 'bohrs-game-state';
+const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
+const GAME_STATE_COOKIE_HEADER_MAX_SIZE_BYTES = 4_000;
+
+function createInitialGameState(): GameState {
+  return {
+    time: 0,
+    funds: 1000000,
+    factions: INITIAL_FACTIONS,
+    buildings: INITIAL_BUILDINGS,
+    units: INITIAL_UNITS,
+    inventory: {
+      'pistol': 3,
+      'smg': 2,
+      'shotgun': 1,
+      'rifle': 1,
+      'medkit': 12,
+      'trauma_kit': 3,
+      'stim': 6,
+      'grenade': 6,
+      'vest': 2,
+      'exovest': 1,
+      'helmet': 2,
+      'visor': 1,
+      'comm_band': 1,
+      'cargo_pants': 3,
+      'holster_jeans': 2,
+      'light_pouch': 2,
+      'tactical_backpack': 2,
+      'duffle_bag': 1,
+      'mat_scrap': 25,
+      'mat_circuits': 15,
+      'mat_weapon_parts': 12,
+      'mat_chemicals': 10,
+      'mat_nanites': 8,
+    },
+    unlockedTech: [],
+    researchProgress: 0,
+    manufacturingQueue: [],
+    baseStructuralIntegrity: 92,
+    baseSectors: [
+      { id: 'sec-1', name: 'Command Center', type: 'COMMAND', level: 1, buildingId: 'player-hq' },
+      { id: 'sec-2', name: 'Tech Laboratory', type: 'LAB', level: 1, buildingId: 'player-hq' },
+      { id: 'sec-3', name: 'Tactical Armory', type: 'ARMORY', level: 1, buildingId: 'player-hq' },
+      { id: 'sec-4', name: 'Med Infirmary', type: 'INFIRMARY', level: 1, buildingId: 'player-hq' },
+      { id: 'sec-5', name: 'Crew Quarters', type: 'QUARTERS', level: 1, buildingId: 'player-hq' },
+      { id: 'sec-6', name: 'Workshop Bay', type: 'WORKSHOP', level: 1, buildingId: 'player-hq' }
+    ],
+    vehicles: {},
+    unlockedVehicles: ['scouter', 'sedan', 'van'],
+  };
+}
+
+function readPersistedGameState(): GameState | null {
+  if (typeof document === 'undefined') return null;
+
+  const cookie = document.cookie
+    .split(';')
+    .map(cookiePart => cookiePart.trim())
+    .find(cookiePart => cookiePart.startsWith(`${GAME_STATE_COOKIE_NAME}=`));
+
+  if (!cookie) return null;
+
+  try {
+    const encodedState = cookie.substring(cookie.indexOf('=') + 1);
+    return JSON.parse(decodeURIComponent(encodedState)) as GameState;
+  } catch {
+    return null;
+  }
+}
+
+function persistGameState(state: GameState): boolean {
+  if (typeof document === 'undefined') return false;
+
+  const encodedState = encodeURIComponent(JSON.stringify(state));
+  const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
+
+  if (cookieHeader.length > GAME_STATE_COOKIE_HEADER_MAX_SIZE_BYTES) {
+    clearPersistedGameState();
+    console.warn('Game state exceeds the cookie size limit; clearing the persisted save.');
+    return false;
+  }
+
+  document.cookie = cookieHeader;
+  return true;
+}
+
+function clearPersistedGameState(): void {
+  if (typeof document === 'undefined') return;
+
+  document.cookie = `${GAME_STATE_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+}
 
 export function getMaxInventorySlots(unit: Unit): number {
   let baseSlots = 3; // Base belt capacity
@@ -176,6 +268,10 @@ export function getUnitEncumbrance(unit: Unit | any): {
 
 interface GameContextType {
   state: GameState;
+  isGameStarted: boolean;
+  hasSavedGame: boolean;
+  continueGame: () => void;
+  startNewGame: () => void;
   advanceTime: (minutes: number) => void;
   startMission: (mission: TacticalMission) => void;
   startScout: (buildingId: string) => void;
@@ -211,52 +307,31 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<GameState>({
-    time: 0,
-    funds: 1000000,
-    factions: INITIAL_FACTIONS,
-    buildings: INITIAL_BUILDINGS,
-    units: INITIAL_UNITS,
-    inventory: {
-      'pistol': 3,
-      'smg': 2,
-      'shotgun': 1,
-      'rifle': 1,
-      'medkit': 12,
-      'trauma_kit': 3,
-      'stim': 6,
-      'grenade': 6,
-      'vest': 2,
-      'exovest': 1,
-      'helmet': 2,
-      'visor': 1,
-      'comm_band': 1,
-      'cargo_pants': 3,
-      'holster_jeans': 2,
-      'light_pouch': 2,
-      'tactical_backpack': 2,
-      'duffle_bag': 1,
-      'mat_scrap': 25,
-      'mat_circuits': 15,
-      'mat_weapon_parts': 12,
-      'mat_chemicals': 10,
-      'mat_nanites': 8,
-    },
-    unlockedTech: [],
-    researchProgress: 0,
-    manufacturingQueue: [],
-    baseStructuralIntegrity: 92,
-    baseSectors: [
-      { id: 'sec-1', name: 'Command Center', type: 'COMMAND', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-2', name: 'Tech Laboratory', type: 'LAB', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-3', name: 'Tactical Armory', type: 'ARMORY', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-4', name: 'Med Infirmary', type: 'INFIRMARY', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-5', name: 'Crew Quarters', type: 'QUARTERS', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-6', name: 'Workshop Bay', type: 'WORKSHOP', level: 1, buildingId: 'player-hq' }
-    ],
-    vehicles: {},
-    unlockedVehicles: ['scouter', 'sedan', 'van'],
-  });
+  const [state, setState] = useState<GameState>(createInitialGameState);
+  const [isGameStarted, setIsGameStarted] = useState(false);
+  const [hasSavedGame, setHasSavedGame] = useState(() => readPersistedGameState() !== null);
+
+  const startNewGame = useCallback(() => {
+    clearPersistedGameState();
+    setHasSavedGame(false);
+    setState(createInitialGameState());
+    setIsGameStarted(true);
+  }, []);
+
+  const continueGame = useCallback(() => {
+    const persistedState = readPersistedGameState();
+    if (!persistedState) return;
+
+    setState(persistedState);
+    setIsGameStarted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isGameStarted) return;
+
+    const didPersist = persistGameState(state);
+    setHasSavedGame(didPersist);
+  }, [isGameStarted, state]);
 
   const advanceTime = useCallback((minutes: number) => {
     setState(prev => {
@@ -1602,7 +1677,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      state, advanceTime, startMission, startScout, cancelMission, cancelScout, finishMission, buyItem, startResearch, cancelResearch, setUnitBase,
+      state,
+      isGameStarted,
+      hasSavedGame,
+      continueGame,
+      startNewGame,
+      advanceTime, startMission, startScout, cancelMission, cancelScout, finishMission, buyItem, startResearch, cancelResearch, setUnitBase,
       startManufacturing, cancelManufacturing, salvageItem, equipItem, hireUnit,
       upgradeUnitSkill, trainUnitAttribute, learnUnitSkill, expandBase, buildNewFloor, repairBase, buildFacility, deconstructFacility,
       buyVehicle, upgradeVehicle, setActiveVehicle, setVehicleBase, manageUnitInventory,

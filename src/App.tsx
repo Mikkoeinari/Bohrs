@@ -17,9 +17,47 @@ import SquadManagement from './components/SquadManagement';
 import { LayoutDashboard, Map as MapIcon, FlaskConical, Hammer, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+interface StartScreenProps {
+  hasSavedGame: boolean;
+  onContinue: () => void;
+  onNewGame: () => void;
+}
+
+const StartScreen = ({ hasSavedGame, onContinue, onNewGame }: StartScreenProps) => (
+  <div className="flex min-h-[100dvh] items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.2),_transparent_40%),linear-gradient(135deg,_#020617,_#111827)] px-4 text-high-text">
+    <div className="w-full max-w-md rounded-2xl border border-high-border/80 bg-slate-950/80 p-8 shadow-2xl shadow-black/50 backdrop-blur">
+      <div className="mb-6 text-center">
+        <p className="text-[11px] font-mono uppercase tracking-[0.35em] text-high-primary">BOHRS</p>
+        <h1 className="mt-2 text-3xl font-black tracking-wider text-white">Secure Uplink Ready</h1>
+        <p className="mt-3 text-sm text-high-dim">Resume your campaign or begin a fresh operation.</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <button
+          onClick={onContinue}
+          disabled={!hasSavedGame}
+          className="rounded-lg border border-high-primary/50 bg-high-primary/20 px-4 py-3 font-mono font-black uppercase tracking-[0.2em] text-high-primary transition-all duration-200 hover:bg-high-primary/30 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900/60 disabled:text-slate-500"
+        >
+          Continue
+        </button>
+        <button
+          onClick={onNewGame}
+          className="rounded-lg border border-high-border/70 bg-slate-900/70 px-4 py-3 font-mono font-black uppercase tracking-[0.2em] text-white transition-all duration-200 hover:border-high-success/40 hover:text-high-success"
+        >
+          New Game
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const GameContent = () => {
-  const { state } = useGame();
+  const { state, isGameStarted, hasSavedGame, continueGame, startNewGame } = useGame();
   const [activeTab, setActiveTab] = useState<'CITY' | 'BASE'>('CITY');
+
+  if (!isGameStarted) {
+    return <StartScreen hasSavedGame={hasSavedGame} onContinue={continueGame} onNewGame={startNewGame} />;
+  }
 
   if (state.activeMission && state.activeMission.status !== 'TRANSIT' && state.activeMission.status !== 'RETURNING') {
     return (
