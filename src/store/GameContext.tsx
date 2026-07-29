@@ -11,7 +11,8 @@ const MIN_TRANSIT_TIME = 1;
 const DEFAULT_WALK_SPEED = 10;
 const DISTANCE_TO_TIME_MULTIPLIER = 100;
 const GAME_STATE_COOKIE_NAME = 'bohrs-game-state';
-const GAME_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
+const GAME_STATE_COOKIE_HEADER_MAX_SIZE_BYTES = 4_000;
 
 function createInitialGameState(): GameState {
   return {
@@ -80,11 +81,20 @@ function readPersistedGameState(): GameState | null {
   }
 }
 
-function persistGameState(state: GameState): void {
-  if (typeof document === 'undefined') return;
+function persistGameState(state: GameState): boolean {
+  if (typeof document === 'undefined') return false;
 
   const encodedState = encodeURIComponent(JSON.stringify(state));
-  document.cookie = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_MAX_AGE}; path=/; SameSite=Lax`;
+  const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
+
+  if (cookieHeader.length > GAME_STATE_COOKIE_HEADER_MAX_SIZE_BYTES) {
+    clearPersistedGameState();
+    console.warn('Game state exceeds the cookie size limit; clearing the persisted save.');
+    return false;
+  }
+
+  document.cookie = cookieHeader;
+  return true;
 }
 
 function clearPersistedGameState(): void {
@@ -319,8 +329,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!isGameStarted) return;
 
-    persistGameState(state);
-    setHasSavedGame(true);
+    const didPersist = persistGameState(state);
+    setHasSavedGame(didPersist);
   }, [isGameStarted, state]);
 
   const advanceTime = useCallback((minutes: number) => {

@@ -17,12 +17,18 @@ import SquadManagement from './components/SquadManagement';
 import { LayoutDashboard, Map as MapIcon, FlaskConical, Hammer, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const StartScreen = ({ hasSavedGame, onContinue, onNewGame }: { hasSavedGame: boolean, onContinue: () => void, onNewGame: () => void }) => (
+interface StartScreenProps {
+  hasSavedGame: boolean;
+  onContinue: () => void;
+  onNewGame: () => void;
+}
+
+const StartScreen = ({ hasSavedGame, onContinue, onNewGame }: StartScreenProps) => (
   <div className="flex min-h-[100dvh] items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.2),_transparent_40%),linear-gradient(135deg,_#020617,_#111827)] px-4 text-high-text">
     <div className="w-full max-w-md rounded-2xl border border-high-border/80 bg-slate-950/80 p-8 shadow-2xl shadow-black/50 backdrop-blur">
       <div className="mb-6 text-center">
         <p className="text-[11px] font-mono uppercase tracking-[0.35em] text-high-primary">BOHRS</p>
-        <h1 className="mt-2 text-3xl font-black tracking-wider text-white">Secure uplink ready</h1>
+        <h1 className="mt-2 text-3xl font-black tracking-wider text-white">Secure Uplink Ready</h1>
         <p className="mt-3 text-sm text-high-dim">Resume your campaign or begin a fresh operation.</p>
       </div>
 
