@@ -114,51 +114,37 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
 
       {/* Front face (facing South / positive Y) */}
       <div 
-        className="absolute left-0 right-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
-          height: `${cubeSize}px`,
           backgroundColor: frontColor,
-          bottom: 0,
-          transform: `translateZ(${halfCube}px)`,
-          transformOrigin: 'bottom'
+          transform: `translateZ(${halfCube}px)`
         }}
       />
 
       {/* Back face (facing North / negative Y) */}
       <div 
-        className="absolute left-0 right-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
-          height: `${cubeSize}px`,
           backgroundColor: backColor,
-          top: 0,
-          transform: `rotateY(180deg) translateZ(${halfCube}px)`,
-          transformOrigin: 'top'
+          transform: `rotateY(180deg) translateZ(${halfCube}px)`
         }}
       />
 
       {/* Left face (facing West / negative X) */}
       <div 
-        className="absolute top-0 bottom-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
-          width: `${cubeSize}px`,
-          height: `${cubeSize}px`,
           backgroundColor: leftColor,
-          left: 0,
-          transform: `rotateY(-90deg) translateZ(${halfCube}px)`,
-          transformOrigin: 'left'
+          transform: `rotateY(-90deg) translateZ(${halfCube}px)`
         }}
       />
 
       {/* Right face (facing East / positive X) */}
       <div 
-        className="absolute top-0 bottom-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
-          width: `${cubeSize}px`,
-          height: `${cubeSize}px`,
           backgroundColor: rightColor,
-          right: 0,
-          transform: `rotateY(90deg) translateZ(${halfCube}px)`,
-          transformOrigin: 'right'
+          transform: `rotateY(90deg) translateZ(${halfCube}px)`
         }}
       />
     </div>
