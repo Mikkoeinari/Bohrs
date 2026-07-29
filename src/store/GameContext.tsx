@@ -14,6 +14,21 @@ const GAME_STATE_COOKIE_NAME = 'bohrs-game-state';
 const GAME_STATE_STORAGE_KEY = 'bohrs-game-state-storage';
 const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
 const GAME_STATE_COOKIE_MARKER_VALUE = 'saved';
+// Browsers commonly enforce a ~4KB cookie limit for the full cookie string.
+const GAME_STATE_COOKIE_MAX_LENGTH = 4096;
+
+function getCookieValue(cookieName: string): string | null {
+  if (typeof document === 'undefined') return null;
+
+  const cookie = document.cookie
+    .split(';')
+    .map(cookiePart => cookiePart.trim())
+    .find(cookiePart => cookiePart.startsWith(`${cookieName}=`));
+
+  if (!cookie) return null;
+
+  return cookie.substring(cookie.indexOf('=') + 1);
+}
 
 function isGameState(value: unknown): value is GameState {
   if (!value || typeof value !== 'object') return false;
@@ -100,17 +115,11 @@ function readPersistedGameState(): GameState | null {
     console.warn('Unable to read saved game state from local storage.', error);
   }
 
-  if (typeof document === 'undefined') return null;
-
-  const cookie = document.cookie
-    .split(';')
-    .map(cookiePart => cookiePart.trim())
-    .find(cookiePart => cookiePart.startsWith(`${GAME_STATE_COOKIE_NAME}=`));
-
-  if (!cookie) return null;
+  const encodedState = getCookieValue(GAME_STATE_COOKIE_NAME);
+  if (!encodedState) return null;
 
   try {
-    const encodedState = cookie.substring(cookie.indexOf('=') + 1);
+    // Legacy saves stored only a marker value; treat that as no saved state.
     if (encodedState === GAME_STATE_COOKIE_MARKER_VALUE) return null;
 
     const parsedState = JSON.parse(decodeURIComponent(encodedState));
@@ -129,17 +138,32 @@ function readPersistedGameState(): GameState | null {
 function persistGameState(state: GameState): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
 
+  let didPersistToLocalStorage = false;
+  const serializedState = JSON.stringify(state);
+
   try {
-    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, serializedState);
+    didPersistToLocalStorage = true;
   } catch (error) {
     console.warn('Unable to persist game state in local storage; clearing the persisted save.', error);
     clearPersistedGameState();
     return false;
   }
+  const encodedState = encodeURIComponent(serializedState);
+  const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
 
-  const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${GAME_STATE_COOKIE_MARKER_VALUE}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
-  document.cookie = cookieHeader;
-  return true;
+  try {
+    if (cookieHeader.length > GAME_STATE_COOKIE_MAX_LENGTH) {
+      console.warn('Unable to persist the full game state in the cookie because it exceeds the browser cookie size limit; using local storage fallback.');
+      return didPersistToLocalStorage;
+    }
+
+    document.cookie = cookieHeader;
+    return didPersistToLocalStorage;
+  } catch (error) {
+    console.warn('Unable to persist game state in the cookie.', error);
+    return didPersistToLocalStorage;
+  }
 }
 
 function clearPersistedGameState(): void {
