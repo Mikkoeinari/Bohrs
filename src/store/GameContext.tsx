@@ -137,17 +137,16 @@ function persistGameState(state: GameState): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
 
   let didPersistToLocalStorage = false;
+  const serializedState = JSON.stringify(state);
 
   try {
-    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, serializedState);
     didPersistToLocalStorage = true;
   } catch (error) {
     console.warn('Unable to persist game state in local storage; clearing the persisted save.', error);
     clearPersistedGameState();
     return false;
   }
-
-  const serializedState = JSON.stringify(state);
   const encodedState = encodeURIComponent(serializedState);
   const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
 
