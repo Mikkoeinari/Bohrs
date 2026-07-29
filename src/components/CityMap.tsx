@@ -1276,7 +1276,7 @@ const CityMap = () => {
 
             <div className="p-3 bg-[#0a0d14] text-[8px] font-mono text-slate-500 border-t border-slate-800 flex justify-between items-center">
               <span>SECURE ACCESS LOGS</span>
-              <span className="animate-pulse text-emerald-400 font-bold">● LIVE UPLINK</span>
+              <span className="animate-pulse text-emerald-400 font-bold">● LIVE STATUS</span>
             </div>
           </motion.div>
         )}

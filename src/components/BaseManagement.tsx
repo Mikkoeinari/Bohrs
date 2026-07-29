@@ -426,7 +426,7 @@ export default function BaseManagement() {
               </button>
             )}
           </div>
-          <span className="text-[11px] text-high-primary font-black tracking-[0.2em] uppercase hidden sm:block text-glow-blue">Tactical Operations Uplink</span>
+          <span className="text-[11px] text-high-primary font-black tracking-[0.2em] uppercase hidden sm:block text-glow-blue">Tactical Operations Command</span>
         </div>
 
         <div className="flex-1 bg-high-sidebar border border-high-border p-4 overflow-y-auto custom-scrollbar flex flex-col rounded-sm shadow-md">
@@ -436,7 +436,7 @@ export default function BaseManagement() {
             </div>
             <div>
               <h2 className="text-[14px] font-black uppercase text-white tracking-tight">Central Ops & Intel</h2>
-              <p className="text-[10px] text-high-dim font-black uppercase tracking-widest mt-0.5">Security Level: MAXIMUM | Grid Link: ACTIVE</p>
+              <p className="text-[10px] text-high-dim font-black uppercase tracking-widest mt-0.5">Security Level: MAXIMUM | Command Grid: ACTIVE</p>
             </div>
           </div>
 
@@ -504,7 +504,7 @@ export default function BaseManagement() {
             {/* Diplomacy Access */}
             <div className="p-4 bg-high-card border-2 border-slate-800 flex flex-col justify-between rounded-sm shadow-sm hover:border-high-primary/40 transition-all group md:col-span-2">
               <div>
-                <h3 className="text-[12px] font-black text-white uppercase mb-2 tracking-tight group-hover:text-glow-blue transition-colors">Diplomatic Uplink</h3>
+                <h3 className="text-[12px] font-black text-white uppercase mb-2 tracking-tight group-hover:text-glow-blue transition-colors">Diplomatic Outreach</h3>
                 <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
                   Access the city's diplomatic channels. Negotiate truces, declare formal vendettas, and monitor current standing with all major Bohrs district factions.
                 </p>
