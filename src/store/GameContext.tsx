@@ -136,8 +136,11 @@ function readPersistedGameState(): GameState | null {
 function persistGameState(state: GameState): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
 
+  let didPersistToLocalStorage = false;
+
   try {
     window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(state));
+    didPersistToLocalStorage = true;
   } catch (error) {
     console.warn('Unable to persist game state in local storage; clearing the persisted save.', error);
     clearPersistedGameState();
@@ -150,15 +153,15 @@ function persistGameState(state: GameState): boolean {
 
   try {
     if (encodedState.length > GAME_STATE_COOKIE_MAX_LENGTH) {
-      console.warn('Unable to persist the full game state in the cookie because it exceeds the browser cookie size limit.');
-      return true;
+      console.warn('Unable to persist the full game state in the cookie because it exceeds the browser cookie size limit; using local storage fallback.');
+      return didPersistToLocalStorage;
     }
 
     document.cookie = cookieHeader;
-    return true;
+    return didPersistToLocalStorage;
   } catch (error) {
     console.warn('Unable to persist game state in the cookie.', error);
-    return true;
+    return didPersistToLocalStorage;
   }
 }
 
