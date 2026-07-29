@@ -11,8 +11,9 @@ const MIN_TRANSIT_TIME = 1;
 const DEFAULT_WALK_SPEED = 10;
 const DISTANCE_TO_TIME_MULTIPLIER = 100;
 const GAME_STATE_COOKIE_NAME = 'bohrs-game-state';
+const GAME_STATE_STORAGE_KEY = 'bohrs-game-state';
 const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
-const GAME_STATE_COOKIE_HEADER_MAX_SIZE_BYTES = 4_000;
+const GAME_STATE_COOKIE_MARKER_VALUE = 'saved';
 
 function createInitialGameState(): GameState {
   return {
@@ -64,6 +65,17 @@ function createInitialGameState(): GameState {
 }
 
 function readPersistedGameState(): GameState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const storedState = window.localStorage.getItem(GAME_STATE_STORAGE_KEY);
+    if (storedState) {
+      return JSON.parse(storedState) as GameState;
+    }
+  } catch {
+    // Fall back to the legacy cookie payload if local storage is unavailable.
+  }
+
   if (typeof document === 'undefined') return null;
 
   const cookie = document.cookie
@@ -75,6 +87,7 @@ function readPersistedGameState(): GameState | null {
 
   try {
     const encodedState = cookie.substring(cookie.indexOf('=') + 1);
+    if (encodedState === GAME_STATE_COOKIE_MARKER_VALUE) return null;
     return JSON.parse(decodeURIComponent(encodedState)) as GameState;
   } catch {
     return null;
@@ -82,25 +95,33 @@ function readPersistedGameState(): GameState | null {
 }
 
 function persistGameState(state: GameState): boolean {
-  if (typeof document === 'undefined') return false;
+  if (typeof window === 'undefined') return false;
 
-  const encodedState = encodeURIComponent(JSON.stringify(state));
-  const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
-
-  if (cookieHeader.length > GAME_STATE_COOKIE_HEADER_MAX_SIZE_BYTES) {
+  try {
+    window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    console.warn('Unable to persist game state in local storage; clearing the persisted save.');
     clearPersistedGameState();
-    console.warn('Game state exceeds the cookie size limit; clearing the persisted save.');
     return false;
   }
 
+  const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${GAME_STATE_COOKIE_MARKER_VALUE}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
   document.cookie = cookieHeader;
   return true;
 }
 
 function clearPersistedGameState(): void {
-  if (typeof document === 'undefined') return;
+  if (typeof window === 'undefined') return;
 
-  document.cookie = `${GAME_STATE_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  try {
+    window.localStorage.removeItem(GAME_STATE_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors while clearing the persisted save.
+  }
+
+  if (typeof document !== 'undefined') {
+    document.cookie = `${GAME_STATE_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  }
 }
 
 export function getMaxInventorySlots(unit: Unit): number {
