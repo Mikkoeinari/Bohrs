@@ -70,15 +70,14 @@ const VOXEL_FOOTPRINT_SIZE_SCALE = 1;
 const VOXEL_MIN_HEIGHT = 48;
 const VOXEL_HEIGHT_SIZE_SCALE = 1;
 const MIN_VOXEL_CUBE_SIZE = 24;
-const VOXEL_CUBE_PADDING = 8;
-const VOXEL_CUBE_Z_OFFSET = 12;
 
 const calculateVoxelDimension = (cellSize: number, scale: number, minSize: number) =>
   Math.max(minSize, Math.round(cellSize * scale));
 
 const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor, frontColor, backColor, leftColor, rightColor, children }: any) => {
-  const cubeSize = Math.max(MIN_VOXEL_CUBE_SIZE, Math.min(width, depth, height) - VOXEL_CUBE_PADDING);
+  const cubeSize = Math.max(MIN_VOXEL_CUBE_SIZE, Math.min(width, depth, height));
   const halfCube = cubeSize / 2;
+  const cubeOffsetZ = halfCube;
 
   return (
     <div 
@@ -88,7 +87,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         height: `${cubeSize}px`,
         left: '50%',
         top: '50%',
-        transform: `translate3d(-50%, -50%, ${VOXEL_CUBE_Z_OFFSET}px)`,
+        transform: `translate3d(-50%, -50%, ${cubeOffsetZ}px)`,
         transformStyle: 'preserve-3d'
       }}
     >
@@ -97,7 +96,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
           backgroundColor: topColor,
-          transform: `rotateX(90deg) translateZ(${halfCube}px)`
+          transform: `rotateX(90deg) translateZ(${halfCube}px)`,
+          boxSizing: 'border-box'
         }}
       >
         {children}
@@ -108,7 +108,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
           backgroundColor: bottomColor,
-          transform: `rotateX(-90deg) translateZ(${halfCube}px)`
+          transform: `rotateX(-90deg) translateZ(${halfCube}px)`,
+          boxSizing: 'border-box'
         }}
       />
 
@@ -117,7 +118,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
           backgroundColor: frontColor,
-          transform: `translateZ(${halfCube}px)`
+          transform: `translateZ(${halfCube}px)`,
+          boxSizing: 'border-box'
         }}
       />
 
@@ -126,7 +128,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
           backgroundColor: backColor,
-          transform: `rotateY(180deg) translateZ(${halfCube}px)`
+          transform: `rotateY(180deg) translateZ(${halfCube}px)`,
+          boxSizing: 'border-box'
         }}
       />
 
@@ -135,7 +138,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
           backgroundColor: leftColor,
-          transform: `rotateY(-90deg) translateZ(${halfCube}px)`
+          transform: `rotateY(-90deg) translateZ(${halfCube}px)`,
+          boxSizing: 'border-box'
         }}
       />
 
@@ -144,7 +148,8 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
         className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
         style={{
           backgroundColor: rightColor,
-          transform: `rotateY(90deg) translateZ(${halfCube}px)`
+          transform: `rotateY(90deg) translateZ(${halfCube}px)`,
+          boxSizing: 'border-box'
         }}
       />
     </div>
