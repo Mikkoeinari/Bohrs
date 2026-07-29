@@ -73,7 +73,7 @@ const VOXEL_HEIGHT_SIZE_SCALE = 1;
 const calculateVoxelDimension = (cellSize: number, scale: number, minSize: number) =>
   Math.max(minSize, Math.round(cellSize * scale));
 
-const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, leftColor, rightColor, children }: any) => {
+const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor, frontColor, backColor, leftColor, rightColor, children }: any) => {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const halfDepth = depth / 2;
@@ -105,7 +105,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
       <div 
         className="absolute inset-0 border border-black/10"
         style={{
-          backgroundColor: topColor,
+          backgroundColor: bottomColor,
           transform: `rotateX(-90deg) translateZ(${halfHeight}px)`
         }}
       />
@@ -127,7 +127,7 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
         className="absolute left-0 right-0 border border-black/10"
         style={{
           height: `${height}px`,
-          backgroundColor: frontColor,
+          backgroundColor: backColor,
           top: 0,
           transform: `rotateY(180deg) translateZ(${halfDepth}px)`,
           transformOrigin: 'top'
@@ -164,66 +164,14 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, frontColor, 
 };
 
 const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType; hp: number; maxHp: number; cellSize?: number }) => {
-  const palette = (() => {
-    switch (type) {
-      case 'wall':
-        return {
-          topColor: '#64748b',
-          frontColor: '#475569',
-          leftColor: '#334155',
-          rightColor: '#64748b',
-        };
-      case 'server':
-        return {
-          topColor: '#0f172a',
-          frontColor: '#1d4ed8',
-          leftColor: '#1e3a8a',
-          rightColor: '#2563eb',
-        };
-      case 'vat':
-        return {
-          topColor: '#065f46',
-          frontColor: '#047857',
-          leftColor: '#064e3b',
-          rightColor: '#10b981',
-        };
-      case 'crate':
-        return {
-          topColor: '#b45309',
-          frontColor: '#92400e',
-          leftColor: '#78350f',
-          rightColor: '#d97706',
-        };
-      case 'desk':
-        return {
-          topColor: '#4b5563',
-          frontColor: '#374151',
-          leftColor: '#1f2937',
-          rightColor: '#6b7280',
-        };
-      case 'generator':
-        return {
-          topColor: '#7f1d1d',
-          frontColor: '#991b1b',
-          leftColor: '#b91c1c',
-          rightColor: '#dc2626',
-        };
-      case 'bed':
-        return {
-          topColor: '#1e3a8a',
-          frontColor: '#2563eb',
-          leftColor: '#1d4ed8',
-          rightColor: '#60a5fa',
-        };
-      default:
-        return {
-          topColor: '#64748b',
-          frontColor: '#475569',
-          leftColor: '#334155',
-          rightColor: '#64748b',
-        };
-    }
-  })();
+  const axisColors = {
+    topColor: '#22c55e',
+    bottomColor: '#f8fafc',
+    frontColor: '#eab308',
+    backColor: '#d946ef',
+    leftColor: '#3b82f6',
+    rightColor: '#ef4444',
+  };
 
   const detailClassName = (() => {
     switch (type) {
@@ -258,10 +206,12 @@ const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType;
         width={footprintSize}
         height={voxelHeight}
         depth={footprintSize}
-        topColor={palette.topColor}
-        frontColor={palette.frontColor}
-        leftColor={palette.leftColor}
-        rightColor={palette.rightColor}
+        topColor={axisColors.topColor}
+        bottomColor={axisColors.bottomColor}
+        frontColor={axisColors.frontColor}
+        backColor={axisColors.backColor}
+        leftColor={axisColors.leftColor}
+        rightColor={axisColors.rightColor}
       >
         <div className={`absolute inset-[16%] rounded-[2px] ${detailClassName}`} />
       </VoxelCube>
