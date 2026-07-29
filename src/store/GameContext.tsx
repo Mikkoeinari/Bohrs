@@ -151,7 +151,7 @@ function persistGameState(state: GameState): boolean {
   const cookieHeader = `${GAME_STATE_COOKIE_NAME}=${encodedState}; max-age=${GAME_STATE_COOKIE_DURATION_SECONDS}; path=/; SameSite=Lax`;
 
   try {
-    if (encodedState.length > GAME_STATE_COOKIE_MAX_LENGTH) {
+    if (cookieHeader.length > GAME_STATE_COOKIE_MAX_LENGTH) {
       console.warn('Unable to persist the full game state in the cookie because it exceeds the browser cookie size limit; using local storage fallback.');
       return didPersistToLocalStorage;
     }
