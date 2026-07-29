@@ -14,7 +14,8 @@ const GAME_STATE_COOKIE_NAME = 'bohrs-game-state';
 const GAME_STATE_STORAGE_KEY = 'bohrs-game-state-storage';
 const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
 const GAME_STATE_COOKIE_MARKER_VALUE = 'saved';
-const GAME_STATE_COOKIE_MAX_LENGTH = 3900;
+// Browsers commonly enforce a ~4KB cookie limit for the full cookie string.
+const GAME_STATE_COOKIE_MAX_LENGTH = 4096;
 
 function getCookieValue(cookieName: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -118,6 +119,7 @@ function readPersistedGameState(): GameState | null {
   if (!encodedState) return null;
 
   try {
+    // Legacy saves stored only a marker value; treat that as no saved state.
     if (encodedState === GAME_STATE_COOKIE_MARKER_VALUE) return null;
 
     const parsedState = JSON.parse(decodeURIComponent(encodedState));
