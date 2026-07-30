@@ -77,7 +77,8 @@ function createInitialWorld(buildings: Record<string, Building>): GameWorld {
 
   const worldBuildings = Object.values(buildings).reduce<Record<string, GameWorld['buildings'][string]>>((accumulator, building) => {
     const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
-    const roomCount = Math.max(1, Math.ceil(footprintArea / 2));
+    const floorCount = Math.max(1, building.unlockedFloors || 1);
+    const roomCount = Math.max(1, Math.min(9, Math.round(footprintArea * Math.min(2, floorCount))));
     const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
 
     accumulator[building.id] = {
@@ -125,7 +126,8 @@ function hydrateGameState(state: GameState): GameState {
     const existingWorldBuilding = baseWorld.buildings[buildingId];
     const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
     const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
-    const roomCount = Math.max(1, Math.ceil(footprintArea / 2));
+    const floorCount = Math.max(1, building.unlockedFloors || 1);
+    const roomCount = Math.max(1, Math.min(9, Math.round(footprintArea * Math.min(2, floorCount))));
 
     accumulator[buildingId] = {
       ...(existingWorldBuilding || {}),
