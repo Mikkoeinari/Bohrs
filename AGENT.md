@@ -78,15 +78,15 @@ npm run lint
 
 ## Recommended next milestones
 The implementation should be broken into small, agent-sized steps:
-1. Add a shared world model for city and combat scenes.
-2. Replace the DOM-based city map with a Three.js scene wrapper.
-3. Render terrain, roads, and building footprints in 3D.
-4. Add building shell geometry and simple materials.
-5. Add session-scoped building damage and repair.
-6. Add a combat-mode scene with tactical UI.
-7. Add procedural interiors for active buildings.
-8. Add local civilian and vehicle simulation for nearby blocks.
-9. Add LOD and performance guardrails.
+1. [x] Add a shared world model for city and combat scenes.
+2. [x] Replace the DOM-based city map with a Three.js scene wrapper.
+3. [ ] Render terrain, roads, and building footprints in 3D.
+4. [ ] Add building shell geometry and simple materials.
+5. [ ] Add session-scoped building damage and repair.
+6. [ ] Add a combat-mode scene with tactical UI.
+7. [ ] Add procedural interiors for active buildings.
+8. [ ] Add local civilian and vehicle simulation for nearby blocks.
+9. [ ] Add LOD and performance guardrails.
 
 ## Guidance for future work
 - Prefer incremental implementation over large rewrites.

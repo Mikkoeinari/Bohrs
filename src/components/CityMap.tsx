@@ -12,6 +12,7 @@ import {
   Radio, Zap, Shield, Warehouse, Building2, Factory, Crosshair, 
   AlertTriangle, Compass, Navigation, Flame, Sun, Layers, HelpCircle
 } from 'lucide-react';
+import ThreeCityScene from './ThreeCityScene';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
   if (!building) {
@@ -307,6 +308,11 @@ const CityMap = () => {
     return { height, isDestroyed };
   };
 
+  const sceneBuildings = useMemo(() => {
+    const worldBuildings = state.world?.buildings || state.buildings || {};
+    return Object.values(worldBuildings as Record<string, Building>) as Building[];
+  }, [state.world, state.buildings]);
+
   return (
     <div 
       className="h-full w-full flex overflow-hidden bg-[#0a0d14] select-none relative touch-none font-sans"
@@ -472,6 +478,8 @@ const CityMap = () => {
         onClick={() => setSelectedBuildingId(null)}
         style={{ perspective: '2200px', perspectiveOrigin: 'center center' }}
       >
+        <ThreeCityScene buildings={sceneBuildings} selectedBuildingId={selectedBuildingId} />
+        <div className="hidden">
         {/* Subtle Ambient City Glow Background */}
         <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/30 via-slate-950 to-black" />
 
@@ -1048,6 +1056,7 @@ const CityMap = () => {
               );
             })}
           </div>
+        </div>
         </div>
       </div>
 
