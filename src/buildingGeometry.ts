@@ -30,15 +30,15 @@ export function getBuildingVisualMetrics(building: Building | null | undefined, 
   const buildingSectors = baseSectors.filter((sector) => (sector.buildingId || 'player-hq') === building.id);
   const roomCount = Math.max(1, Math.min(9, buildingSectors.length || building.presetFacilities?.length || 1));
   const level = Math.max(1, building.unlockedFloors || 1);
-  const visualFloors = Math.max(level, Math.min(9, roomCount));
+  const visualFloors = Math.max(1, Math.min(9, level));
   const floorCount = Math.max(1, Math.min(9, visualFloors));
   const heightMeters = floorCount * 5;
 
   const baseFootprintW = Math.max(1, building.width || 1);
   const baseFootprintH = Math.max(1, building.height || 1);
-  const fallbackFootprint = Math.max(baseFootprintW, baseFootprintH);
-  const footprintW = roomCount >= 9 ? 3 : fallbackFootprint;
-  const footprintH = roomCount >= 9 ? 3 : fallbackFootprint;
+  const roomBasedFootprint = Math.max(1, Math.min(3, Math.ceil(Math.sqrt(roomCount))));
+  const footprintW = Math.max(baseFootprintW, roomBasedFootprint);
+  const footprintH = Math.max(baseFootprintH, 1);
 
   const height3D = 35 + Math.max(0, floorCount - 1) * 12;
 
