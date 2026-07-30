@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 
 const MIN_TRANSIT_TIME = 1;
@@ -30,11 +30,26 @@ function getCookieValue(cookieName: string): string | null {
   return cookie.substring(cookie.indexOf('=') + 1);
 }
 
+function isRecord(entry: unknown): entry is Record<string, unknown> {
+  return entry !== null && typeof entry === 'object';
+}
+
+function isWorld(value: unknown): value is GameWorld {
+  if (!value || typeof value !== 'object') return false;
+
+  const candidate = value as Partial<GameWorld>;
+  return (
+    typeof candidate.version === 'number' &&
+    Array.isArray(candidate.terrain) &&
+    isRecord(candidate.buildings) &&
+    isRecord(candidate.agents)
+  );
+}
+
 function isGameState(value: unknown): value is GameState {
   if (!value || typeof value !== 'object') return false;
 
   const candidate = value as Partial<GameState>;
-  const isRecord = (entry: unknown): entry is Record<string, unknown> => entry !== null && typeof entry === 'object';
 
   return (
     typeof candidate.time === 'number' &&
@@ -46,12 +61,117 @@ function isGameState(value: unknown): value is GameState {
     Array.isArray(candidate.unlockedTech) &&
     candidate.unlockedTech.every((techId) => typeof techId === 'string') &&
     Array.isArray(candidate.manufacturingQueue) &&
-    candidate.manufacturingQueue.every((job) => job !== null && typeof job === 'object')
+    candidate.manufacturingQueue.every((job) => job !== null && typeof job === 'object') &&
+    (candidate.world === undefined || isWorld(candidate.world))
   );
 }
 
-function createInitialGameState(): GameState {
+function createInitialWorld(buildings: Record<string, Building>): GameWorld {
+  const terrain: GameWorld['terrain'] = Array.from({ length: 24 }, (_, index) => ({
+    id: `terrain-${index}`,
+    x: index % 6,
+    y: Math.floor(index / 6),
+    elevation: index % 4 === 0 ? 0.2 : 0,
+    type: (index % 7 === 0 ? 'ROAD' : 'GROUND') as GameWorld['terrain'][number]['type'],
+  }));
+
+  const worldBuildings = Object.values(buildings).reduce<Record<string, GameWorld['buildings'][string]>>((accumulator, building) => {
+    const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
+    const roomCount = Math.max(1, Math.ceil(footprintArea / 2));
+    const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
+
+    accumulator[building.id] = {
+      id: building.id,
+      buildingId: building.id,
+      name: building.name,
+      ownerId: building.ownerId,
+      x: building.x,
+      y: building.y,
+      width: building.width || 1,
+      height: building.height || 1,
+      type: building.type,
+      health: building.health,
+      maxHealth: building.maxHealth,
+      unlockedFloors: building.unlockedFloors,
+      presetFacilities: building.presetFacilities,
+      isScouted: building.isScouted ?? false,
+      intel: building.intel,
+      damageState: {
+        roof: Math.max(0, Math.round((1 - healthRatio) * 100)),
+        wall: 0,
+        support: Math.max(0, Math.round((1 - healthRatio) * 35)),
+      },
+      interior: {
+        active: false,
+        roomCount,
+        seed: building.id.length % 11,
+      },
+    };
+
+    return accumulator;
+  }, {});
+
   return {
+    version: 1,
+    terrain,
+    buildings: worldBuildings,
+    agents: {},
+  };
+}
+
+function hydrateGameState(state: GameState): GameState {
+  const baseWorld = state.world && isWorld(state.world) ? state.world : createInitialWorld(state.buildings);
+  const hydratedBuildings = Object.entries(state.buildings).reduce<Record<string, GameWorld['buildings'][string]>>((accumulator, [buildingId, building]) => {
+    const existingWorldBuilding = baseWorld.buildings[buildingId];
+    const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
+    const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
+    const roomCount = Math.max(1, Math.ceil(footprintArea / 2));
+
+    accumulator[buildingId] = {
+      ...(existingWorldBuilding || {}),
+      id: building.id,
+      buildingId: building.id,
+      name: building.name,
+      ownerId: building.ownerId,
+      x: building.x,
+      y: building.y,
+      width: building.width || 1,
+      height: building.height || 1,
+      type: building.type,
+      health: building.health,
+      maxHealth: building.maxHealth,
+      unlockedFloors: building.unlockedFloors,
+      presetFacilities: building.presetFacilities,
+      isScouted: building.isScouted ?? false,
+      intel: building.intel,
+      damageState: {
+        roof: existingWorldBuilding?.damageState?.roof ?? Math.max(0, Math.round((1 - healthRatio) * 100)),
+        wall: existingWorldBuilding?.damageState?.wall ?? 0,
+        support: existingWorldBuilding?.damageState?.support ?? Math.max(0, Math.round((1 - healthRatio) * 35)),
+      },
+      interior: existingWorldBuilding?.interior ?? {
+        active: false,
+        roomCount,
+        seed: building.id.length % 11,
+      },
+    };
+
+    return accumulator;
+  }, {});
+
+  return {
+    ...state,
+    world: {
+      version: 1,
+      terrain: baseWorld.terrain,
+      buildings: hydratedBuildings,
+      agents: baseWorld.agents,
+    },
+  };
+}
+
+function createInitialGameState(): GameState {
+  return hydrateGameState({
     time: 0,
     funds: 1000000,
     factions: INITIAL_FACTIONS,
@@ -96,7 +216,8 @@ function createInitialGameState(): GameState {
     ],
     vehicles: {},
     unlockedVehicles: ['scouter', 'sedan', 'van'],
-  };
+    world: createInitialWorld(INITIAL_BUILDINGS),
+  });
 }
 
 function readPersistedGameState(): GameState | null {
@@ -107,7 +228,7 @@ function readPersistedGameState(): GameState | null {
     if (storedState) {
       const parsedState = JSON.parse(storedState);
       if (isGameState(parsedState)) {
-        return parsedState;
+        return hydrateGameState(parsedState);
       }
       console.warn('Ignoring invalid persisted game state from local storage.');
     }
@@ -128,7 +249,7 @@ function readPersistedGameState(): GameState | null {
       return null;
     }
 
-    return parsedState;
+    return hydrateGameState(parsedState);
   } catch (error) {
     console.warn('Unable to read saved game state from cookie.', error);
     return null;
@@ -385,6 +506,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<GameState>(createInitialGameState);
+  const hydratedState = useMemo(() => hydrateGameState(state), [state]);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [hasSavedGame, setHasSavedGame] = useState(() => readPersistedGameState() !== null);
 
@@ -406,9 +528,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!isGameStarted) return;
 
-    const didPersist = persistGameState(state);
+    const didPersist = persistGameState(hydratedState);
     setHasSavedGame(didPersist);
-  }, [isGameStarted, state]);
+  }, [hydratedState, isGameStarted]);
 
   const advanceTime = useCallback((minutes: number) => {
     setState(prev => {
@@ -1754,7 +1876,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <GameContext.Provider value={{ 
-      state,
+      state: hydratedState,
       isGameStarted,
       hasSavedGame,
       continueGame,

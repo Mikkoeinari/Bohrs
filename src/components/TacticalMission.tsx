@@ -466,6 +466,8 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
 
 const TacticalMission = () => {
   const { state, finishMission } = useGame();
+  const activeMission = state.activeMission;
+  const activeBuilding = activeMission ? (state.world?.buildings[activeMission.buildingId] || state.buildings[activeMission.buildingId]) : null;
   const [units, setUnits] = useState<TacticalUnit[]>([]);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
@@ -747,7 +749,7 @@ const TacticalMission = () => {
   // Initialize mission units
   useEffect(() => {
     const activeMission = state.activeMission;
-    const activeBuilding = activeMission ? state.buildings[activeMission.buildingId] : null;
+    const activeBuilding = activeMission ? (state.world?.buildings[activeMission.buildingId] || state.buildings[activeMission.buildingId]) : null;
     const buildingType = activeBuilding?.type || 'WAREHOUSE';
     const buildingSectors = (state.baseSectors || []).filter(
       (sector: BaseSector) => (sector.buildingId || 'player-hq') === (activeMission?.buildingId || 'player-hq')
