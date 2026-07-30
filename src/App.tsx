@@ -28,7 +28,6 @@ const StartScreen = ({ hasSavedGame, onContinue, onNewGame }: StartScreenProps) 
     <div className="w-full max-w-md rounded-2xl border border-high-border/80 bg-slate-950/80 p-8 shadow-2xl shadow-black/50 backdrop-blur">
       <div className="mb-6 text-center">
         <p className="text-[11px] font-mono uppercase tracking-[0.35em] text-high-primary">BOHRS</p>
-        <h1 className="mt-2 text-3xl font-black tracking-wider text-white">Gang Command Ready</h1>
         <p className="mt-3 text-sm text-high-dim">Resume your campaign or begin a fresh operation.</p>
       </div>
 
@@ -86,9 +85,6 @@ const GameContent = () => {
         </div>
 
         <div className="flex gap-3 md:gap-5 items-center shrink-0">
-          <div className="hidden sm:block bg-slate-800/80 px-3 py-0.5 border border-slate-600 text-[10px] font-black text-high-success tracking-[0.1em] shadow-inner">
-            COMMAND: READY
-          </div>
           <div className="flex gap-2">
             <div className="w-3 h-3 bg-high-success/20 rounded-full border border-high-success/40"></div>
             <div className="w-3 h-3 bg-high-success rounded-full shadow-[0_0_10px_rgba(74,222,128,0.6)] animate-pulse"></div>
@@ -138,11 +134,6 @@ const GameContent = () => {
             onClick={() => setActiveTab('BASE')}
             label="COMMAND HQ"
           />
-        </div>
-        <div className="hidden sm:flex gap-8 text-[11px]">
-          <div className="flex items-center gap-2 text-high-primary font-mono tracking-widest uppercase font-black text-glow-blue">
-            COMMAND CHANNEL ACTIVE
-          </div>
         </div>
       </nav>
     </div>
