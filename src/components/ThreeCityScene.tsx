@@ -82,6 +82,117 @@ const getSceneLayout = (buildings: Building[]) => {
   };
 };
 
+const createBuildingShell = ({
+  width,
+  depth,
+  height,
+  bodyMaterial,
+  accentMaterial,
+  roofMaterial,
+  windowMaterial,
+  selectedMaterial,
+  buildingType,
+  isSelected,
+  buildingId,
+}: {
+  width: number;
+  depth: number;
+  height: number;
+  bodyMaterial: THREE.Material;
+  accentMaterial: THREE.Material;
+  roofMaterial: THREE.Material;
+  windowMaterial: THREE.Material;
+  selectedMaterial: THREE.Material;
+  buildingType: Building['type'];
+  isSelected: boolean;
+  buildingId: string;
+}) => {
+  const shellGroup = new THREE.Group();
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.94, height * 0.92, depth * 0.94),
+    isSelected ? selectedMaterial : bodyMaterial
+  );
+  shell.position.set(0, height * 0.46, 0);
+  shell.castShadow = true;
+  shell.receiveShadow = true;
+  shell.userData = { buildingId };
+  shellGroup.add(shell);
+
+  const facadeBand = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.78, Math.max(0.28, height * 0.14), depth * 0.12),
+    accentMaterial
+  );
+  facadeBand.position.set(0, height * 0.44, depth / 2 + 0.06);
+  shellGroup.add(facadeBand);
+
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.92, 0.16, depth * 0.92),
+    roofMaterial
+  );
+  roof.position.set(0, height + 0.08, 0);
+  shellGroup.add(roof);
+
+  if (buildingType === 'OFFICE') {
+    const spire = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.22, height * 0.18, depth * 0.22),
+      accentMaterial
+    );
+    spire.position.set(0, height + 0.16, 0);
+    shellGroup.add(spire);
+  } else if (buildingType === 'BASE') {
+    const tower = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.28, height * 0.24, depth * 0.28),
+      accentMaterial
+    );
+    tower.position.set(0, height + 0.12, 0);
+    shellGroup.add(tower);
+  } else if (buildingType === 'WAREHOUSE') {
+    const overhang = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 1.06, 0.16, depth * 1.06),
+      roofMaterial
+    );
+    overhang.position.set(0, height + 0.08, 0);
+    shellGroup.add(overhang);
+  } else if (buildingType === 'FACTORY') {
+    const stack = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.16, height * 0.22, depth * 0.16),
+      accentMaterial
+    );
+    stack.position.set(width * 0.28, height * 0.45, depth * 0.28);
+    shellGroup.add(stack);
+  } else if (buildingType === 'CLUB') {
+    const canopy = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.9, 0.16, depth * 0.22),
+      accentMaterial
+    );
+    canopy.position.set(0, height + 0.1, depth * 0.38);
+    shellGroup.add(canopy);
+  }
+
+  const windowCount = Math.max(2, Math.min(6, Math.round(height / 1.2)));
+  for (let index = 0; index < windowCount; index += 1) {
+    const windowOffset = (index - (windowCount - 1) / 2) * 0.5;
+    const window = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.2, width * 0.15), 0.14, 0.04),
+      windowMaterial
+    );
+    window.position.set(windowOffset, height * 0.28, depth / 2 + 0.06);
+    shellGroup.add(window);
+  }
+
+  const accentMarker = new THREE.Mesh(
+    new THREE.BoxGeometry(Math.max(0.18, width * 0.08), Math.max(0.18, height * 0.08), Math.max(0.18, depth * 0.08)),
+    accentMaterial
+  );
+  accentMarker.position.set(0, height * 0.2, -depth / 2 + 0.06);
+  shellGroup.add(accentMarker);
+
+  return {
+    shellGroup,
+    selectableMesh: shell,
+  };
+};
+
 const buildLabelTexture = (name: string, accentColor: string, selected: boolean) => {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -515,82 +626,22 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       base.receiveShadow = true;
       buildingGroup.add(base);
 
-      const shellGroup = new THREE.Group();
-      shellGroup.position.set(x, 0, z);
-      buildingGroup.add(shellGroup);
-
-      const shell = new THREE.Mesh(
-        new THREE.BoxGeometry(width * 0.94, height * 0.92, depth * 0.94),
-        isSelected ? selectedMaterial : bodyMaterial
-      );
-      shell.position.set(0, height * 0.46, 0);
-      shell.castShadow = true;
-      shell.receiveShadow = true;
-      shell.userData = { buildingId: building.id };
-      shellGroup.add(shell);
-      buildingMeshesRef.current.push(shell);
-
-      const facadeBand = new THREE.Mesh(
-        new THREE.BoxGeometry(width * 0.78, Math.max(0.28, height * 0.14), depth * 0.12),
-        accentMaterial
-      );
-      facadeBand.position.set(0, height * 0.44, depth / 2 + 0.06);
-      shellGroup.add(facadeBand);
-
-      const roof = new THREE.Mesh(
-        new THREE.BoxGeometry(width * 0.92, 0.16, depth * 0.92),
-        roofMaterial
-      );
-      roof.position.set(0, height + 0.08, 0);
-      shellGroup.add(roof);
-
-      if (buildingType === 'OFFICE') {
-        const spire = new THREE.Mesh(
-          new THREE.BoxGeometry(width * 0.22, height * 0.18, depth * 0.22),
-          accentMaterial
-        );
-        spire.position.set(0, height + 0.16, 0);
-        shellGroup.add(spire);
-      } else if (buildingType === 'BASE') {
-        const tower = new THREE.Mesh(
-          new THREE.BoxGeometry(width * 0.28, height * 0.24, depth * 0.28),
-          accentMaterial
-        );
-        tower.position.set(0, height + 0.12, 0);
-        shellGroup.add(tower);
-      } else if (buildingType === 'WAREHOUSE') {
-        const overhang = new THREE.Mesh(
-          new THREE.BoxGeometry(width * 1.06, 0.16, depth * 1.06),
-          roofMaterial
-        );
-        overhang.position.set(0, height + 0.08, 0);
-        shellGroup.add(overhang);
-      } else if (buildingType === 'FACTORY') {
-        const stack = new THREE.Mesh(
-          new THREE.BoxGeometry(width * 0.16, height * 0.22, depth * 0.16),
-          accentMaterial
-        );
-        stack.position.set(width * 0.28, height * 0.45, depth * 0.28);
-        shellGroup.add(stack);
-      } else if (buildingType === 'CLUB') {
-        const canopy = new THREE.Mesh(
-          new THREE.BoxGeometry(width * 0.9, 0.16, depth * 0.22),
-          accentMaterial
-        );
-        canopy.position.set(0, height + 0.1, depth * 0.38);
-        shellGroup.add(canopy);
-      }
-
-      const windowCount = Math.max(2, Math.min(6, Math.round(height / 1.2)));
-      for (let index = 0; index < windowCount; index += 1) {
-        const windowOffset = (index - (windowCount - 1) / 2) * 0.5;
-        const window = new THREE.Mesh(
-          new THREE.BoxGeometry(Math.max(0.2, width * 0.15), 0.14, 0.04),
-          windowMaterial
-        );
-        window.position.set(windowOffset, height * 0.28, depth / 2 + 0.06);
-        shellGroup.add(window);
-      }
+      const shellGroup = createBuildingShell({
+        width,
+        depth,
+        height,
+        bodyMaterial,
+        accentMaterial,
+        roofMaterial,
+        windowMaterial,
+        selectedMaterial,
+        buildingType,
+        isSelected,
+        buildingId: building.id,
+      });
+      shellGroup.shellGroup.position.set(x, 0, z);
+      buildingGroup.add(shellGroup.shellGroup);
+      buildingMeshesRef.current.push(shellGroup.selectableMesh);
 
       const labelTexture = buildLabelTexture(building.name, accentColorHex, isSelected);
       if (labelTexture) {
@@ -599,7 +650,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         label.position.set(0, height + 1.35, 0);
         label.scale.set(4.2 + Math.min(1.2, width * 0.22), 1.2, 1);
         label.renderOrder = 20;
-        shellGroup.add(label);
+        shellGroup.shellGroup.add(label);
       }
     });
   }, [buildingList, selectedBuildingId]);
