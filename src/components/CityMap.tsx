@@ -13,31 +13,10 @@ import {
   AlertTriangle, Compass, Navigation, Flame, Sun, Layers, HelpCircle
 } from 'lucide-react';
 import ThreeCityScene from './ThreeCityScene';
+import { getBuildingVisualMetrics } from '../buildingGeometry';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
-  if (!building) {
-    return { roomCount: 1, footprintW: 1, footprintH: 1, level: 1, extraRooms: 0, height3D: 35 };
-  }
-
-  const buildingSectors = baseSectors.filter((s: any) => (s.buildingId || 'player-hq') === building.id);
-  const roomCount = Math.max(1, Math.min(9, buildingSectors.length || building.presetFacilities?.length || 1));
-  const footprintW = Math.max(1, building.width || 1);
-  const footprintH = Math.max(1, building.height || 1);
-  const level = Math.max(1, building.unlockedFloors || 1);
-
-  // 3D vertical height calculation (in pixels):
-  const footprintBonus = (footprintW - 1) * 15;
-  const extraLevelBonus = (level - 1) * 28;
-  const height3D = 35 + footprintBonus + extraLevelBonus;
-
-  return {
-    roomCount,
-    footprintW,
-    footprintH,
-    level,
-    extraRooms: Math.max(0, roomCount - 9),
-    height3D
-  };
+ return getBuildingVisualMetrics(building, baseSectors);
 }
 
 const CityMap = () => {
