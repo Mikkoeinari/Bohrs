@@ -159,18 +159,27 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const selectedMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7, metalness: 0.2, emissive: 0x1d4ed8, emissiveIntensity: 0.25 });
 
     buildingList.forEach((building) => {
-      const width = Math.max(1.2, Math.min(3.8, (building.width || 1) * 1.1));
-      const depth = Math.max(1.2, Math.min(3.8, (building.height || 1) * 1.1));
+      const width = Math.max(1.4, Math.min(4.2, (building.width || 1) * 1.25));
+      const depth = Math.max(1.4, Math.min(4.2, (building.height || 1) * 1.25));
       const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
-      const height = Math.max(1.5, Math.min(5.4, healthRatio * 3.2 + 1.2));
-      const x = (building.x - 15) * 1.15;
-      const z = (building.y - 15) * 1.15;
+      const height = Math.max(2.0, Math.min(6.4, healthRatio * 4.2 + 1.6));
+      const cityScale = 1.24;
+      const x = (building.x - 15) * cityScale;
+      const z = (building.y - 15) * cityScale;
+
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 1.02, 0.18, depth * 1.02),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.95, metalness: 0.03 })
+      );
+      base.position.set(x, 0.09, z);
+      base.receiveShadow = true;
+      buildingGroup.add(base);
 
       const buildingMesh = new THREE.Mesh(
         new THREE.BoxGeometry(width, height, depth),
         building.id === selectedBuildingId ? selectedMaterial : buildingMaterial
       );
-      buildingMesh.position.set(x, height / 2 + 0.06, z);
+      buildingMesh.position.set(x, height / 2 + 0.09, z);
       buildingMesh.castShadow = true;
       buildingMesh.receiveShadow = true;
       buildingGroup.add(buildingMesh);
@@ -178,7 +187,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const roof = new THREE.Mesh(
         new THREE.BoxGeometry(width * 0.94, 0.18, depth * 0.94),
         new THREE.MeshStandardMaterial({
-          color: building.ownerId === 'player' ? 0x334155 : building.ownerId === 'rivals' ? 0x4b1d1d : 0x475569,
+          color: building.ownerId === 'player' ? 0x334155 : building.ownerId === 'rivals' ? 0x7f1d1d : building.ownerId === 'police' ? 0x1d4ed8 : 0x475569,
           roughness: 0.7,
           metalness: 0.1,
         })
@@ -194,7 +203,8 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     }
 
     const cameraObject = cameraRef.current;
-    const target = new THREE.Vector3(camera.offset.x * 0.01, 0.95, camera.offset.y * 0.01);
+    const panScale = 0.12 / Math.max(camera.zoom, 0.25);
+    const target = new THREE.Vector3(camera.offset.x * panScale, 0.95, camera.offset.y * panScale);
     const radius = 24 / Math.max(camera.zoom, 0.25);
     const yaw = THREE.MathUtils.degToRad(camera.rotation);
     const pitch = THREE.MathUtils.degToRad(clamp(camera.pitch, 24, 72));
