@@ -89,8 +89,8 @@ const CityMap = () => {
 
   const applyPanDelta = (dx: number, dy: number) => {
     const rotationRad = (rotation * Math.PI) / 180;
-    const screenX = dx * Math.cos(rotationRad) - dy * Math.sin(rotationRad);
-    const screenY = dx * Math.sin(rotationRad) + dy * Math.cos(rotationRad);
+    const screenX = dx * Math.sin(rotationRad) + dy * Math.cos(rotationRad);
+    const screenY = -dx * Math.cos(rotationRad) + dy * Math.sin(rotationRad);
 
     setOffset(prev => ({
       x: prev.x + screenX,
