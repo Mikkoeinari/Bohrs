@@ -29,6 +29,67 @@ export interface Faction {
   isVendetta?: boolean;
 }
 
+export interface WorldDamageState {
+  roof: number;
+  wall: number;
+  support: number;
+}
+
+export interface WorldInteriorState {
+  active: boolean;
+  roomCount: number;
+  seed: number;
+}
+
+export interface WorldBuildingState {
+  id: string;
+  buildingId: BuildingId;
+  name: string;
+  ownerId: FactionId;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: Building['type'];
+  health: number;
+  maxHealth: number;
+  unlockedFloors?: number;
+  presetFacilities?: BaseSector['type'][];
+  isScouted?: boolean;
+  intel?: {
+    civilians: number;
+    resources: number;
+    hostiles: number;
+  };
+  damageState: WorldDamageState;
+  interior: WorldInteriorState;
+}
+
+export interface WorldAgentState {
+  id: string;
+  kind: 'CIVILIAN' | 'VEHICLE' | 'UNIT';
+  factionId: FactionId;
+  buildingId?: BuildingId;
+  x: number;
+  y: number;
+  status: 'IDLE' | 'MOVING' | 'IN_BUILDING';
+}
+
+export interface WorldTerrainTile {
+  id: string;
+  x: number;
+  y: number;
+  elevation: number;
+  type: 'GROUND' | 'ROAD' | 'WATER';
+}
+
+export interface GameWorld {
+  version: number;
+  terrain: WorldTerrainTile[];
+  buildings: Record<BuildingId, WorldBuildingState>;
+  agents: Record<string, WorldAgentState>;
+}
+
 export interface Building {
   id: BuildingId;
   name: string;
@@ -180,6 +241,7 @@ export interface GameState {
   vehicles: Record<VehicleId, Vehicle>;
   unlockedVehicles: string[];
   activeVehicleId?: VehicleId;
+  world: GameWorld;
 }
 
 export interface TacticalMission {

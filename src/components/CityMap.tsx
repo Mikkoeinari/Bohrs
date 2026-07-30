@@ -161,9 +161,9 @@ const CityMap = () => {
 
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
 
-  const selectedBuilding = selectedBuildingId ? state.buildings[selectedBuildingId] : null;
+  const selectedBuilding = selectedBuildingId ? (state.world?.buildings[selectedBuildingId] || state.buildings[selectedBuildingId]) : null;
   let activeVehicle = state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null;
-  const playerHq = state.buildings['player-hq'];
+  const playerHq = (state.world?.buildings['player-hq'] || state.buildings['player-hq']) as Building | undefined;
 
   const calculateDistance = (b1: any, b2: any) => {
     if (!b1 || !b2) return 0;
@@ -234,7 +234,7 @@ const CityMap = () => {
   };
   const raidProgressPercent = mission ? getTransitProgressPercent(mission.transitTimeRemaining, mission.transitTimeTotal) : 0;
   const raidButtonDisabled = selectedBuilding ? (!isInTransit && selectedBuilding.health <= 0) : true;
-  const targetBuilding = mission ? state.buildings[mission.buildingId] : null;
+  const targetBuilding = mission ? (state.world?.buildings[mission.buildingId] || state.buildings[mission.buildingId]) : null;
   
   let squadPos = { x: 0, y: 0 };
   let startPos = { x: playerHq?.x ?? 0, y: playerHq?.y ?? 0 };
@@ -256,7 +256,7 @@ const CityMap = () => {
   // Pre-calculate building occupation lookup grid based on dynamic lot footprints
   const buildingOccupiedMap = useMemo(() => {
     const map = new Map<string, string>();
-    Object.values(state.buildings).forEach((b: any) => {
+    Object.values(state.world?.buildings || {}).forEach((b: any) => {
       const { footprintW, footprintH } = getDynamicBuildingSize(b, state.baseSectors || []);
       const offsetX = Math.floor((3 - footprintW) / 2);
       const offsetY = Math.floor((3 - footprintH) / 2);
@@ -269,7 +269,7 @@ const CityMap = () => {
       }
     });
     return map;
-  }, [state.buildings, state.baseSectors]);
+  }, [state.world, state.baseSectors]);
 
   // Depth-sorted buildings to eliminate Z-fighting & overlapping glitches across camera angles
   const sortedBuildings = useMemo(() => {
@@ -279,7 +279,7 @@ const CityMap = () => {
     const cos = Math.cos(rad);
     const pitchCos = Math.cos(pitchRad);
 
-    return Object.values(state.buildings).slice().sort((a: Building, b: Building) => {
+    return Object.values(state.world?.buildings || {}).slice().sort((a: Building, b: Building) => {
       const { footprintW: fWa, footprintH: fHa } = getDynamicBuildingSize(a, state.baseSectors || []);
       const { footprintW: fWb, footprintH: fHb } = getDynamicBuildingSize(b, state.baseSectors || []);
       
@@ -297,7 +297,7 @@ const CityMap = () => {
 
       return depthA - depthB;
     });
-  }, [state.buildings, state.baseSectors, rotation, pitch]);
+  }, [state.world, state.baseSectors, rotation, pitch]);
 
   // Determine building physical properties & visual height dynamically
   const getBuildingProps = (building: Building) => {
@@ -362,7 +362,7 @@ const CityMap = () => {
             )}
 
             {state.activeScouts?.map(scout => {
-              const tb = state.buildings[scout.buildingId];
+              const tb = (state.world?.buildings[scout.buildingId] || state.buildings[scout.buildingId]);
               if (!tb) return null;
               return (
                 <div key={`hud-${scout.id}`} className="bg-slate-900/95 border border-emerald-500/50 p-2 shadow-[0_0_15px_rgba(16,185,129,0.2)] backdrop-blur-md rounded-sm">
