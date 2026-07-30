@@ -87,7 +87,19 @@ const CityMap = () => {
     if (selectedBuildingId) setShowInfo(true);
   }, [selectedBuildingId]);
 
+  const applyPanDelta = (dx: number, dy: number) => {
+    const rotationRad = (rotation * Math.PI) / 180;
+    const screenX = dx * Math.cos(rotationRad) - dy * Math.sin(rotationRad);
+    const screenY = dx * Math.sin(rotationRad) + dy * Math.cos(rotationRad);
+
+    setOffset(prev => ({
+      x: prev.x + screenX,
+      y: prev.y + screenY
+    }));
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsDragging(true);
     setDragMode(e.button === 2 || e.shiftKey ? 'ROTATE' : 'PAN');
     setLastMousePos({ x: e.clientX, y: e.clientY });
@@ -102,10 +114,7 @@ const CityMap = () => {
       setRotation(prev => (prev + dx * 0.5 + 360) % 360);
       setPitch(prev => Math.max(20, Math.min(68, prev + dy * 0.5)));
     } else {
-      setOffset(prev => ({
-        x: prev.x + dx,
-        y: prev.y + dy
-      }));
+      applyPanDelta(dx, dy);
     }
     
     setLastMousePos({ x: e.clientX, y: e.clientY });
@@ -119,11 +128,13 @@ const CityMap = () => {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
+      e.preventDefault();
       setIsDragging(true);
       setDragMode('PAN');
       setLastMousePos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
       setLastTouchDist(null);
     } else if (e.touches.length === 2) {
+      e.preventDefault();
       setIsDragging(false);
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -135,16 +146,15 @@ const CityMap = () => {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 1 && isDragging) {
+      e.preventDefault();
       const dx = e.touches[0].clientX - lastMousePos.x;
       const dy = e.touches[0].clientY - lastMousePos.y;
       
-      setOffset(prev => ({
-        x: prev.x + dx,
-        y: prev.y + dy
-      }));
+      applyPanDelta(dx, dy);
       
       setLastMousePos({ x: e.touches[0].clientX, y: e.touches[0].clientY });
     } else if (e.touches.length === 2 && lastTouchDist !== null) {
+      e.preventDefault();
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
