@@ -66,6 +66,17 @@ function isGameState(value: unknown): value is GameState {
   );
 }
 
+function getBuildingRoomCount(building: Pick<Building, 'presetFacilities' | 'width' | 'height' | 'unlockedFloors'>): number {
+  const facilityCount = building.presetFacilities?.length ?? 0;
+  if (facilityCount > 0) {
+    return Math.max(1, Math.min(9, facilityCount));
+  }
+
+  const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
+  const floorCount = Math.max(1, building.unlockedFloors || 1);
+  return Math.max(1, Math.min(9, Math.round(Math.sqrt(footprintArea) * Math.max(1, floorCount))));
+}
+
 function createInitialWorld(buildings: Record<string, Building>): GameWorld {
   const terrain: GameWorld['terrain'] = Array.from({ length: 24 }, (_, index) => ({
     id: `terrain-${index}`,
@@ -76,9 +87,7 @@ function createInitialWorld(buildings: Record<string, Building>): GameWorld {
   }));
 
   const worldBuildings = Object.values(buildings).reduce<Record<string, GameWorld['buildings'][string]>>((accumulator, building) => {
-    const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
-    const floorCount = Math.max(1, building.unlockedFloors || 1);
-    const roomCount = Math.max(1, Math.min(9, Math.round(footprintArea * Math.min(2, floorCount))));
+    const roomCount = getBuildingRoomCount(building);
     const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
 
     accumulator[building.id] = {
@@ -125,9 +134,7 @@ function hydrateGameState(state: GameState): GameState {
   const hydratedBuildings = Object.entries(state.buildings).reduce<Record<string, GameWorld['buildings'][string]>>((accumulator, [buildingId, building]) => {
     const existingWorldBuilding = baseWorld.buildings[buildingId];
     const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
-    const footprintArea = Math.max(1, (building.width || 1) * (building.height || 1));
-    const floorCount = Math.max(1, building.unlockedFloors || 1);
-    const roomCount = Math.max(1, Math.min(9, Math.round(footprintArea * Math.min(2, floorCount))));
+    const roomCount = getBuildingRoomCount(building);
 
     accumulator[buildingId] = {
       ...(existingWorldBuilding || {}),
