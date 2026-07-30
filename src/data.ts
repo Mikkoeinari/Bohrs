@@ -125,49 +125,12 @@ function getBuildingFacilities(type: BuildingType, rng: ReturnType<typeof makeCi
   return rng.pick(tables[type]);
 }
 
-function getProceduralBuildingLayout(type: BuildingType, facilityCount: number, isSpecial: boolean) {
-  const roomCount = Math.max(1, Math.min(9, facilityCount + 1));
-
-  if (isSpecial) {
-    if (type === 'BASE') {
-      return { width: 3, height: 3, unlockedFloors: 3 };
-    }
-    return { width: 2, height: 2, unlockedFloors: type === 'OFFICE' ? 3 : 2 };
-  }
-
-  if (type === 'BASE') {
-    return {
-      width: roomCount >= 7 ? 3 : 2,
-      height: roomCount >= 7 ? 3 : 2,
-      unlockedFloors: roomCount >= 7 ? 3 : 2,
-    };
-  }
-
-  if (type === 'OFFICE') {
-    if (roomCount >= 6) {
-      return { width: 2, height: 2, unlockedFloors: 2 };
-    }
-    if (roomCount >= 3) {
-      return { width: 2, height: 1, unlockedFloors: 2 };
-    }
-    return { width: 1, height: 1, unlockedFloors: 1 };
-  }
-
-  if (type === 'FACTORY') {
-    return roomCount >= 5
-      ? { width: 2, height: 2, unlockedFloors: 2 }
-      : { width: 2, height: 1, unlockedFloors: 1 };
-  }
-
-  if (type === 'WAREHOUSE') {
-    return roomCount >= 4
-      ? { width: 2, height: 2, unlockedFloors: 2 }
-      : { width: 1, height: 2, unlockedFloors: 1 };
-  }
-
-  return roomCount >= 4
-    ? { width: 2, height: 1, unlockedFloors: 1 }
-    : { width: 1, height: 1, unlockedFloors: 1 };
+function getProceduralBuildingLayout(_type: BuildingType, _facilityCount: number, _isSpecial: boolean) {
+  return {
+    width: 1,
+    height: 1,
+    unlockedFloors: 1,
+  };
 }
 
 function generateProceduralBuildings(): Record<string, Building> {
