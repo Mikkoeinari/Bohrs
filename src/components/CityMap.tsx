@@ -476,9 +476,13 @@ const CityMap = () => {
         onWheel={handleWheel}
         onTouchStart={handleTouchStart}
         onClick={() => setSelectedBuildingId(null)}
-        style={{ perspective: '2200px', perspectiveOrigin: 'center center' }}
+        style={{ perspective: '2200px', perspectiveOrigin: 'center center', touchAction: 'none' }}
       >
-        <ThreeCityScene buildings={sceneBuildings} selectedBuildingId={selectedBuildingId} />
+        <ThreeCityScene
+          buildings={sceneBuildings}
+          selectedBuildingId={selectedBuildingId}
+          camera={{ zoom, rotation, pitch, offset }}
+        />
         <div className="hidden">
         {/* Subtle Ambient City Glow Background */}
         <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-900/30 via-slate-950 to-black" />
