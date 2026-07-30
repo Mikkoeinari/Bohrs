@@ -16,6 +16,9 @@ interface ThreeCitySceneProps {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
+const SCENE_BACKGROUND = '#f5f7fb';
+const SCENE_FOG = '#e2e8f0';
+
 const getSceneLayout = (buildings: Building[]) => {
   const minX = Math.min(...buildings.map((building) => building.x), 1);
   const maxX = Math.max(...buildings.map((building) => building.x + (building.width || 1)), 30);
@@ -109,22 +112,22 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#020617');
-    scene.fog = new THREE.Fog('#020617', 24, 70);
+    scene.background = new THREE.Color(SCENE_BACKGROUND);
+    scene.fog = new THREE.Fog(SCENE_FOG, 24, 80);
 
     const cameraObject = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
     cameraObject.position.set(24, 20, 24);
     cameraObject.lookAt(0, 1.5, 0);
     scene.add(cameraObject);
 
-    const ambientLight = new THREE.AmbientLight(0x8fa9c8, 0.75);
+    const ambientLight = new THREE.AmbientLight(0xdfe7f2, 0.95);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xf8fafc, 1.2);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.45);
     directionalLight.position.set(16, 24, 10);
     scene.add(directionalLight);
 
-    const accentLight = new THREE.PointLight(0x60a5fa, 10, 60, 2.2);
+    const accentLight = new THREE.PointLight(0x60a5fa, 12, 70, 2.2);
     accentLight.position.set(-8, 10, 8);
     scene.add(accentLight);
 
@@ -133,7 +136,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const terrain = new THREE.Mesh(
       new THREE.PlaneGeometry(terrainSize, terrainSize, 64, 64),
       new THREE.MeshStandardMaterial({
-        color: 0x111827,
+        color: 0xe4ebf2,
         roughness: 0.98,
         metalness: 0.02,
         vertexColors: true,
@@ -141,9 +144,9 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     );
     const terrainPositions = terrain.geometry.attributes.position;
     const terrainColors = new Float32Array(terrainPositions.count * 3);
-    const terrainColorA = new THREE.Color('#13233a');
-    const terrainColorB = new THREE.Color('#213b4f');
-    const terrainColorC = new THREE.Color('#103030');
+    const terrainColorA = new THREE.Color('#dce6ee');
+    const terrainColorB = new THREE.Color('#c3d1dd');
+    const terrainColorC = new THREE.Color('#a8bbca');
     for (let index = 0; index < terrainPositions.count; index += 1) {
       const x = terrainPositions.getX(index);
       const y = terrainPositions.getY(index);
@@ -167,13 +170,26 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     terrain.receiveShadow = true;
     scene.add(terrain);
 
-    const grid = new THREE.GridHelper(terrainSize, 24, 0x334155, 0x111827);
+    const grid = new THREE.GridHelper(terrainSize, 24, 0x94a3b8, 0xcbd5e1);
     grid.position.y = 0.02;
     scene.add(grid);
 
-    const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x161b24, roughness: 0.95, metalness: 0.08 });
-    const roadWidth = 0.9;
-    const roadThickness = 0.14;
+    const roadMaterial = new THREE.MeshStandardMaterial({
+      color: 0x64748b,
+      roughness: 0.95,
+      metalness: 0.04,
+      emissive: 0x334155,
+      emissiveIntensity: 0.08,
+    });
+    const laneMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.95,
+      metalness: 0.01,
+      emissive: 0xe2e8f0,
+      emissiveIntensity: 0.18,
+    });
+    const roadWidth = 1.35;
+    const roadThickness = 0.16;
     const roadGroup = new THREE.Group();
 
     for (let gridX = Math.floor((sceneLayout.minX - 2) / 4) * 4; gridX <= Math.ceil((sceneLayout.maxX + 2) / 4) * 4; gridX += 4) {
@@ -182,9 +198,17 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         new THREE.BoxGeometry(terrainSize, roadThickness, roadWidth),
         roadMaterial
       );
-      horizontal.position.set(worldX, 0.06, 0);
+      horizontal.position.set(worldX, 0.1, 0);
       horizontal.receiveShadow = true;
       roadGroup.add(horizontal);
+
+      const horizontalLane = new THREE.Mesh(
+        new THREE.BoxGeometry(terrainSize * 0.86, roadThickness * 0.34, roadWidth * 0.3),
+        laneMaterial
+      );
+      horizontalLane.position.set(worldX, 0.11, 0);
+      horizontalLane.receiveShadow = true;
+      roadGroup.add(horizontalLane);
     }
 
     for (let gridY = Math.floor((sceneLayout.minY - 2) / 4) * 4; gridY <= Math.ceil((sceneLayout.maxY + 2) / 4) * 4; gridY += 4) {
@@ -193,9 +217,17 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         new THREE.BoxGeometry(roadWidth, roadThickness, terrainSize),
         roadMaterial
       );
-      vertical.position.set(0, 0.06, worldZ);
+      vertical.position.set(0, 0.1, worldZ);
       vertical.receiveShadow = true;
       roadGroup.add(vertical);
+
+      const verticalLane = new THREE.Mesh(
+        new THREE.BoxGeometry(roadWidth * 0.3, roadThickness * 0.34, terrainSize * 0.86),
+        laneMaterial
+      );
+      verticalLane.position.set(0, 0.11, worldZ);
+      verticalLane.receiveShadow = true;
+      roadGroup.add(verticalLane);
     }
     scene.add(roadGroup);
 
