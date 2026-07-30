@@ -18,24 +18,12 @@ export function getDynamicBuildingSize(building: Building, baseSectors: any[] = 
   if (!building) {
     return { roomCount: 1, footprintW: 1, footprintH: 1, level: 1, extraRooms: 0, height3D: 35 };
   }
+
   const buildingSectors = baseSectors.filter((s: any) => (s.buildingId || 'player-hq') === building.id);
-  const roomCount = Math.max(1, buildingSectors.length || building.presetFacilities?.length || 1);
-
-  // Ground footprint on uniform 3x3 lot:
-  // 1 room: 1x1
-  // 2-3 rooms: 2x2
-  // 4+ rooms: 3x3 (Max lot footprint on ground)
-  let footprintW = 1;
-  let footprintH = 1;
-  if (roomCount >= 4) {
-    footprintW = 3;
-    footprintH = 3;
-  } else if (roomCount >= 2) {
-    footprintW = 2;
-    footprintH = 2;
-  }
-
-  const level = building.unlockedFloors || Math.max(1, Math.ceil(roomCount / 9));
+  const roomCount = Math.max(1, Math.min(9, buildingSectors.length || building.presetFacilities?.length || 1));
+  const footprintW = Math.max(1, building.width || 1);
+  const footprintH = Math.max(1, building.height || 1);
+  const level = Math.max(1, building.unlockedFloors || 1);
 
   // 3D vertical height calculation (in pixels):
   const footprintBonus = (footprintW - 1) * 15;

@@ -125,69 +125,126 @@ function getBuildingFacilities(type: BuildingType, rng: ReturnType<typeof makeCi
   return rng.pick(tables[type]);
 }
 
+function getProceduralBuildingLayout(type: BuildingType, facilityCount: number, isSpecial: boolean) {
+  const roomCount = Math.max(1, Math.min(9, facilityCount + 1));
+
+  if (isSpecial) {
+    if (type === 'BASE') {
+      return { width: 3, height: 3, unlockedFloors: 3 };
+    }
+    return { width: 2, height: 2, unlockedFloors: type === 'OFFICE' ? 3 : 2 };
+  }
+
+  if (type === 'BASE') {
+    return {
+      width: roomCount >= 7 ? 3 : 2,
+      height: roomCount >= 7 ? 3 : 2,
+      unlockedFloors: roomCount >= 7 ? 3 : 2,
+    };
+  }
+
+  if (type === 'OFFICE') {
+    if (roomCount >= 6) {
+      return { width: 2, height: 2, unlockedFloors: 2 };
+    }
+    if (roomCount >= 3) {
+      return { width: 2, height: 1, unlockedFloors: 2 };
+    }
+    return { width: 1, height: 1, unlockedFloors: 1 };
+  }
+
+  if (type === 'FACTORY') {
+    return roomCount >= 5
+      ? { width: 2, height: 2, unlockedFloors: 2 }
+      : { width: 2, height: 1, unlockedFloors: 1 };
+  }
+
+  if (type === 'WAREHOUSE') {
+    return roomCount >= 4
+      ? { width: 2, height: 2, unlockedFloors: 2 }
+      : { width: 1, height: 2, unlockedFloors: 1 };
+  }
+
+  return roomCount >= 4
+    ? { width: 2, height: 1, unlockedFloors: 1 }
+    : { width: 1, height: 1, unlockedFloors: 1 };
+}
+
 function generateProceduralBuildings(): Record<string, Building> {
   const rng = makeCityRng(0xB04D5);
 
   const buildings: Record<string, Building> = {};
 
   // Special named landmarks (always present at fixed lots)
+  const playerHqLayout = getProceduralBuildingLayout('BASE', 6, true);
   buildings['player-hq'] = {
     id: 'player-hq',
     name: buildBuildingName('player-hq'),
     ownerId: 'player',
-    x: 1, y: 1, width: 3, height: 3,
+    x: 1, y: 1, width: playerHqLayout.width, height: playerHqLayout.height,
     type: 'BASE',
     health: 1000, maxHealth: 1000,
+    unlockedFloors: playerHqLayout.unlockedFloors,
     presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'INFIRMARY', 'QUARTERS', 'WORKSHOP'],
   };
 
+  const rivalBaseLayout = getProceduralBuildingLayout('BASE', 2, true);
   buildings['rival-base'] = {
     id: 'rival-base',
     name: buildBuildingName('rival-base'),
     ownerId: 'rivals',
-    x: 13, y: 13, width: 3, height: 3,
+    x: 13, y: 13, width: rivalBaseLayout.width, height: rivalBaseLayout.height,
     type: 'BASE',
     health: 800, maxHealth: 800,
+    unlockedFloors: rivalBaseLayout.unlockedFloors,
     presetFacilities: ['ARMORY', 'QUARTERS'],
   };
 
+  const cityHallLayout = getProceduralBuildingLayout('OFFICE', 3, true);
   buildings['city-hall'] = {
     id: 'city-hall',
     name: buildBuildingName('city-hall'),
     ownerId: 'police',
-    x: 17, y: 17, width: 3, height: 3,
+    x: 17, y: 17, width: cityHallLayout.width, height: cityHallLayout.height,
     type: 'OFFICE',
     health: 5000, maxHealth: 5000,
+    unlockedFloors: cityHallLayout.unlockedFloors,
     presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY'],
   };
 
+  const corpTowerLayout = getProceduralBuildingLayout('OFFICE', 4, true);
   buildings['corp-tower'] = {
     id: 'corp-tower',
     name: buildBuildingName('corp-tower'),
     ownerId: 'corps',
-    x: 25, y: 17, width: 3, height: 3,
+    x: 25, y: 17, width: corpTowerLayout.width, height: corpTowerLayout.height,
     type: 'OFFICE',
     health: 3000, maxHealth: 3000,
+    unlockedFloors: corpTowerLayout.unlockedFloors,
     presetFacilities: ['COMMAND', 'LAB', 'ARMORY', 'POWER'],
   };
 
+  const corpLabLayout = getProceduralBuildingLayout('FACTORY', 2, true);
   buildings['corp-lab'] = {
     id: 'corp-lab',
     name: buildBuildingName('corp-lab'),
     ownerId: 'corps',
-    x: 21, y: 17, width: 3, height: 3,
+    x: 21, y: 17, width: corpLabLayout.width, height: corpLabLayout.height,
     type: 'FACTORY',
     health: 2000, maxHealth: 2000,
+    unlockedFloors: corpLabLayout.unlockedFloors,
     presetFacilities: ['LAB', 'WORKSHOP'],
   };
 
+  const policePrecinctLayout = getProceduralBuildingLayout('BASE', 4, true);
   buildings['police-precinct'] = {
     id: 'police-precinct',
     name: buildBuildingName('police-precinct'),
     ownerId: 'police',
-    x: 29, y: 21, width: 3, height: 3,
+    x: 29, y: 21, width: policePrecinctLayout.width, height: policePrecinctLayout.height,
     type: 'BASE',
     health: 2500, maxHealth: 2500,
+    unlockedFloors: policePrecinctLayout.unlockedFloors,
     presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY', 'QUARTERS'],
   };
 
@@ -215,15 +272,17 @@ function generateProceduralBuildings(): Record<string, Building> {
       const facilities = getBuildingFacilities(type, rng);
 
       const id = `b-${x}-${y}`;
+      const layout = getProceduralBuildingLayout(type, facilities.length, false);
       buildings[id] = {
         id,
         name: buildBuildingName(id),
         ownerId: factionId,
         x, y,
-        width: 3, height: 3,
+        width: layout.width, height: layout.height,
         type,
         health: hp,
         maxHealth: hp,
+        unlockedFloors: layout.unlockedFloors,
         presetFacilities: facilities,
       };
     }
