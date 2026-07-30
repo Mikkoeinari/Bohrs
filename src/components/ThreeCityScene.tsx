@@ -292,7 +292,16 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     scene.add(accentLight);
 
     const sceneLayout = getSceneLayout(buildingList);
-    const { centerX, centerY, lotScale, terrainSize } = sceneLayout;
+    const {
+      centerX,
+      centerY,
+      minX,
+      maxX,
+      minY,
+      maxY,
+      lotScale,
+      terrainSize,
+    } = sceneLayout;
     const terrain = new THREE.Mesh(
       new THREE.PlaneGeometry(terrainSize, terrainSize, 64, 64),
       new THREE.MeshStandardMaterial({
@@ -310,12 +319,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     for (let index = 0; index < terrainPositions.count; index += 1) {
       const x = terrainPositions.getX(index);
       const y = terrainPositions.getY(index);
-      const roadSpacing = 4 * lotScale;
-      const roadDistance = Math.min(
-        Math.abs(x - Math.round(x / roadSpacing) * roadSpacing),
-        Math.abs(y - Math.round(y / roadSpacing) * roadSpacing)
-      );
-      const height = Math.sin(x * 0.22) * 0.06 + Math.cos(y * 0.18) * 0.04 + (roadDistance < 0.2 ? 0.02 : 0);
+      const height = Math.sin(x * 0.22) * 0.06 + Math.cos(y * 0.18) * 0.04;
       terrainPositions.setZ(index, height);
 
       const paletteRoll = Math.sin(x * 0.14 + y * 0.1) * 0.5 + 0.5;
@@ -329,10 +333,6 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     terrain.rotation.x = -Math.PI / 2;
     terrain.receiveShadow = true;
     scene.add(terrain);
-
-    const grid = new THREE.GridHelper(terrainSize, 24, 0x8ba1b5, 0xe2e8f0);
-    grid.position.y = 0.02;
-    scene.add(grid);
 
     const roadMaterial = new THREE.MeshStandardMaterial({
       color: 0x64748b,
@@ -352,6 +352,9 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const roadThickness = 0.12;
     const roadGroup = new THREE.Group();
     const streetLines = new Map<string, boolean>();
+    const majorRoadSpacing = 4;
+    const firstRoadCoord = Math.ceil(Math.min(minX, minY) / majorRoadSpacing) * majorRoadSpacing;
+    const lastRoadCoord = Math.floor(Math.max(maxX, maxY) / majorRoadSpacing) * majorRoadSpacing;
 
     const addRoadSegment = ({
       x,
@@ -428,14 +431,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
     };
 
-    buildingList.forEach((building) => {
-      const width = building.width || 1;
-      const height = building.height || 1;
-      addStreetLine({ lotCoord: building.x - 0.5, axis: 'z' });
-      addStreetLine({ lotCoord: building.x + width + 0.5, axis: 'z' });
-      addStreetLine({ lotCoord: building.y - 0.5, axis: 'x' });
-      addStreetLine({ lotCoord: building.y + height + 0.5, axis: 'x' });
-    });
+    for (let lotCoord = firstRoadCoord; lotCoord <= lastRoadCoord; lotCoord += majorRoadSpacing) {
+      addStreetLine({ lotCoord, axis: 'x' });
+      addStreetLine({ lotCoord, axis: 'z' });
+    }
 
     scene.add(roadGroup);
 
