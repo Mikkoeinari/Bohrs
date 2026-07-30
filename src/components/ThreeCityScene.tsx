@@ -555,13 +555,13 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const buildingType = building.type ?? 'OFFICE';
       const typeTheme = getBuildingTypeTheme(buildingType);
       const floorCount = Math.max(metrics.visualFloors, building.unlockedFloors || 1);
-      const baseHeight = 2.8 + (floorCount - 1) * 2.4;
-      const typeHeightBonus = buildingType === 'OFFICE' ? 0.7 :
-        buildingType === 'BASE' ? 0.5 :
-          buildingType === 'FACTORY' ? 0.4 :
-            buildingType === 'WAREHOUSE' ? 0.2 :
-              0.1;
-      const height = Math.max(3.2, Math.min(9.6, baseHeight + typeHeightBonus + Math.max(0, Math.max(metrics.footprintW, metrics.footprintH) - 1) * 0.4));
+      const baseHeight = metrics.heightMeters;
+      const typeHeightBonus = buildingType === 'OFFICE' ? 0.9 :
+        buildingType === 'BASE' ? 0.7 :
+          buildingType === 'FACTORY' ? 0.6 :
+            buildingType === 'WAREHOUSE' ? 0.3 :
+              0.2;
+      const height = Math.max(3.2, Math.min(45, baseHeight + typeHeightBonus));
       const x = (building.x + metrics.footprintW / 2 - centerX) * lotScale;
       const z = (building.y + metrics.footprintH / 2 - centerY) * lotScale;
       const isSelected = building.id === selectedBuildingId;
