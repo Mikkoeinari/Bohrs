@@ -200,43 +200,75 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const roadThickness = 0.16;
     const roadGroup = new THREE.Group();
 
-    for (let gridX = Math.floor((sceneLayout.minX - 2) / 4) * 4; gridX <= Math.ceil((sceneLayout.maxX + 2) / 4) * 4; gridX += 4) {
-      const worldX = (gridX - centerX) * lotScale;
-      const horizontal = new THREE.Mesh(
-        new THREE.BoxGeometry(terrainSize, roadThickness, roadWidth),
+    const addRoadSegment = ({
+      x,
+      z,
+      length,
+      axis,
+      laneOffset = 0,
+    }: {
+      x: number;
+      z: number;
+      length: number;
+      axis: 'x' | 'z';
+      laneOffset?: number;
+    }) => {
+      if (length <= 0.001) {
+        return;
+      }
+
+      if (axis === 'x') {
+        const road = new THREE.Mesh(
+          new THREE.BoxGeometry(length, roadThickness, roadWidth),
+          roadMaterial
+        );
+        road.position.set(x, 0.1, z);
+        road.receiveShadow = true;
+        roadGroup.add(road);
+
+        const lane = new THREE.Mesh(
+          new THREE.BoxGeometry(length * 0.86, roadThickness * 0.34, roadWidth * 0.3),
+          laneMaterial
+        );
+        lane.position.set(x, 0.11 + laneOffset, z);
+        lane.receiveShadow = true;
+        roadGroup.add(lane);
+        return;
+      }
+
+      const road = new THREE.Mesh(
+        new THREE.BoxGeometry(roadWidth, roadThickness, length),
         roadMaterial
       );
-      horizontal.position.set(worldX, 0.1, 0);
-      horizontal.receiveShadow = true;
-      roadGroup.add(horizontal);
+      road.position.set(x, 0.1, z);
+      road.receiveShadow = true;
+      roadGroup.add(road);
 
-      const horizontalLane = new THREE.Mesh(
-        new THREE.BoxGeometry(terrainSize * 0.86, roadThickness * 0.34, roadWidth * 0.3),
+      const lane = new THREE.Mesh(
+        new THREE.BoxGeometry(roadWidth * 0.3, roadThickness * 0.34, length * 0.86),
         laneMaterial
       );
-      horizontalLane.position.set(worldX, 0.11, 0);
-      horizontalLane.receiveShadow = true;
-      roadGroup.add(horizontalLane);
-    }
+      lane.position.set(x, 0.11 + laneOffset, z);
+      lane.receiveShadow = true;
+      roadGroup.add(lane);
+    };
 
-    for (let gridY = Math.floor((sceneLayout.minY - 2) / 4) * 4; gridY <= Math.ceil((sceneLayout.maxY + 2) / 4) * 4; gridY += 4) {
-      const worldZ = (gridY - centerY) * lotScale;
-      const vertical = new THREE.Mesh(
-        new THREE.BoxGeometry(roadWidth, roadThickness, terrainSize),
-        roadMaterial
-      );
-      vertical.position.set(0, 0.1, worldZ);
-      vertical.receiveShadow = true;
-      roadGroup.add(vertical);
+    addRoadSegment({ x: -terrainSize / 2, z: 0, length: terrainSize, axis: 'x' });
+    addRoadSegment({ x: 0, z: -terrainSize / 2, length: terrainSize, axis: 'z' });
 
-      const verticalLane = new THREE.Mesh(
-        new THREE.BoxGeometry(roadWidth * 0.3, roadThickness * 0.34, terrainSize * 0.86),
-        laneMaterial
-      );
-      verticalLane.position.set(0, 0.11, worldZ);
-      verticalLane.receiveShadow = true;
-      roadGroup.add(verticalLane);
-    }
+    buildingList.forEach((building) => {
+      const lotWorldX = (building.x + (building.width || 1) / 2 - centerX) * lotScale;
+      const lotWorldZ = (building.y + (building.height || 1) / 2 - centerY) * lotScale;
+      const distanceToVerticalRoad = Math.abs(lotWorldX);
+      const distanceToHorizontalRoad = Math.abs(lotWorldZ);
+
+      if (distanceToVerticalRoad <= distanceToHorizontalRoad) {
+        addRoadSegment({ x: (lotWorldX + 0) / 2, z: lotWorldZ, length: Math.abs(lotWorldX), axis: 'x' });
+      } else {
+        addRoadSegment({ x: lotWorldX, z: (lotWorldZ + 0) / 2, length: Math.abs(lotWorldZ), axis: 'z' });
+      }
+    });
+
     scene.add(roadGroup);
 
     const buildingGroup = new THREE.Group();
