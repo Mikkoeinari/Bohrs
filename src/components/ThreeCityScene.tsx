@@ -11,11 +11,47 @@ interface ThreeCitySceneProps {
     pitch: number;
     offset: { x: number; y: number };
   };
+  onBuildingSelect?: (buildingId: string) => void;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera }) => {
+const buildLabelTexture = (name: string, accentColor: string, selected: boolean) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    return null;
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = selected ? '#020617' : '#0f172a';
+  context.strokeStyle = accentColor;
+  context.lineWidth = 22;
+  context.beginPath();
+  context.roundRect(16, 16, canvas.width - 32, canvas.height - 32, 28);
+  context.fill();
+  context.stroke();
+
+  context.font = '700 48px Inter, Arial, sans-serif';
+  context.fillStyle = '#f8fafc';
+  context.textBaseline = 'middle';
+  context.fillText(name, 48, 72, 360);
+
+  context.font = '600 30px Inter, Arial, sans-serif';
+  context.fillStyle = accentColor;
+  context.fillText('TURF', 48, 124);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+};
+
+const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -23,6 +59,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const buildingGroupRef = useRef<THREE.Group | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerMovedRef = useRef(false);
+  const buildingMeshesRef = useRef<THREE.Mesh[]>([]);
 
   const buildingList = useMemo(() => buildings.slice().sort((a, b) => {
     const aCenter = a.x + a.width / 2 + a.y + a.height / 2;
@@ -118,8 +158,49 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       renderer.setSize(width, height);
     };
 
+    const handlePointerDown = (event: PointerEvent) => {
+      pointerDownRef.current = { x: event.clientX, y: event.clientY };
+      pointerMovedRef.current = false;
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!pointerDownRef.current) {
+        return;
+      }
+      const dx = event.clientX - pointerDownRef.current.x;
+      const dy = event.clientY - pointerDownRef.current.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) {
+        pointerMovedRef.current = true;
+      }
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      if (!cameraObject || pointerMovedRef.current) {
+        pointerDownRef.current = null;
+        pointerMovedRef.current = false;
+        return;
+      }
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(new THREE.Vector2(x, y), cameraObject);
+      const intersects = raycasterRef.current.intersectObjects(buildingMeshesRef.current, true);
+      const targetMesh = intersects[0]?.object as THREE.Mesh | undefined;
+      const buildingId = targetMesh?.userData?.buildingId as string | undefined;
+      if (buildingId && onBuildingSelect) {
+        onBuildingSelect(buildingId);
+      }
+      pointerDownRef.current = null;
+      pointerMovedRef.current = false;
+      event.stopPropagation();
+    };
+
     resize();
     window.addEventListener('resize', resize);
+    renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+    renderer.domElement.addEventListener('pointermove', handlePointerMove);
+    renderer.domElement.addEventListener('click', handleClick);
 
     rendererRef.current = renderer;
     sceneRef.current = scene;
@@ -128,6 +209,9 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
     cleanupRef.current = () => {
       window.removeEventListener('resize', resize);
+      rendererRef.current?.domElement.removeEventListener('pointerdown', handlePointerDown);
+      rendererRef.current?.domElement.removeEventListener('pointermove', handlePointerMove);
+      rendererRef.current?.domElement.removeEventListener('click', handleClick);
       if (frameRef.current) {
         window.cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
@@ -158,6 +242,8 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.85, metalness: 0.1 });
     const selectedMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7, metalness: 0.2, emissive: 0x1d4ed8, emissiveIntensity: 0.25 });
 
+    buildingMeshesRef.current = [];
+
     buildingList.forEach((building) => {
       const width = Math.max(1.4, Math.min(4.2, (building.width || 1) * 1.25));
       const depth = Math.max(1.4, Math.min(4.2, (building.height || 1) * 1.25));
@@ -166,6 +252,47 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const cityScale = 1.24;
       const x = (building.x - 15) * cityScale;
       const z = (building.y - 15) * cityScale;
+      const isSelected = building.id === selectedBuildingId;
+      const accentColorHex = building.ownerId === 'player'
+        ? '#38bdf8'
+        : building.ownerId === 'rivals'
+          ? '#fb7185'
+          : building.ownerId === 'police'
+            ? '#60a5fa'
+            : building.ownerId === 'corps'
+              ? '#a78bfa'
+              : '#94a3b8';
+      const accentColor = new THREE.Color(accentColorHex);
+      const bodyColor = new THREE.Color(
+        isSelected ? '#1d4ed8' : building.ownerId === 'player'
+          ? '#19324f'
+          : building.ownerId === 'rivals'
+            ? '#3f1717'
+            : building.ownerId === 'police'
+              ? '#142c4a'
+              : building.ownerId === 'corps'
+                ? '#2d1b69'
+                : '#232b3d'
+      );
+      const bodyMaterial = new THREE.MeshStandardMaterial({
+        color: bodyColor,
+        roughness: 0.86,
+        metalness: 0.1,
+      });
+      const accentMaterial = new THREE.MeshStandardMaterial({
+        color: accentColor,
+        roughness: 0.58,
+        metalness: 0.2,
+        emissive: accentColor,
+        emissiveIntensity: 0.16,
+      });
+      const windowMaterial = new THREE.MeshStandardMaterial({
+        color: 0xcffafe,
+        roughness: 0.3,
+        metalness: 0.15,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 0.16,
+      });
 
       const base = new THREE.Mesh(
         new THREE.BoxGeometry(width * 1.02, 0.18, depth * 1.02),
@@ -177,23 +304,62 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
       const buildingMesh = new THREE.Mesh(
         new THREE.BoxGeometry(width, height, depth),
-        building.id === selectedBuildingId ? selectedMaterial : buildingMaterial
+        isSelected ? selectedMaterial : bodyMaterial
       );
       buildingMesh.position.set(x, height / 2 + 0.09, z);
       buildingMesh.castShadow = true;
       buildingMesh.receiveShadow = true;
+      buildingMesh.userData = { buildingId: building.id };
       buildingGroup.add(buildingMesh);
+      buildingMeshesRef.current.push(buildingMesh);
+
+      const facadeBand = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.78, Math.max(0.32, height * 0.24), depth * 0.12),
+        accentMaterial
+      );
+      facadeBand.position.set(x, height * 0.48 + 0.1, z + depth / 2 + 0.06);
+      buildingGroup.add(facadeBand);
 
       const roof = new THREE.Mesh(
-        new THREE.BoxGeometry(width * 0.94, 0.18, depth * 0.94),
+        new THREE.BoxGeometry(width * 0.94, 0.16, depth * 0.94),
         new THREE.MeshStandardMaterial({
-          color: building.ownerId === 'player' ? 0x334155 : building.ownerId === 'rivals' ? 0x7f1d1d : building.ownerId === 'police' ? 0x1d4ed8 : 0x475569,
+          color: accentColor,
           roughness: 0.7,
           metalness: 0.1,
+          emissive: accentColor,
+          emissiveIntensity: 0.08,
         })
       );
-      roof.position.set(x, height + 0.09, z);
+      roof.position.set(x, height + 0.08, z);
       buildingGroup.add(roof);
+
+      const roofCap = new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.44, 0.1, depth * 0.44),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5, metalness: 0.1 })
+      );
+      roofCap.position.set(x, height + 0.18, z);
+      buildingGroup.add(roofCap);
+
+      const windowCount = Math.max(2, Math.min(6, Math.round(height / 1.2)));
+      for (let index = 0; index < windowCount; index += 1) {
+        const windowOffset = (index - (windowCount - 1) / 2) * 0.5;
+        const window = new THREE.Mesh(
+          new THREE.BoxGeometry(Math.max(0.2, width * 0.15), 0.14, 0.04),
+          windowMaterial
+        );
+        window.position.set(x + windowOffset, height * 0.28 + 0.1, z + depth / 2 + 0.06);
+        buildingGroup.add(window);
+      }
+
+      const labelTexture = buildLabelTexture(building.name, accentColorHex, isSelected);
+      if (labelTexture) {
+        const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false });
+        const label = new THREE.Sprite(labelMaterial);
+        label.position.set(x, height + 1.35, z);
+        label.scale.set(4.2 + Math.min(1.2, width * 0.22), 1.2, 1);
+        label.renderOrder = 20;
+        buildingGroup.add(label);
+      }
     });
   }, [buildingList, selectedBuildingId]);
 

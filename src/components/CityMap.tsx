@@ -482,6 +482,7 @@ const CityMap = () => {
           buildings={sceneBuildings}
           selectedBuildingId={selectedBuildingId}
           camera={{ zoom, rotation, pitch, offset }}
+          onBuildingSelect={(buildingId) => { setSelectedBuildingId(buildingId); setShowInfo(true); }}
         />
         <div className="hidden">
         {/* Subtle Ambient City Glow Background */}
