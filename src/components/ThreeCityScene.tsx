@@ -199,6 +199,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const roadWidth = 1.35;
     const roadThickness = 0.16;
     const roadGroup = new THREE.Group();
+    const streetLines = new Map<string, boolean>();
 
     const addRoadSegment = ({
       x,
@@ -253,20 +254,35 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       roadGroup.add(lane);
     };
 
-    addRoadSegment({ x: -terrainSize / 2, z: 0, length: terrainSize, axis: 'x' });
-    addRoadSegment({ x: 0, z: -terrainSize / 2, length: terrainSize, axis: 'z' });
+    const addStreetLine = ({
+      lotCoord,
+      axis,
+    }: {
+      lotCoord: number;
+      axis: 'x' | 'z';
+    }) => {
+      const worldCoord = (lotCoord - (axis === 'x' ? centerX : centerY)) * lotScale;
+      const key = `${axis}:${lotCoord.toFixed(3)}`;
+      if (streetLines.has(key)) {
+        return;
+      }
+      streetLines.set(key, true);
+
+      if (axis === 'x') {
+        addRoadSegment({ x: 0, z: worldCoord, length: terrainSize, axis: 'x' });
+        return;
+      }
+
+      addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
+    };
 
     buildingList.forEach((building) => {
-      const lotWorldX = (building.x + (building.width || 1) / 2 - centerX) * lotScale;
-      const lotWorldZ = (building.y + (building.height || 1) / 2 - centerY) * lotScale;
-      const distanceToVerticalRoad = Math.abs(lotWorldX);
-      const distanceToHorizontalRoad = Math.abs(lotWorldZ);
-
-      if (distanceToVerticalRoad <= distanceToHorizontalRoad) {
-        addRoadSegment({ x: (lotWorldX + 0) / 2, z: lotWorldZ, length: Math.abs(lotWorldX), axis: 'x' });
-      } else {
-        addRoadSegment({ x: lotWorldX, z: (lotWorldZ + 0) / 2, length: Math.abs(lotWorldZ), axis: 'z' });
-      }
+      const width = building.width || 1;
+      const height = building.height || 1;
+      addStreetLine({ lotCoord: building.x - 0.5, axis: 'z' });
+      addStreetLine({ lotCoord: building.x + width + 0.5, axis: 'z' });
+      addStreetLine({ lotCoord: building.y - 0.5, axis: 'x' });
+      addStreetLine({ lotCoord: building.y + height + 0.5, axis: 'x' });
     });
 
     scene.add(roadGroup);
