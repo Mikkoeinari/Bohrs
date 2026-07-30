@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Building } from '../types';
+import { getBuildingVisualMetrics } from '../buildingGeometry';
 
 interface ThreeCitySceneProps {
   buildings: Building[];
@@ -546,22 +547,23 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     buildingMeshesRef.current = [];
 
     buildingList.forEach((building) => {
-      const footprintWidth = Math.max(1.2, Math.min(4.2, (building.width || 1) * lotScale * 0.96));
-      const footprintDepth = Math.max(1.2, Math.min(4.2, (building.height || 1) * lotScale * 0.96));
+      const metrics = getBuildingVisualMetrics(building);
+      const footprintWidth = Math.max(1.2, Math.min(4.2, metrics.footprintW * lotScale * 0.96));
+      const footprintDepth = Math.max(1.2, Math.min(4.2, metrics.footprintH * lotScale * 0.96));
       const width = Math.max(1.2, Math.min(3.8, footprintWidth * 0.8));
       const depth = Math.max(1.2, Math.min(3.8, footprintDepth * 0.8));
       const buildingType = building.type ?? 'OFFICE';
       const typeTheme = getBuildingTypeTheme(buildingType);
-      const floorCount = Math.max(1, building.unlockedFloors || 1);
-      const baseHeight = 1.8 + (floorCount - 1) * 1.6;
-      const typeHeightBonus = buildingType === 'OFFICE' ? 0.9 :
-        buildingType === 'BASE' ? 0.7 :
-          buildingType === 'FACTORY' ? 0.6 :
+      const floorCount = Math.max(metrics.visualFloors, building.unlockedFloors || 1);
+      const baseHeight = 2.8 + (floorCount - 1) * 2.4;
+      const typeHeightBonus = buildingType === 'OFFICE' ? 0.7 :
+        buildingType === 'BASE' ? 0.5 :
+          buildingType === 'FACTORY' ? 0.4 :
             buildingType === 'WAREHOUSE' ? 0.2 :
-              -0.1;
-      const height = Math.max(2.0, Math.min(8.4, baseHeight + typeHeightBonus));
-      const x = (building.x + (building.width || 1) / 2 - centerX) * lotScale;
-      const z = (building.y + (building.height || 1) / 2 - centerY) * lotScale;
+              0.1;
+      const height = Math.max(3.2, Math.min(9.6, baseHeight + typeHeightBonus + Math.max(0, Math.max(metrics.footprintW, metrics.footprintH) - 1) * 0.4));
+      const x = (building.x + metrics.footprintW / 2 - centerX) * lotScale;
+      const z = (building.y + metrics.footprintH / 2 - centerY) * lotScale;
       const isSelected = building.id === selectedBuildingId;
       const accentColorHex = building.ownerId === 'player'
         ? '#38bdf8'
