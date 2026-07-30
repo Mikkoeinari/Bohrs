@@ -62,10 +62,19 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
 };
 
 const getSceneLayout = (buildings: Building[]) => {
-  const minX = Math.min(...buildings.map((building) => building.x), 1);
-  const maxX = Math.max(...buildings.map((building) => building.x + (building.width || 1)), 30);
-  const minY = Math.min(...buildings.map((building) => building.y), 1);
-  const maxY = Math.max(...buildings.map((building) => building.y + (building.height || 1)), 30);
+  const extents = buildings.map((building) => {
+    const metrics = getBuildingVisualMetrics(building);
+    return {
+      minX: building.x,
+      maxX: building.x + Math.max(1, metrics.footprintW),
+      minY: building.y,
+      maxY: building.y + Math.max(1, metrics.footprintH),
+    };
+  });
+  const minX = Math.min(...extents.map((extent) => extent.minX), 1);
+  const maxX = Math.max(...extents.map((extent) => extent.maxX), 30);
+  const minY = Math.min(...extents.map((extent) => extent.minY), 1);
+  const maxY = Math.max(...extents.map((extent) => extent.maxY), 30);
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
   const lotScale = 1.18;
@@ -548,20 +557,16 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
     buildingList.forEach((building) => {
       const metrics = getBuildingVisualMetrics(building);
-      const footprintWidth = Math.max(1.2, Math.min(4.2, metrics.footprintW * lotScale * 0.96));
-      const footprintDepth = Math.max(1.2, Math.min(4.2, metrics.footprintH * lotScale * 0.96));
-      const width = Math.max(1.2, Math.min(3.8, footprintWidth * 0.8));
-      const depth = Math.max(1.2, Math.min(3.8, footprintDepth * 0.8));
+      const footprintScale = 1.7;
+      const heightScale = 0.6;
+      const footprintWidth = Math.max(1.2, Math.min(10, metrics.footprintW * footprintScale));
+      const footprintDepth = Math.max(1.2, Math.min(10, metrics.footprintH * footprintScale));
+      const width = Math.max(1.2, Math.min(8.4, footprintWidth * 0.84));
+      const depth = Math.max(1.2, Math.min(8.4, footprintDepth * 0.84));
       const buildingType = building.type ?? 'OFFICE';
       const typeTheme = getBuildingTypeTheme(buildingType);
-      const floorCount = Math.max(metrics.visualFloors, building.unlockedFloors || 1);
       const baseHeight = metrics.heightMeters;
-      const typeHeightBonus = buildingType === 'OFFICE' ? 0.9 :
-        buildingType === 'BASE' ? 0.7 :
-          buildingType === 'FACTORY' ? 0.6 :
-            buildingType === 'WAREHOUSE' ? 0.3 :
-              0.2;
-      const height = Math.max(3.2, Math.min(45, baseHeight + typeHeightBonus));
+      const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
       const x = (building.x + metrics.footprintW / 2 - centerX) * lotScale;
       const z = (building.y + metrics.footprintH / 2 - centerY) * lotScale;
       const isSelected = building.id === selectedBuildingId;
