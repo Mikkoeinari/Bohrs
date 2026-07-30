@@ -335,21 +335,21 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     scene.add(grid);
 
     const roadMaterial = new THREE.MeshStandardMaterial({
-      color: 0x6b7280,
+      color: 0x64748b,
       roughness: 0.9,
       metalness: 0.02,
       emissive: 0x94a3b8,
-      emissiveIntensity: 0.06,
+      emissiveIntensity: 0.05,
     });
-    const laneMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
+    const centerlineMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
       roughness: 0.92,
       metalness: 0.01,
-      emissive: 0xf8fafc,
-      emissiveIntensity: 0.08,
+      emissive: 0xfacc15,
+      emissiveIntensity: 0.12,
     });
-    const roadWidth = 1.35;
-    const roadThickness = 0.16;
+    const roadWidth = 0.82;
+    const roadThickness = 0.12;
     const roadGroup = new THREE.Group();
     const streetLines = new Map<string, boolean>();
 
@@ -379,13 +379,13 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         road.receiveShadow = true;
         roadGroup.add(road);
 
-        const lane = new THREE.Mesh(
-          new THREE.BoxGeometry(length * 0.86, roadThickness * 0.34, roadWidth * 0.3),
-          laneMaterial
+        const centerline = new THREE.Mesh(
+          new THREE.BoxGeometry(length * 0.82, roadThickness * 0.18, roadWidth * 0.16),
+          centerlineMaterial
         );
-        lane.position.set(x, 0.11 + laneOffset, z);
-        lane.receiveShadow = true;
-        roadGroup.add(lane);
+        centerline.position.set(x, 0.12 + laneOffset, z);
+        centerline.receiveShadow = true;
+        roadGroup.add(centerline);
         return;
       }
 
@@ -397,13 +397,13 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       road.receiveShadow = true;
       roadGroup.add(road);
 
-      const lane = new THREE.Mesh(
-        new THREE.BoxGeometry(roadWidth * 0.3, roadThickness * 0.34, length * 0.86),
-        laneMaterial
+      const centerline = new THREE.Mesh(
+        new THREE.BoxGeometry(roadWidth * 0.16, roadThickness * 0.18, length * 0.82),
+        centerlineMaterial
       );
-      lane.position.set(x, 0.11 + laneOffset, z);
-      lane.receiveShadow = true;
-      roadGroup.add(lane);
+      centerline.position.set(x, 0.12 + laneOffset, z);
+      centerline.receiveShadow = true;
+      roadGroup.add(centerline);
     };
 
     const addStreetLine = ({
