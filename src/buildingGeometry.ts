@@ -35,7 +35,8 @@ export function getBuildingVisualMetrics(building: Building | null | undefined, 
   }
 
   const buildingSectors = baseSectors.filter((sector) => (sector.buildingId || 'player-hq') === building.id);
-  const roomCount = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, buildingSectors.length || building.presetFacilities?.length || 1));
+  const inferredRooms = (building.width || 1) * (building.height || 1);
+  const roomCount = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, buildingSectors.length || building.presetFacilities?.length || inferredRooms));
   const level = Math.max(1, building.unlockedFloors || 1);
   const visualFloors = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, level));
   const floorCount = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, visualFloors));

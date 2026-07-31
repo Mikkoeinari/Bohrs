@@ -16,7 +16,7 @@ import ThreeCityScene from './ThreeCityScene';
 import { getBuildingVisualMetrics } from '../buildingGeometry';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
- return getBuildingVisualMetrics(building, baseSectors);
+  return getBuildingVisualMetrics(building, baseSectors);
 }
 
 const CityMap = () => {
