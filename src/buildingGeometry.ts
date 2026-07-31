@@ -20,7 +20,7 @@ const getRoomGridSide = (roomsPerFloor: number) => {
   return Math.min(MAX_ROOM_GRID_SIDE, gridSide);
 };
 
-export function getBuildingVisualMetrics(building: Building | null | undefined, baseSectors: Array<{ buildingId?: string }> = []): BuildingVisualMetrics {
+export function getBuildingVisualMetrics(building: Building | null | undefined, baseSectors: Array<{ buildingId?: string; level?: number }> = []): BuildingVisualMetrics {
   if (!building) {
     return {
       roomCount: 1,
@@ -35,7 +35,14 @@ export function getBuildingVisualMetrics(building: Building | null | undefined, 
   }
 
   const buildingSectors = baseSectors.filter((sector) => (sector.buildingId || 'player-hq') === building.id);
-  const roomCount = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, buildingSectors.length || building.presetFacilities?.length || 1));
+  const groundFloorRoomCount = Math.max(
+    1,
+    Math.min(
+      MAX_ROOMS_PER_FLOOR,
+      buildingSectors.filter((sector) => (sector.level ?? 1) <= 1).length || buildingSectors.length || building.presetFacilities?.length || 1
+    )
+  );
+  const roomCount = groundFloorRoomCount;
   const level = Math.max(1, building.unlockedFloors || 1);
   const visualFloors = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, level));
   const floorCount = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, visualFloors));
@@ -43,7 +50,7 @@ export function getBuildingVisualMetrics(building: Building | null | undefined, 
 
   const baseFootprintW = Math.max(1, building.width || 1);
   const baseFootprintH = Math.max(1, building.height || 1);
-  const roomsPerFloor = Math.max(1, Math.ceil(roomCount / floorCount));
+  const roomsPerFloor = Math.max(1, Math.min(MAX_ROOMS_PER_FLOOR, groundFloorRoomCount));
   const roomGridSide = getRoomGridSide(roomsPerFloor);
   const footprintW = Math.max(baseFootprintW, roomGridSide);
   const footprintH = Math.max(baseFootprintH, roomGridSide);
