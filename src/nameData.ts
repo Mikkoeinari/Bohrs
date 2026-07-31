@@ -63,6 +63,8 @@ export const NAME_SETS: Record<NameCategory, NameSet> = {
   },
 };
 
+const usedNamesByCategory = new Map<NameCategory, Set<string>>();
+
 function hashSeed(seed: string): number {
   let hash = 0;
   for (let index = 0; index < seed.length; index += 1) {
@@ -72,24 +74,104 @@ function hashSeed(seed: string): number {
   return Math.abs(hash);
 }
 
-export function buildNameFromSeed(category: NameCategory, seed: string): string {
+function buildBaseName(category: NameCategory, seed: string): string {
   const set = NAME_SETS[category];
+  if (category === 'soldiers') {
+    const prefixIndex = hashSeed(seed) % set.prefixes.length;
+    const suffixIndex = hashSeed(`${seed}:suffix`) % set.suffixes.length;
+    return `${set.prefixes[prefixIndex]} ${set.suffixes[suffixIndex]}`;
+  }
+
   const prefixIndex = hashSeed(seed) % set.prefixes.length;
   const suffixIndex = (hashSeed(`${seed}:suffix`) + prefixIndex) % set.suffixes.length;
   return `${set.prefixes[prefixIndex]} ${set.suffixes[suffixIndex]}`;
 }
 
+function applyIntentionalTypo(name: string, seed: string): string {
+  const typoRoll = hashSeed(`${seed}:typo`) % 10;
+  if (typoRoll !== 0) {
+    return name;
+  }
+
+  const typoRules: Array<{ from: string; to: string[] }> = [
+    { from: 'c', to: ['k', 's'] },
+    { from: 'k', to: ['c'] },
+    { from: 's', to: ['c'] },
+    { from: 'w', to: ['v'] },
+    { from: 'v', to: ['w'] },
+    { from: 'i', to: ['y'] },
+    { from: 'y', to: ['i'] },
+    { from: 'o', to: ['u'] },
+    { from: 'u', to: ['o'] },
+  ];
+
+  const chars = name.split('');
+  const rule = typoRules[hashSeed(`${seed}:typo-rule`) % typoRules.length];
+  const positions = chars.reduce<number[]>((matches, char, index) => {
+    if (char.toLowerCase() === rule.from) {
+      matches.push(index);
+    }
+    return matches;
+  }, []);
+
+  if (positions.length === 0) {
+    return name;
+  }
+
+  const positionIndex = (hashSeed(`${seed}:typo-position`) + hashSeed(seed)) % positions.length;
+  const charIndex = positions[positionIndex];
+  const replacement = rule.to[(hashSeed(`${seed}:typo-replacement`) + charIndex) % rule.to.length];
+  const isUpperCase = chars[charIndex] === chars[charIndex].toUpperCase();
+  chars[charIndex] = isUpperCase ? replacement.toUpperCase() : replacement;
+  return chars.join('');
+}
+
+function getUsedNames(category: NameCategory): Set<string> {
+  const existingNames = usedNamesByCategory.get(category);
+  if (existingNames) {
+    return existingNames;
+  }
+
+  const freshNames = new Set<string>();
+  usedNamesByCategory.set(category, freshNames);
+  return freshNames;
+}
+
+function buildUniqueName(category: NameCategory, seed: string): string {
+  const usedNames = getUsedNames(category);
+
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const attemptSeed = attempt === 0 ? seed : `${seed}:${attempt}`;
+    const candidate = applyIntentionalTypo(buildBaseName(category, attemptSeed), attemptSeed);
+    if (!usedNames.has(candidate)) {
+      usedNames.add(candidate);
+      return candidate;
+    }
+  }
+
+  let fallbackName = buildBaseName(category, `${seed}:fallback`);
+  let suffixNumber = 2;
+  while (usedNames.has(fallbackName)) {
+    fallbackName = `${buildBaseName(category, `${seed}:fallback:${suffixNumber}`)} ${suffixNumber}`;
+    suffixNumber += 1;
+  }
+
+  usedNames.add(fallbackName);
+  return fallbackName;
+}
+
+export function buildNameFromSeed(category: NameCategory, seed: string): string {
+  return buildBaseName(category, seed);
+}
+
 export function buildFactionName(seed: string): string {
-  return `The ${buildNameFromSeed('factions', seed)}`;
+  return `The ${buildUniqueName('factions', seed)}`;
 }
 
 export function buildBuildingName(seed: string): string {
-  return buildNameFromSeed('buildings', seed);
+  return buildUniqueName('buildings', seed);
 }
 
 export function buildSoldierName(seed: string): string {
-  const set = NAME_SETS['soldiers'];
-  const prefixIndex = hashSeed(seed) % set.prefixes.length;
-  const suffixIndex = hashSeed(`${seed}:suffix`) % set.suffixes.length;
-  return `${set.prefixes[prefixIndex]} ${set.suffixes[suffixIndex]}`;
+  return buildUniqueName('soldiers', seed);
 }
