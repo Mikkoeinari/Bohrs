@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Info, Target, ShieldAlert, X, ChevronRight, Truck, User, 
   Radio, Zap, Shield, Warehouse, Building2, Factory, Crosshair, 
-  AlertTriangle, Compass, Navigation, Flame, Sun, Layers, HelpCircle
+  AlertTriangle, Compass, Flame, Sun, Layers, HelpCircle
 } from 'lucide-react';
 import ThreeCityScene from './ThreeCityScene';
 import { getBuildingVisualMetrics } from '../buildingGeometry';
@@ -304,14 +304,6 @@ const CityMap = () => {
       <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-3 md:p-4">
         {/* Top Header & Transit/Scout Status HUD */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-2 w-full">
-          <div className="pointer-events-auto flex items-center gap-3">
-            <div className="bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-sm shadow-xl backdrop-blur-md flex items-center gap-2">
-              <Navigation size={14} className="text-high-primary animate-pulse" />
-              <span className="text-[10px] font-mono font-black text-white uppercase tracking-widest">BOHRS METROPOLITAN ZONE</span>
-              <span className="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-1.5 py-0.5 border border-emerald-500/30 rounded-xs">SECTOR 09</span>
-            </div>
-          </div>
-
           <div className="pointer-events-auto w-64 md:w-80 flex flex-col gap-2">
             {isInTransit && mission && targetBuilding && (
               <div className="bg-slate-900/95 border-2 border-high-primary p-3 shadow-[0_0_20px_rgba(96,165,250,0.4)] backdrop-blur-md rounded-sm">
