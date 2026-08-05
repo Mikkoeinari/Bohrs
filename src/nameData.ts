@@ -32,12 +32,14 @@ export const NAME_SETS: Record<NameCategory, NameSet> = {
       'Lumen', 'Ember', 'Gallows', 'Mire', 'Ashen', 'Ferro', 'Slag', 'Cipher',
       'Dusk', 'Hollow', 'Obsidian', 'Pallid', 'Scorch', 'Vex', 'Cobalt', 'Amber',
       'Rusted', 'Corroded', 'Darkened', 'Smelt', 'Gilded', 'Cracked', 'Leaden', 'Chrome',
+      'Gleam', 'Rift', 'Talon', 'Mosaic', 'Echo', 'Refrain', 'Vanta', 'Cairn',
     ],
     suffixes: [
       'Spire', 'Foundry', 'Archive', 'Shelter', 'Bastion', 'Chasm', 'Vault', 'Station',
       'Asylum', 'Lattice', 'Monolith', 'Harbor', 'Depot', 'Citadel', 'Sanctum', 'Plex',
       'Tower', 'Block', 'Terminal', 'Hub', 'Compound', 'Annex', 'Facility', 'Complex',
       'Warehouse', 'Precinct', 'Relay', 'Exchange', 'Conduit', 'Barracks', 'Enclave', 'Sector',
+      'Arcade', 'Quarry', 'Outpost', 'Crescent', 'Vessel', 'Avenue', 'Garrison', 'Nucleus',
     ],
   },
   soldiers: {
