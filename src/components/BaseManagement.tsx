@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useGame } from '../store/GameContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -16,7 +16,7 @@ import { ResearchTree } from './ResearchTree';
 import Workshop from './Workshop';
 import { VehicleManagement } from './VehicleManagement';
 import Diplomacy from './Diplomacy';
-import { ITEMS } from '../data';
+import { ITEMS, getMarketplaceOffers } from '../data';
 
 // Type definitions for building facilities
 const FACILITY_OPTIONS = [
@@ -134,7 +134,7 @@ const FACILITY_OPTIONS = [
 
 export default function BaseManagement() {
   const { 
-    state, expandBase, buildNewFloor, repairBase, buildFacility, deconstructFacility, equipItem 
+   state, expandBase, buildNewFloor, repairBase, buildFacility, deconstructFacility, equipItem, buyItem 
   } = useGame();
 
   const [activeBaseView, setActiveBaseView] = useState<'GRID' | 'STAFF' | 'RESEARCH' | 'INFIRMARY' | 'COMMAND' | 'GARAGE' | 'DIPLOMACY' | 'ARMORY'>('GRID');
@@ -580,6 +580,10 @@ export default function BaseManagement() {
     );
   }
 
+  const marketplaceOffers = useMemo(() => (
+    activeBaseView === 'ARMORY' ? getMarketplaceOffers(state.factions, state.time) : []
+  ), [activeBaseView, state.factions, state.time]);
+
   if (activeBaseView === 'ARMORY') {
     const inventoryItems = Object.entries(state.inventory || {})
       .map(([id, count]) => {
@@ -657,6 +661,51 @@ export default function BaseManagement() {
         </div>
 
         {/* View Tabs */}
+        <div className="mb-2 shrink-0 rounded-sm border border-slate-800 bg-slate-950/70 p-2.5">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-mono font-black uppercase tracking-[0.25em] text-amber-300">Market Pulse</div>
+              <div className="text-[9px] text-slate-400">Faction science filters the stock, while black-market leaks expose advanced weapons with a delay.</div>
+            </div>
+            <div className="rounded-sm border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[9px] font-mono font-black uppercase text-amber-300">
+              {marketplaceOffers.length} live offers
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+            {marketplaceOffers.slice(0, 6).map((offer) => {
+              const item = ITEMS[offer.itemId];
+              return (
+                <div key={offer.id} className="rounded-sm border border-slate-800 bg-high-card/80 p-2.5">
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-[10px] font-black uppercase text-white">{item?.name || offer.itemId}</div>
+                      <div className="text-[8px] font-mono uppercase tracking-[0.2em]" style={{ color: offer.sourceColor }}>
+                        {offer.sourceLabel}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] font-black text-emerald-300">₮{offer.cost.toLocaleString()}</div>
+                      <div className="text-[8px] font-mono uppercase text-slate-500">tier {offer.tier}</div>
+                    </div>
+                  </div>
+                  <div className="mb-2 text-[8.5px] leading-relaxed text-slate-400">{offer.description}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[8px] font-mono uppercase text-slate-500">
+                      {offer.kind === 'BLACK_MARKET' ? 'Black market leak' : offer.kind === 'WORLD' ? 'General world stock' : 'Faction stock'}
+                    </div>
+                    <button
+                      onClick={() => buyItem(offer.itemId, 1, offer.cost)}
+                      className="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[8px] font-mono font-black uppercase text-emerald-300 transition-all hover:bg-emerald-500/20"
+                    >
+                      Acquire
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex items-center gap-2 mb-2 shrink-0 border-b border-high-border pb-1">
           <button
             onClick={() => setArmoryTab('INVENTORY')}

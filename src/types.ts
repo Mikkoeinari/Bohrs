@@ -197,6 +197,19 @@ export interface VehicleUpgrade {
   statModifiers: Partial<Vehicle['stats']>;
 }
 
+export interface MarketplaceOffer {
+  id: string;
+  itemId: ItemId;
+  kind: 'FACTION' | 'WORLD' | 'BLACK_MARKET';
+  sourceId: FactionId | 'world';
+  sourceLabel: string;
+  sourceColor: string;
+  tier: number;
+  cost: number;
+  delay: number;
+  description: string;
+}
+
 export interface BaseSector {
   id: string;
   name: string;
