@@ -24,6 +24,8 @@ type RoutePoint = {
   y: number;
 };
 
+const isRoadCell = (x: number, y: number) => x % 4 === 0 || y % 4 === 0;
+
 function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {
   return {
     x: Math.round(building.x + (building.width || 1) / 2),
@@ -100,9 +102,11 @@ function findRoadRoute(
   const visited = new Set<string>([routeStartKey]);
   const parents = new Map<string, string | null>();
   parents.set(routeStartKey, null);
+  let queueHead = 0;
 
-  while (queue.length > 0) {
-    const current = queue.shift();
+  while (queueHead < queue.length) {
+    const current = queue[queueHead];
+    queueHead += 1;
     if (!current) {
       break;
     }
@@ -391,21 +395,6 @@ const CityMap = () => {
   const raidProgressPercent = mission ? getTransitProgressPercent(mission.transitTimeRemaining, mission.transitTimeTotal) : 0;
   const raidButtonDisabled = selectedBuilding ? (!isInTransit && selectedBuilding.health <= 0) : true;
   const targetBuilding = mission ? (state.world?.buildings[mission.buildingId] || state.buildings[mission.buildingId]) : null;
-  
-  let squadPos = { x: 0, y: 0 };
-  let startPos = { x: playerHq?.x ?? 0, y: playerHq?.y ?? 0 };
-
-  if (mission?.startPosX !== undefined && mission?.startPosY !== undefined) {
-    startPos = { x: mission.startPosX, y: mission.startPosY };
-  }
-
-  const missionProgress = mission && mission.transitTimeTotal > 0
-    ? 1 - (mission.transitTimeRemaining / mission.transitTimeTotal)
-    : 0;
-
-  if (isInTransit && missionRoute) {
-    squadPos = getPointOnRoute(missionRoute, missionProgress);
-  }
 
   // Pre-calculate building occupation lookup grid based on dynamic lot footprints
   const buildingOccupiedMap = useMemo(() => {
@@ -424,6 +413,79 @@ const CityMap = () => {
     });
     return map;
   }, [state.world, state.baseSectors]);
+
+  let squadPos = { x: 0, y: 0 };
+  let startPos = { x: playerHq?.x ?? 0, y: playerHq?.y ?? 0 };
+
+  if (mission?.startPosX !== undefined && mission?.startPosY !== undefined) {
+    startPos = { x: mission.startPosX, y: mission.startPosY };
+  }
+
+  const missionProgress = mission && mission.transitTimeTotal > 0
+    ? 1 - (mission.transitTimeRemaining / mission.transitTimeTotal)
+    : 0;
+
+  const missionRoute = useMemo(() => {
+    if (!isInTransit || !mission || !targetBuilding) {
+      return null;
+    }
+
+    const startPoint = mission.status === 'RETURNING'
+      ? getBuildingCenter(targetBuilding)
+      : {
+          x: mission.startPosX ?? playerHq?.x ?? 0,
+          y: mission.startPosY ?? playerHq?.y ?? 0,
+        };
+    const endPoint = mission.status === 'RETURNING'
+      ? {
+          x: playerHq?.x ?? 0,
+          y: playerHq?.y ?? 0,
+        }
+      : getBuildingCenter(targetBuilding);
+
+    return findRoadRoute(
+      startPoint,
+      endPoint,
+      new Set(buildingOccupiedMap.keys()),
+      GRID_SIZE,
+      isRoadCell
+    );
+  }, [buildingOccupiedMap, isInTransit, mission, playerHq, targetBuilding]);
+
+  const scoutRoutes = useMemo(() => {
+    return (state.activeScouts || []).map((scout) => {
+      const targetBuildingForScout = (state.world?.buildings[scout.buildingId] || state.buildings[scout.buildingId]) as Building | undefined;
+      if (!targetBuildingForScout) {
+        return null;
+      }
+
+      return {
+        id: scout.id,
+        route: findRoadRoute(
+          {
+            x: scout.startPosX ?? playerHq?.x ?? 0,
+            y: scout.startPosY ?? playerHq?.y ?? 0,
+          },
+          getBuildingCenter(targetBuildingForScout),
+          new Set(buildingOccupiedMap.keys()),
+          GRID_SIZE,
+          isRoadCell
+        ),
+      };
+    }).filter((entry): entry is { id: string; route: RoutePoint[] } => entry !== null);
+  }, [buildingOccupiedMap, playerHq, state.activeScouts, state.buildings, state.world]);
+
+  const scoutRouteMap = useMemo(() => {
+    const routeMap = new Map<string, RoutePoint[]>();
+    scoutRoutes.forEach((scoutRoute) => {
+      routeMap.set(scoutRoute.id, scoutRoute.route);
+    });
+    return routeMap;
+  }, [scoutRoutes]);
+
+  if (isInTransit && missionRoute) {
+    squadPos = getPointOnRoute(missionRoute, missionProgress);
+  }
 
   // Depth-sorted buildings to eliminate Z-fighting & overlapping glitches across camera angles
   const sortedBuildings = useMemo(() => {
@@ -465,56 +527,6 @@ const CityMap = () => {
     const worldBuildings = state.world?.buildings || state.buildings || {};
     return Object.values(worldBuildings as Record<string, Building>) as Building[];
   }, [state.world, state.buildings]);
-
-  const missionRoute = useMemo(() => {
-    if (!isInTransit || !mission || !targetBuilding) {
-      return null;
-    }
-
-    const startPoint = mission.status === 'RETURNING'
-      ? getBuildingCenter(targetBuilding)
-      : {
-          x: mission.startPosX ?? playerHq?.x ?? 0,
-          y: mission.startPosY ?? playerHq?.y ?? 0,
-        };
-    const endPoint = mission.status === 'RETURNING'
-      ? {
-          x: playerHq?.x ?? 0,
-          y: playerHq?.y ?? 0,
-        }
-      : getBuildingCenter(targetBuilding);
-
-    return findRoadRoute(
-      startPoint,
-      endPoint,
-      new Set(buildingOccupiedMap.keys()),
-      GRID_SIZE,
-      (x, y) => x % 4 === 0 || y % 4 === 0
-    );
-  }, [buildingOccupiedMap, isInTransit, mission, playerHq, targetBuilding]);
-
-  const scoutRoutes = useMemo(() => {
-    return (state.activeScouts || []).map((scout) => {
-      const targetBuildingForScout = (state.world?.buildings[scout.buildingId] || state.buildings[scout.buildingId]) as Building | undefined;
-      if (!targetBuildingForScout) {
-        return null;
-      }
-
-      return {
-        id: scout.id,
-        route: findRoadRoute(
-          {
-            x: scout.startPosX ?? playerHq?.x ?? 0,
-            y: scout.startPosY ?? playerHq?.y ?? 0,
-          },
-          getBuildingCenter(targetBuildingForScout),
-          new Set(buildingOccupiedMap.keys()),
-          GRID_SIZE,
-          (x, y) => x % 4 === 0 || y % 4 === 0
-        ),
-      };
-    }).filter((entry): entry is { id: string; route: RoutePoint[] } => entry !== null);
-  }, [buildingOccupiedMap, playerHq, state.activeScouts, state.buildings, state.world]);
 
   return (
     <div 
@@ -837,7 +849,7 @@ const CityMap = () => {
             </div>
 
             {/* Transit Path Line */}
-            {missionRoute && (
+            {isInTransit && missionRoute && (
               <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET + PATH_ADDITIONAL_OFFSET}px)` }}>
                 <polyline
                   points={missionRoute.map(point => `${(point.x + 0.5) * CELL_SIZE} ${(point.y + 0.5) * CELL_SIZE}`).join(' ')}
@@ -887,9 +899,9 @@ const CityMap = () => {
             {state.activeScouts?.map(scout => {
               const tb = state.buildings[scout.buildingId];
               if (!tb) return null;
-              const routeEntry = scoutRoutes.find(entry => entry.id === scout.id);
+              const route = scoutRouteMap.get(scout.id);
               const progress = 1 - (scout.transitTimeRemaining / scout.transitTimeTotal);
-              const progressPoint = routeEntry ? getPointOnRoute(routeEntry.route, progress) : null;
+              const progressPoint = route ? getPointOnRoute(route, progress) : null;
               const markerX = progressPoint ? progressPoint.x : scout.startPosX;
               const markerY = progressPoint ? progressPoint.y : scout.startPosY;
               return (
