@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
+import { buildSoldierName } from '../nameData';
 
 const MIN_TRANSIT_TIME = 1;
 const DEFAULT_WALK_SPEED = 10;
@@ -689,7 +690,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const advanceTime = useCallback((minutes: number) => {
     setState(prev => {
-      const newState = { ...prev, time: prev.time + minutes };
+      let newState = { ...prev, time: prev.time + minutes };
       
       // Handle Multi-Project Research in Tech Labs
       const countLabs = newState.baseSectors?.filter(s => s.type === 'LAB').length ?? 1;
