@@ -485,7 +485,7 @@ interface GameContextType {
   cancelMission: () => void;
   cancelScout: (scoutId: string) => void;
   finishMission: (victory: boolean, lootItems?: Record<ItemId, number>, extraFunds?: number, updatedUnitHps?: Record<string, number>, capturedSector?: boolean, unitKills?: Record<string, number>) => void;
-  buyItem: (itemId: ItemId, count: number) => void;
+  buyItem: (itemId: ItemId, count: number, unitCostOverride?: number) => void;
   startResearch: (techId: TechId) => void;
   cancelResearch: (techId?: TechId) => void;
   setUnitBase: (unitId: string, buildingId: string) => void;
@@ -1146,10 +1146,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  const buyItem = useCallback((itemId: ItemId, count: number) => {
+  const buyItem = useCallback((itemId: ItemId, count: number, unitCostOverride?: number) => {
     setState(prev => {
       const item = ITEMS[itemId];
-      const totalCost = item.cost * count;
+      const unitCost = unitCostOverride ?? item.cost;
+      const totalCost = unitCost * count;
       if (prev.funds >= totalCost) {
         return {
           ...prev,

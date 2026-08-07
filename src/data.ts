@@ -3,8 +3,151 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { FactionType, Item, Technology, Building, Faction, Unit, Vehicle, VehicleUpgrade } from './types';
+import { FactionType, Item, Technology, Building, Faction, Unit, Vehicle, VehicleUpgrade, MarketplaceOffer } from './types';
 import { buildBuildingName, buildFactionName, buildSoldierName } from './nameData';
+
+const MARKET_ITEM_CATALOG: Array<{ id: string; tier: number }> = [
+  { id: 'medkit', tier: 1 },
+  { id: 'stim', tier: 1 },
+  { id: 'grenade', tier: 1 },
+  { id: 'pistol', tier: 1 },
+  { id: 'vest', tier: 1 },
+  { id: 'helmet', tier: 1 },
+  { id: 'cargo_pants', tier: 1 },
+  { id: 'light_pouch', tier: 1 },
+  { id: 'smg', tier: 2 },
+  { id: 'rifle', tier: 2 },
+  { id: 'shotgun', tier: 2 },
+  { id: 'smart_scope', tier: 2 },
+  { id: 'graphene_rig', tier: 2 },
+  { id: 'carbon_boots', tier: 2 },
+  { id: 'trauma_kit', tier: 2 },
+  { id: 'polymer_carbine', tier: 3 },
+  { id: 'precision_rifle', tier: 3 },
+  { id: 'plasma_smg', tier: 3 },
+  { id: 'exovest', tier: 3 },
+  { id: 'visor', tier: 3 },
+  { id: 'comm_band', tier: 3 },
+  { id: 'tactical_backpack', tier: 3 },
+  { id: 'duffle_bag', tier: 3 },
+  { id: 'magnetic_rail_driver', tier: 4 },
+  { id: 'nanotube_exosuit', tier: 4 },
+  { id: 'nano_repair_pack', tier: 4 },
+];
+
+function hashMarketSeed(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getFactionScienceTier(faction: Pick<Faction, 'id' | 'type'>, gameTime: number): number {
+  const baseTier = faction.id === 'corps' ? 4 : faction.id === 'police' ? 3 : faction.id === 'player' ? 2 : faction.id === 'rivals' ? 1 : 1;
+  const timeTier = Math.floor(gameTime / 360);
+  return Math.min(4, baseTier + Math.floor(timeTier / 2));
+}
+
+function getFactionMarketDelay(faction: Pick<Faction, 'id'>): number {
+  if (faction.id === 'rivals') return 2;
+  if (faction.id === 'police') return 1;
+  if (faction.id === 'player') return 1;
+  return 1;
+}
+
+function getTieredCatalogItems(maxTier: number, preferWeapons = false): Array<{ id: string; tier: number }> {
+  return MARKET_ITEM_CATALOG.filter((entry) => entry.tier <= maxTier && (!preferWeapons || entry.id === 'pistol' || entry.id === 'smg' || entry.id === 'rifle' || entry.id === 'shotgun' || entry.id === 'polymer_carbine' || entry.id === 'precision_rifle' || entry.id === 'plasma_smg' || entry.id === 'magnetic_rail_driver'));
+}
+
+export function getMarketplaceOffers(factions: Record<string, Faction>, gameTime: number): MarketplaceOffer[] {
+  const factionEntries = Object.values(factions);
+  const offers: MarketplaceOffer[] = [];
+  const worldTier = Math.max(1, Math.min(2, 1 + Math.floor(gameTime / 720)));
+
+  factionEntries.forEach((faction) => {
+    const scienceTier = getFactionScienceTier(faction, gameTime);
+    const effectiveTier = Math.max(1, scienceTier - getFactionMarketDelay(faction));
+    const eligibleItems = getTieredCatalogItems(effectiveTier);
+    if (eligibleItems.length === 0) return;
+
+    const seed = hashMarketSeed(`${faction.id}-${Math.floor(gameTime / 60)}`);
+    const rotatedItems = [...eligibleItems.slice(seed % eligibleItems.length), ...eligibleItems.slice(0, seed % eligibleItems.length)];
+    const selectedItems = rotatedItems.slice(0, Math.min(2, rotatedItems.length));
+
+    selectedItems.forEach((entry, index) => {
+      const item = ITEMS[entry.id];
+      if (!item) return;
+      const baseCost = Math.round(item.cost * (1 + entry.tier * 0.12));
+      const delay = Math.max(0, (scienceTier - entry.tier) + getFactionMarketDelay(faction));
+      const delayText = delay > 0 ? `after a ${delay}-step delay` : 'immediately';
+      offers.push({
+        id: `${faction.id}-${entry.id}-${index}`,
+        itemId: entry.id,
+        kind: 'FACTION',
+        sourceId: faction.id,
+        sourceLabel: faction.name,
+        sourceColor: faction.color,
+        tier: entry.tier,
+        cost: baseCost,
+        delay,
+        description: `${faction.name} is ${entry.tier >= 3 ? 'stocking advanced' : 'fielding'} ${item.name.toLowerCase()} ${delayText}.`,
+      });
+    });
+  });
+
+  const worldSeed = hashMarketSeed(`world-${Math.floor(gameTime / 60)}`);
+  const worldItems = getTieredCatalogItems(worldTier);
+  const rotatedWorldItems = [...worldItems.slice(worldSeed % worldItems.length), ...worldItems.slice(0, worldSeed % worldItems.length)];
+  const selectedWorldItems = rotatedWorldItems.slice(0, Math.min(3, rotatedWorldItems.length));
+  selectedWorldItems.forEach((entry, index) => {
+    const item = ITEMS[entry.id];
+    if (!item) return;
+    offers.push({
+      id: `world-${entry.id}-${index}`,
+      itemId: entry.id,
+      kind: 'WORLD',
+      sourceId: 'world',
+      sourceLabel: 'General World',
+      sourceColor: '#94a3b8',
+      tier: entry.tier,
+      cost: Math.round(item.cost * 1.05),
+      delay: 0,
+      description: `Common market stock from the wider city, ${entry.tier < 3 ? 'cheap and plentiful' : 'rare but available'}.`,
+    });
+  });
+
+  const blackMarketSeed = hashMarketSeed(`black-market-${Math.floor(gameTime / 120)}`);
+  const blackMarketItems = MARKET_ITEM_CATALOG.filter((entry) => entry.tier >= 3)
+    .sort((left, right) => left.tier - right.tier || left.id.localeCompare(right.id));
+  const rotatedBlackMarketItems = [...blackMarketItems.slice(blackMarketSeed % blackMarketItems.length), ...blackMarketItems.slice(0, blackMarketSeed % blackMarketItems.length)];
+  const selectedBlackMarketItems = rotatedBlackMarketItems.slice(0, Math.min(3, rotatedBlackMarketItems.length));
+  selectedBlackMarketItems.forEach((entry, index) => {
+    const item = ITEMS[entry.id];
+    if (!item) return;
+    offers.push({
+      id: `black-market-${entry.id}-${index}`,
+      itemId: entry.id,
+      kind: 'BLACK_MARKET',
+      sourceId: 'world',
+      sourceLabel: 'Black Market',
+      sourceColor: '#f59e0b',
+      tier: entry.tier,
+      cost: Math.round(item.cost * 1.35 + entry.tier * 180),
+      delay: entry.tier > 3 ? 2 : 1,
+      description: `Leakage from factional weapons stockpiles; ${item.name.toLowerCase()} is priced for scarcity and risk.`,
+    });
+  });
+
+  return offers.sort((left, right) => {
+    if (left.kind !== right.kind) {
+      const order = { FACTION: 0, WORLD: 1, BLACK_MARKET: 2 } as const;
+      return order[left.kind] - order[right.kind];
+    }
+    return left.cost - right.cost;
+  });
+}
 
 export const INITIAL_FACTIONS: Record<string, Faction> = {
   'player': {
