@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
+import { buildSoldierName } from '../nameData';
 
 const MIN_TRANSIT_TIME = 1;
 const DEFAULT_WALK_SPEED = 10;
@@ -16,6 +17,8 @@ const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
 const GAME_STATE_COOKIE_MARKER_VALUE = 'saved';
 // Browsers commonly enforce a ~4KB cookie limit for the full cookie string.
 const GAME_STATE_COOKIE_MAX_LENGTH = 4096;
+const RIVAL_AI_TICK_MINUTES = 15;
+const MAX_RIVAL_UNITS_PER_FACTION = 3;
 
 function getCookieValue(cookieName: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -473,6 +476,156 @@ export function getUnitEncumbrance(unit: Unit | any): {
   };
 }
 
+function createRivalUnit(unitId: string, factionId: string, baseBuildingId: string): Unit {
+  const factionProfile = factionId === 'corps'
+    ? {
+        weapon: 'plasma_smg' as ItemId,
+        armor: 'nanotube_exosuit' as ItemId,
+        head: 'smart_scope' as ItemId,
+        legs: 'carbon_boots' as ItemId,
+        backpack: 'nano_repair_pack' as ItemId,
+        stats: { hp: 90, maxHp: 90, accuracy: 82, reactions: 74, strength: 72, speed: 65, stamina: 72, bravery: 78 },
+      }
+    : factionId === 'police'
+      ? {
+          weapon: 'rifle' as ItemId,
+          armor: 'ceramic_plate' as ItemId,
+          head: 'titanium_helmet' as ItemId,
+          legs: 'cargo_pants' as ItemId,
+          backpack: 'tactical_backpack' as ItemId,
+          stats: { hp: 78, maxHp: 78, accuracy: 76, reactions: 64, strength: 68, speed: 48, stamina: 64, bravery: 72 },
+        }
+      : {
+          weapon: 'smg' as ItemId,
+          armor: 'vest' as ItemId,
+          head: 'comm_band' as ItemId,
+          legs: 'holster_jeans' as ItemId,
+          backpack: 'light_pouch' as ItemId,
+          stats: { hp: 64, maxHp: 64, accuracy: 58, reactions: 50, strength: 56, speed: 56, stamina: 58, bravery: 68 },
+        };
+
+  return {
+    id: unitId,
+    name: buildSoldierName(unitId),
+    factionId,
+    stats: factionProfile.stats,
+    equipment: {
+      handRight: factionProfile.weapon,
+      armor: factionProfile.armor,
+      head: factionProfile.head,
+      legs: factionProfile.legs,
+      backpack: factionProfile.backpack,
+      inventory: ['medkit', 'stim', 'grenade'],
+    },
+    location: 'BASE',
+    currentBuildingId: baseBuildingId,
+  };
+}
+
+function applyRivalAi(state: GameState): GameState {
+  const nextState: GameState = {
+    ...state,
+    factions: { ...state.factions },
+    buildings: { ...state.buildings },
+    units: { ...state.units },
+    baseSectors: state.baseSectors ? [...state.baseSectors] : state.baseSectors,
+  };
+
+  const factionIds = Object.keys(nextState.factions).filter((factionId) => factionId !== 'player');
+
+  factionIds.forEach((factionId) => {
+    const faction = nextState.factions[factionId];
+    if (!faction) return;
+
+    const ownedBuildings = Object.values(nextState.buildings).filter((building) => building.ownerId === factionId);
+    const baseBuilding = ownedBuildings.find((building) => building.type === 'BASE') ?? ownedBuildings[0];
+    const factionFunds = Math.max(0, faction.funds || 0);
+    const income = ownedBuildings.reduce((sum, building) => {
+      if (building.type === 'BASE') return sum + 650;
+      if (building.type === 'OFFICE') return sum + 400;
+      if (building.type === 'FACTORY') return sum + 300;
+      if (building.type === 'WAREHOUSE') return sum + 180;
+      return sum + 120;
+    }, 0);
+
+    nextState.factions[factionId] = {
+      ...faction,
+      funds: factionFunds + income,
+    };
+
+    if (baseBuilding) {
+      const damagedBuildings = ownedBuildings.filter((building) => building.health < building.maxHealth);
+      const repairTarget = damagedBuildings.sort((a, b) => (b.maxHealth - b.health) - (a.maxHealth - a.health))[0];
+      if (repairTarget) {
+        const missingHealth = repairTarget.maxHealth - repairTarget.health;
+        const repairCost = Math.max(500, Math.round(missingHealth * 0.08));
+        const currentFactionFunds = nextState.factions[factionId].funds;
+        if (currentFactionFunds >= repairCost) {
+          const repairedAmount = Math.max(150, Math.round(missingHealth * 0.35));
+          nextState.buildings[repairTarget.id] = {
+            ...repairTarget,
+            health: Math.min(repairTarget.maxHealth, repairTarget.health + repairedAmount),
+          };
+          nextState.factions[factionId] = {
+            ...nextState.factions[factionId],
+            funds: currentFactionFunds - repairCost,
+          };
+        }
+      }
+    }
+
+    const factionUnitCount = Object.values(nextState.units).filter((unit) => unit.factionId === factionId).length;
+    const recruitThreshold = factionId === 'corps' ? 8000 : factionId === 'police' ? 6000 : 3000;
+    const canRecruit = nextState.factions[factionId].funds >= recruitThreshold;
+    if (canRecruit && factionUnitCount < MAX_RIVAL_UNITS_PER_FACTION && baseBuilding) {
+      const unitId = `${factionId}-unit-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      nextState.units[unitId] = createRivalUnit(unitId, factionId, baseBuilding.id);
+      nextState.factions[factionId] = {
+        ...nextState.factions[factionId],
+        funds: nextState.factions[factionId].funds - recruitThreshold,
+      };
+    }
+
+    const attackChance = factionId === 'corps' ? 0.45 : factionId === 'police' ? 0.35 : 0.3;
+    if (Math.random() < attackChance) {
+      const hostileTargets = Object.values(nextState.buildings)
+        .filter((building) => building.ownerId !== factionId)
+        .sort((a, b) => {
+          const aValue = a.type === 'BASE' ? 18 : a.type === 'OFFICE' ? 14 : a.type === 'FACTORY' ? 11 : a.type === 'WAREHOUSE' ? 8 : 6;
+          const bValue = b.type === 'BASE' ? 18 : b.type === 'OFFICE' ? 14 : b.type === 'FACTORY' ? 11 : b.type === 'WAREHOUSE' ? 8 : 6;
+          return bValue - aValue;
+        });
+
+      const target = hostileTargets[0];
+      if (target) {
+        const factionRelation = nextState.factions[factionId].relations[target.ownerId] ?? 0;
+        const relationFactor = Math.max(0.25, 1 - (factionRelation + 100) / 200);
+        const activeTruce = Boolean(faction.truceUntil && nextState.time < faction.truceUntil);
+        const targetIsPlayer = target.ownerId === 'player';
+        if (!activeTruce && (targetIsPlayer || factionRelation < 0)) {
+          const successChance = targetIsPlayer
+            ? 0.35 * relationFactor * (faction.isVendetta ? 1.35 : 1)
+            : 0.2 * relationFactor;
+          if (Math.random() < successChance) {
+            nextState.buildings[target.id] = {
+              ...target,
+              ownerId: factionId,
+              health: target.maxHealth,
+            };
+            nextState.baseSectors = (nextState.baseSectors || []).filter((sector) => sector.buildingId !== target.id);
+            nextState.factions[factionId] = {
+              ...nextState.factions[factionId],
+              funds: Math.max(0, nextState.factions[factionId].funds - Math.round(target.maxHealth * 0.02)),
+            };
+          }
+        }
+      }
+    }
+  });
+
+  return nextState;
+}
+
 interface GameContextType {
   state: GameState;
   isGameStarted: boolean;
@@ -543,7 +696,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const advanceTime = useCallback((minutes: number) => {
     setState(prev => {
-      const newState = { ...prev, time: prev.time + minutes };
+      let newState = { ...prev, time: prev.time + minutes };
       
       // Handle Multi-Project Research in Tech Labs
       const countLabs = newState.baseSectors?.filter(s => s.type === 'LAB').length ?? 1;
@@ -647,66 +800,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newState.units = updatedUnits;
       }
 
-      // AI Raiding Simulation: Every 30 minutes of game time
-      if (newState.time % 30 === 0) {
-        const buildingsArray = Object.values(newState.buildings);
-        const potentialTargets = buildingsArray.filter(b => (b as any).type !== 'BASE');
-        if (potentialTargets.length > 0) {
-          const target = potentialTargets[Math.floor(Math.random() * potentialTargets.length)] as any;
-          const currentOwnerId = target.ownerId;
-          const factions = Object.values(newState.factions) as Faction[];
-          
-          // Pick a random faction as attacker
-          const attacker = factions[Math.floor(Math.random() * factions.length)];
-          const attackerId = attacker.id;
-          
-          if (attackerId !== currentOwnerId) {
-            // Check relations if target is player-owned
-            let skipRaid = false;
-            if (currentOwnerId === 'player') {
-              const relation = attacker.relations['player'] || 0;
-              // Truce check
-              if (attacker.truceUntil && newState.time < attacker.truceUntil) {
-                skipRaid = true;
-              }
-              
-              // Base success probability adjusted by relations
-              // Hostile (-100 to -50) -> higher chance
-              // Neutral (-50 to 50) -> standard chance
-              // Friendly (50 to 100) -> lower chance
-              
-              const relationFactor = 1 - (relation + 100) / 200; // 0 to 1 (1 at -100 relation, 0 at 100 relation)
-              const vendettaMultiplier = attacker.isVendetta ? 1.5 : 1.0;
-              
-              const successChance = (attackerId === 'police' ? 0.35 : 0.2) * (0.5 + relationFactor) * vendettaMultiplier;
-              
-              if (!skipRaid && Math.random() < successChance) {
-                newState.buildings = {
-                  ...newState.buildings,
-                  [target.id]: {
-                    ...target,
-                    ownerId: attackerId,
-                    health: target.maxHealth
-                  }
-                };
-                newState.baseSectors = (newState.baseSectors || []).filter(s => s.buildingId !== target.id);
-              }
-            } else {
-              // Standard logic for AI vs AI
-              const successChance = attackerId === 'police' ? 0.35 : 0.2;
-              if (Math.random() < successChance) {
-                newState.buildings = {
-                  ...newState.buildings,
-                  [target.id]: {
-                    ...target,
-                    ownerId: attackerId,
-                    health: target.maxHealth
-                  }
-                };
-              }
-            }
-          }
-        }
+      // Rival faction AI: every 15 minutes of game time they fund, recruit, repair, and attack.
+      if (newState.time > 0 && newState.time % RIVAL_AI_TICK_MINUTES === 0) {
+        newState = applyRivalAi(newState);
       }
 
       if (newState.activeScouts && newState.activeScouts.length > 0) {
