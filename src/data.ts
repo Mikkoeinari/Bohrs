@@ -35,6 +35,24 @@ const MARKET_ITEM_CATALOG: Array<{ id: string; tier: number }> = [
   { id: 'nano_repair_pack', tier: 4 },
 ];
 
+const FACTION_BASE_TIERS: Record<string, number> = {
+  corps: 4,
+  police: 3,
+  player: 2,
+  rivals: 1,
+};
+
+const MARKET_WEAPON_IDS = new Set([
+  'pistol',
+  'smg',
+  'rifle',
+  'shotgun',
+  'polymer_carbine',
+  'precision_rifle',
+  'plasma_smg',
+  'magnetic_rail_driver',
+]);
+
 function hashMarketSeed(value: string): number {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -45,20 +63,18 @@ function hashMarketSeed(value: string): number {
 }
 
 function getFactionScienceTier(faction: Pick<Faction, 'id' | 'type'>, gameTime: number): number {
-  const baseTier = faction.id === 'corps' ? 4 : faction.id === 'police' ? 3 : faction.id === 'player' ? 2 : faction.id === 'rivals' ? 1 : 1;
+  const baseTier = FACTION_BASE_TIERS[faction.id] ?? 1;
   const timeTier = Math.floor(gameTime / 360);
   return Math.min(4, baseTier + Math.floor(timeTier / 2));
 }
 
 function getFactionMarketDelay(faction: Pick<Faction, 'id'>): number {
   if (faction.id === 'rivals') return 2;
-  if (faction.id === 'police') return 1;
-  if (faction.id === 'player') return 1;
   return 1;
 }
 
 function getTieredCatalogItems(maxTier: number, preferWeapons = false): Array<{ id: string; tier: number }> {
-  return MARKET_ITEM_CATALOG.filter((entry) => entry.tier <= maxTier && (!preferWeapons || entry.id === 'pistol' || entry.id === 'smg' || entry.id === 'rifle' || entry.id === 'shotgun' || entry.id === 'polymer_carbine' || entry.id === 'precision_rifle' || entry.id === 'plasma_smg' || entry.id === 'magnetic_rail_driver'));
+  return MARKET_ITEM_CATALOG.filter((entry) => entry.tier <= maxTier && (!preferWeapons || MARKET_WEAPON_IDS.has(entry.id)));
 }
 
 export function getMarketplaceOffers(factions: Record<string, Faction>, gameTime: number): MarketplaceOffer[] {

@@ -580,8 +580,11 @@ export default function BaseManagement() {
     );
   }
 
+  const marketplaceOffers = useMemo(() => (
+    activeBaseView === 'ARMORY' ? getMarketplaceOffers(state.factions, state.time) : []
+  ), [activeBaseView, state.factions, state.time]);
+
   if (activeBaseView === 'ARMORY') {
-    const marketplaceOffers = useMemo(() => getMarketplaceOffers(state.factions, state.time), [state.factions, state.time]);
     const inventoryItems = Object.entries(state.inventory || {})
       .map(([id, count]) => {
         const item = (ITEMS as any)[id] || { id, name: id, type: 'MISC', cost: 100 };
