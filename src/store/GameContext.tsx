@@ -18,6 +18,7 @@ const GAME_STATE_COOKIE_MARKER_VALUE = 'saved';
 // Browsers commonly enforce a ~4KB cookie limit for the full cookie string.
 const GAME_STATE_COOKIE_MAX_LENGTH = 4096;
 const RIVAL_AI_TICK_MINUTES = 15;
+const MAX_RIVAL_UNITS_PER_FACTION = 3;
 
 function getCookieValue(cookieName: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -576,7 +577,7 @@ function applyRivalAi(state: GameState): GameState {
     const factionUnitCount = Object.values(nextState.units).filter((unit) => unit.factionId === factionId).length;
     const recruitThreshold = factionId === 'corps' ? 8000 : factionId === 'police' ? 6000 : 3000;
     const canRecruit = nextState.factions[factionId].funds >= recruitThreshold;
-    if (canRecruit && factionUnitCount < 3 && baseBuilding) {
+    if (canRecruit && factionUnitCount < MAX_RIVAL_UNITS_PER_FACTION && baseBuilding) {
       const unitId = `${factionId}-unit-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       nextState.units[unitId] = createRivalUnit(unitId, factionId, baseBuilding.id);
       nextState.factions[factionId] = {
@@ -598,13 +599,18 @@ function applyRivalAi(state: GameState): GameState {
       const target = hostileTargets[0];
       if (target) {
         const factionRelation = nextState.factions[factionId].relations[target.ownerId] ?? 0;
-        if (target.ownerId === 'player' || factionRelation < 0) {
-          const successChance = target.ownerId === 'player' ? 0.35 : 0.2;
+        const relationFactor = Math.max(0.25, 1 - (factionRelation + 100) / 200);
+        const activeTruce = Boolean(faction.truceUntil && nextState.time < faction.truceUntil);
+        const targetIsPlayer = target.ownerId === 'player';
+        if (!activeTruce && (targetIsPlayer || factionRelation < 0)) {
+          const successChance = targetIsPlayer
+            ? 0.35 * relationFactor * (faction.isVendetta ? 1.35 : 1)
+            : 0.2 * relationFactor;
           if (Math.random() < successChance) {
             nextState.buildings[target.id] = {
               ...target,
               ownerId: factionId,
-              health: Math.min(target.maxHealth, target.health + 220),
+              health: target.maxHealth,
             };
             nextState.baseSectors = (nextState.baseSectors || []).filter((sector) => sector.buildingId !== target.id);
             nextState.factions[factionId] = {
