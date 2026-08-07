@@ -19,6 +19,188 @@ export function getDynamicBuildingSize(building: Building, baseSectors: any[] = 
  return getBuildingVisualMetrics(building, baseSectors);
 }
 
+type RoutePoint = {
+  x: number;
+  y: number;
+};
+
+const isRoadCell = (x: number, y: number) => x % 4 === 0 || y % 4 === 0;
+
+function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {
+  return {
+    x: Math.round(building.x + (building.width || 1) / 2),
+    y: Math.round(building.y + (building.height || 1) / 2),
+  };
+}
+
+function findNearestTraversableCell(
+  start: RoutePoint,
+  occupiedCells: Set<string>,
+  gridSize: number,
+  isRoadCell: (x: number, y: number) => boolean
+): RoutePoint {
+  const centerKey = `${start.x},${start.y}`;
+  const preferredCandidates: RoutePoint[] = [];
+  const fallbackCandidates: RoutePoint[] = [];
+
+  for (let radius = 0; radius <= 6; radius += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        if (Math.abs(dx) !== radius && Math.abs(dy) !== radius) {
+          continue;
+        }
+
+        const x = start.x + dx;
+        const y = start.y + dy;
+        if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) {
+          continue;
+        }
+
+        const key = `${x},${y}`;
+        if (occupiedCells.has(key) || key === centerKey) {
+          continue;
+        }
+
+        if (isRoadCell(x, y)) {
+          preferredCandidates.push({ x, y });
+        } else {
+          fallbackCandidates.push({ x, y });
+        }
+      }
+    }
+
+    if (preferredCandidates.length > 0 || fallbackCandidates.length > 0) {
+      break;
+    }
+  }
+
+  return preferredCandidates[0] || fallbackCandidates[0] || start;
+}
+
+function findRoadRoute(
+  start: RoutePoint,
+  end: RoutePoint,
+  occupiedCells: Set<string>,
+  gridSize: number,
+  isRoadCell: (x: number, y: number) => boolean
+): RoutePoint[] {
+  const startKey = `${start.x},${start.y}`;
+  const endKey = `${end.x},${end.y}`;
+  if (startKey === endKey) {
+    return [start];
+  }
+
+  const startPoint = findNearestTraversableCell(start, occupiedCells, gridSize, isRoadCell);
+  const endPoint = findNearestTraversableCell(end, occupiedCells, gridSize, isRoadCell);
+  const routeStartKey = `${startPoint.x},${startPoint.y}`;
+  const routeEndKey = `${endPoint.x},${endPoint.y}`;
+  if (routeStartKey === routeEndKey) {
+    return [startPoint];
+  }
+
+  const queue: RoutePoint[] = [startPoint];
+  const visited = new Set<string>([routeStartKey]);
+  const parents = new Map<string, string | null>();
+  parents.set(routeStartKey, null);
+  let queueHead = 0;
+
+  while (queueHead < queue.length) {
+    const current = queue[queueHead];
+    queueHead += 1;
+    if (!current) {
+      break;
+    }
+
+    const currentKey = `${current.x},${current.y}`;
+    if (currentKey === routeEndKey) {
+      break;
+    }
+
+    const neighbors = [
+      { x: current.x + 1, y: current.y },
+      { x: current.x - 1, y: current.y },
+      { x: current.x, y: current.y + 1 },
+      { x: current.x, y: current.y - 1 },
+    ];
+
+    for (const neighbor of neighbors) {
+      if (neighbor.x < 0 || neighbor.y < 0 || neighbor.x >= gridSize || neighbor.y >= gridSize) {
+        continue;
+      }
+
+      const neighborKey = `${neighbor.x},${neighbor.y}`;
+      const isTraversable = !occupiedCells.has(neighborKey) && (isRoadCell(neighbor.x, neighbor.y) || neighborKey === routeStartKey || neighborKey === routeEndKey);
+      if (!isTraversable || visited.has(neighborKey)) {
+        continue;
+      }
+
+      visited.add(neighborKey);
+      parents.set(neighborKey, currentKey);
+      queue.push(neighbor);
+    }
+  }
+
+  if (!parents.has(routeEndKey)) {
+    return [startPoint, endPoint];
+  }
+
+  const path: RoutePoint[] = [];
+  let currentKey: string | null = routeEndKey;
+  while (currentKey) {
+    const [x, y] = currentKey.split(',').map(Number);
+    path.push({ x, y });
+    currentKey = parents.get(currentKey) ?? null;
+  }
+
+  return path.reverse();
+}
+
+function getPointOnRoute(route: RoutePoint[], progress: number): RoutePoint {
+  if (!route.length) {
+    return { x: 0, y: 0 };
+  }
+
+  if (route.length === 1 || progress <= 0) {
+    return route[0];
+  }
+
+  if (progress >= 1) {
+    return route[route.length - 1];
+  }
+
+  let totalLength = 0;
+  const segmentLengths: number[] = [];
+  for (let index = 0; index < route.length - 1; index += 1) {
+    const from = route[index];
+    const to = route[index + 1];
+    const segmentLength = Math.hypot(to.x - from.x, to.y - from.y);
+    segmentLengths.push(segmentLength);
+    totalLength += segmentLength;
+  }
+
+  if (totalLength <= 0) {
+    return route[0];
+  }
+
+  let targetDistance = progress * totalLength;
+  for (let index = 0; index < route.length - 1; index += 1) {
+    const from = route[index];
+    const to = route[index + 1];
+    const segmentLength = segmentLengths[index];
+    if (targetDistance <= segmentLength) {
+      const ratio = segmentLength > 0 ? targetDistance / segmentLength : 0;
+      return {
+        x: from.x + (to.x - from.x) * ratio,
+        y: from.y + (to.y - from.y) * ratio,
+      };
+    }
+
+    targetDistance -= segmentLength;
+  }
+
+  return route[route.length - 1];
+}
+
 const CityMap = () => {
   const { state, startMission, startScout, cancelMission, cancelScout } = useGame();
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
@@ -213,23 +395,6 @@ const CityMap = () => {
   const raidProgressPercent = mission ? getTransitProgressPercent(mission.transitTimeRemaining, mission.transitTimeTotal) : 0;
   const raidButtonDisabled = selectedBuilding ? (!isInTransit && selectedBuilding.health <= 0) : true;
   const targetBuilding = mission ? (state.world?.buildings[mission.buildingId] || state.buildings[mission.buildingId]) : null;
-  
-  let squadPos = { x: 0, y: 0 };
-  let startPos = { x: playerHq?.x ?? 0, y: playerHq?.y ?? 0 };
-
-  if (mission?.startPosX !== undefined && mission?.startPosY !== undefined) {
-    startPos = { x: mission.startPosX, y: mission.startPosY };
-  }
-
-  if (isInTransit && targetBuilding && mission) {
-    const progress = 1 - (mission.transitTimeRemaining / mission.transitTimeTotal);
-    const from = mission.status === 'RETURNING' ? targetBuilding : startPos;
-    const to = mission.status === 'RETURNING' ? playerHq || startPos : targetBuilding;
-    squadPos = {
-      x: from.x + (to.x - from.x) * progress,
-      y: from.y + (to.y - from.y) * progress
-    };
-  }
 
   // Pre-calculate building occupation lookup grid based on dynamic lot footprints
   const buildingOccupiedMap = useMemo(() => {
@@ -248,6 +413,79 @@ const CityMap = () => {
     });
     return map;
   }, [state.world, state.baseSectors]);
+
+  let squadPos = { x: 0, y: 0 };
+  let startPos = { x: playerHq?.x ?? 0, y: playerHq?.y ?? 0 };
+
+  if (mission?.startPosX !== undefined && mission?.startPosY !== undefined) {
+    startPos = { x: mission.startPosX, y: mission.startPosY };
+  }
+
+  const missionProgress = mission && mission.transitTimeTotal > 0
+    ? 1 - (mission.transitTimeRemaining / mission.transitTimeTotal)
+    : 0;
+
+  const missionRoute = useMemo(() => {
+    if (!isInTransit || !mission || !targetBuilding) {
+      return null;
+    }
+
+    const startPoint = mission.status === 'RETURNING'
+      ? getBuildingCenter(targetBuilding)
+      : {
+          x: mission.startPosX ?? playerHq?.x ?? 0,
+          y: mission.startPosY ?? playerHq?.y ?? 0,
+        };
+    const endPoint = mission.status === 'RETURNING'
+      ? {
+          x: playerHq?.x ?? 0,
+          y: playerHq?.y ?? 0,
+        }
+      : getBuildingCenter(targetBuilding);
+
+    return findRoadRoute(
+      startPoint,
+      endPoint,
+      new Set(buildingOccupiedMap.keys()),
+      GRID_SIZE,
+      isRoadCell
+    );
+  }, [buildingOccupiedMap, isInTransit, mission, playerHq, targetBuilding]);
+
+  const scoutRoutes = useMemo(() => {
+    return (state.activeScouts || []).map((scout) => {
+      const targetBuildingForScout = (state.world?.buildings[scout.buildingId] || state.buildings[scout.buildingId]) as Building | undefined;
+      if (!targetBuildingForScout) {
+        return null;
+      }
+
+      return {
+        id: scout.id,
+        route: findRoadRoute(
+          {
+            x: scout.startPosX ?? playerHq?.x ?? 0,
+            y: scout.startPosY ?? playerHq?.y ?? 0,
+          },
+          getBuildingCenter(targetBuildingForScout),
+          new Set(buildingOccupiedMap.keys()),
+          GRID_SIZE,
+          isRoadCell
+        ),
+      };
+    }).filter((entry): entry is { id: string; route: RoutePoint[] } => entry !== null);
+  }, [buildingOccupiedMap, playerHq, state.activeScouts, state.buildings, state.world]);
+
+  const scoutRouteMap = useMemo(() => {
+    const routeMap = new Map<string, RoutePoint[]>();
+    scoutRoutes.forEach((scoutRoute) => {
+      routeMap.set(scoutRoute.id, scoutRoute.route);
+    });
+    return routeMap;
+  }, [scoutRoutes]);
+
+  if (isInTransit && missionRoute) {
+    squadPos = getPointOnRoute(missionRoute, missionProgress);
+  }
 
   // Depth-sorted buildings to eliminate Z-fighting & overlapping glitches across camera angles
   const sortedBuildings = useMemo(() => {
@@ -611,13 +849,11 @@ const CityMap = () => {
             </div>
 
             {/* Transit Path Line */}
-            {isInTransit && targetBuilding && (
+            {isInTransit && missionRoute && (
               <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET + PATH_ADDITIONAL_OFFSET}px)` }}>
-                <line 
-                  x1={startPos.x * CELL_SIZE + CELL_SIZE / 2}
-                  y1={startPos.y * CELL_SIZE + CELL_SIZE / 2}
-                  x2={targetBuilding.x * CELL_SIZE + (targetBuilding.width * CELL_SIZE) / 2}
-                  y2={targetBuilding.y * CELL_SIZE + (targetBuilding.height * CELL_SIZE) / 2}
+                <polyline
+                  points={missionRoute.map(point => `${(point.x + 0.5) * CELL_SIZE} ${(point.y + 0.5) * CELL_SIZE}`).join(' ')}
+                  fill="none"
                   stroke="#60a5fa"
                   strokeWidth="3"
                   strokeDasharray="6 6"
@@ -627,32 +863,26 @@ const CityMap = () => {
             )}
 
             {/* Active Scout Path Lines */}
-            {state.activeScouts?.map(scout => {
-              const tb = state.buildings[scout.buildingId];
-              if (!tb) return null;
-              return (
-                <svg key={`path-${scout.id}`} className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET + PATH_ADDITIONAL_OFFSET}px)` }}>
-                  <line 
-                    x1={scout.startPosX * CELL_SIZE + CELL_SIZE / 2}
-                    y1={scout.startPosY * CELL_SIZE + CELL_SIZE / 2}
-                    x2={tb.x * CELL_SIZE + (tb.width * CELL_SIZE) / 2}
-                    y2={tb.y * CELL_SIZE + (tb.height * CELL_SIZE) / 2}
-                    stroke="#10b981"
-                    strokeWidth="2.5"
-                    strokeDasharray="4 4"
-                    className="opacity-60"
-                  />
-                </svg>
-              );
-            })}
+            {scoutRoutes.map((scoutRoute) => (
+              <svg key={`path-${scoutRoute.id}`} className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" style={{ transform: `translateZ(${GROUND_PLANE_DEPTH_OFFSET + PATH_ADDITIONAL_OFFSET}px)` }}>
+                <polyline
+                  points={scoutRoute.route.map(point => `${(point.x + 0.5) * CELL_SIZE} ${(point.y + 0.5) * CELL_SIZE}`).join(' ')}
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="2.5"
+                  strokeDasharray="4 4"
+                  className="opacity-60"
+                />
+              </svg>
+            ))}
 
             {/* Squad Marker (during transit) */}
-            {isInTransit && (
+            {isInTransit && missionRoute && (
               <motion.div 
                 className="absolute z-50 pointer-events-none"
                 style={{
-                  left: squadPos.x * CELL_SIZE,
-                  top: squadPos.y * CELL_SIZE,
+                  left: squadPos.x * CELL_SIZE + CELL_SIZE / 2 - 20,
+                  top: squadPos.y * CELL_SIZE + CELL_SIZE / 2 - 20,
                   transformStyle: 'preserve-3d'
                 }}
               >
@@ -669,16 +899,18 @@ const CityMap = () => {
             {state.activeScouts?.map(scout => {
               const tb = state.buildings[scout.buildingId];
               if (!tb) return null;
+              const route = scoutRouteMap.get(scout.id);
               const progress = 1 - (scout.transitTimeRemaining / scout.transitTimeTotal);
-              const spX = scout.startPosX + (tb.x + tb.width / 2 - scout.startPosX) * progress;
-              const spY = scout.startPosY + (tb.y + tb.height / 2 - scout.startPosY) * progress;
+              const progressPoint = route ? getPointOnRoute(route, progress) : null;
+              const markerX = progressPoint ? progressPoint.x : scout.startPosX;
+              const markerY = progressPoint ? progressPoint.y : scout.startPosY;
               return (
                 <motion.div 
                   key={`marker-${scout.id}`}
                   className="absolute z-40 pointer-events-none"
                   style={{
-                    left: spX * CELL_SIZE,
-                    top: spY * CELL_SIZE,
+                    left: markerX * CELL_SIZE + CELL_SIZE / 2 - 12,
+                    top: markerY * CELL_SIZE + CELL_SIZE / 2 - 12,
                     transformStyle: 'preserve-3d'
                   }}
                 >
