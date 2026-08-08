@@ -3,6 +3,14 @@ import * as THREE from 'three';
 import { Building } from '../types';
 import { getBuildingVisualMetrics } from '../buildingGeometry';
 
+export interface SceneEntityMarker {
+  id: string;
+  type: 'mission' | 'scout';
+  x: number;
+  z: number;
+  color: string;
+}
+
 interface ThreeCitySceneProps {
   buildings: Building[];
   selectedBuildingId?: string | null;
@@ -13,6 +21,7 @@ interface ThreeCitySceneProps {
     offset: { x: number; y: number };
   };
   onBuildingSelect?: (buildingId: string) => void;
+  markers?: SceneEntityMarker[];
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -61,7 +70,7 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
   }
 };
 
-const getSceneLayout = (buildings: Building[]) => {
+export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
     const metrics = getBuildingVisualMetrics(building);
     return {
@@ -203,6 +212,25 @@ const createBuildingShell = ({
   };
 };
 
+const disposeMarkerResources = (group: THREE.Group) => {
+  group.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) {
+      return;
+    }
+
+    if (object.geometry) {
+      object.geometry.dispose();
+    }
+
+    if (Array.isArray(object.material)) {
+      object.material.forEach((material) => material.dispose());
+      return;
+    }
+
+    object.material?.dispose();
+  });
+};
+
 const buildLabelTexture = (name: string, accentColor: string, selected: boolean) => {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -238,13 +266,14 @@ const buildLabelTexture = (name: string, accentColor: string, selected: boolean)
   return texture;
 };
 
-const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect }) => {
+const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [] }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const buildingGroupRef = useRef<THREE.Group | null>(null);
+  const entityGroupRef = useRef<THREE.Group | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const raycasterRef = useRef(new THREE.Raycaster());
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
@@ -452,6 +481,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     buildingGroup.name = 'building-group';
     scene.add(buildingGroup);
 
+    const entityGroup = new THREE.Group();
+    entityGroup.name = 'entity-group';
+    scene.add(entityGroup);
+
     const animate = () => {
       frameRef.current = window.requestAnimationFrame(animate);
       renderer.render(scene, cameraObject);
@@ -517,7 +550,8 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     sceneRef.current = scene;
     cameraRef.current = cameraObject;
     buildingGroupRef.current = buildingGroup;
-
+    entityGroupRef.current = entityGroup;
+ 
     cleanupRef.current = () => {
       window.removeEventListener('resize', resize);
       rendererRef.current?.domElement.removeEventListener('pointerdown', handlePointerDown);
@@ -534,6 +568,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       sceneRef.current = null;
       cameraRef.current = null;
       buildingGroupRef.current = null;
+      entityGroupRef.current = null;
       if (container.firstChild) {
         container.removeChild(container.firstChild);
       }
@@ -660,6 +695,74 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       }
     });
   }, [buildingList, selectedBuildingId]);
+
+  useEffect(() => {
+    if (!entityGroupRef.current) {
+      return;
+    }
+
+    const entityGroup = entityGroupRef.current;
+    disposeMarkerResources(entityGroup);
+    entityGroup.clear();
+
+    markers.forEach((marker) => {
+      const markerGroup = new THREE.Group();
+      markerGroup.position.set(marker.x, 0.62, marker.z);
+
+      if (marker.type === 'mission') {
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(marker.color),
+          roughness: 0.45,
+          metalness: 0.2,
+        });
+        const accentMaterial = new THREE.MeshStandardMaterial({
+          color: 0x0f172a,
+          roughness: 0.6,
+          metalness: 0.12,
+        });
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.28, 1.06), bodyMaterial);
+        body.position.set(0, 0.14, 0);
+        markerGroup.add(body);
+
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.2, 0.56), accentMaterial);
+        cabin.position.set(0, 0.3, 0.16);
+        markerGroup.add(cabin);
+
+        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.8, metalness: 0.1 });
+        const wheels = [
+          new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.12, 12), wheelMaterial),
+          new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.12, 12), wheelMaterial),
+        ];
+        wheels[0].rotation.z = Math.PI / 2;
+        wheels[1].rotation.z = Math.PI / 2;
+        wheels[0].position.set(-0.24, 0.08, -0.3);
+        wheels[1].position.set(0.24, 0.08, -0.3);
+        wheels.forEach((wheel) => markerGroup.add(wheel));
+      } else {
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(marker.color),
+          roughness: 0.58,
+          metalness: 0.1,
+        });
+        const accentMaterial = new THREE.MeshStandardMaterial({
+          color: 0x020617,
+          roughness: 0.7,
+          metalness: 0.08,
+        });
+
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 10), bodyMaterial);
+        body.position.set(0, 0.25, 0);
+        markerGroup.add(body);
+
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.16), accentMaterial);
+        head.position.set(0, 0.56, 0);
+        markerGroup.add(head);
+      }
+
+      entityGroup.add(markerGroup);
+    });
+  }, [markers]);
 
   useEffect(() => {
     if (!cameraRef.current) {
