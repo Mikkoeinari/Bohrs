@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 import { buildSoldierName } from '../nameData';
@@ -19,6 +19,10 @@ const GAME_STATE_COOKIE_MARKER_VALUE = 'saved';
 const GAME_STATE_COOKIE_MAX_LENGTH = 4096;
 const RIVAL_AI_TICK_MINUTES = 15;
 const MAX_RIVAL_UNITS_PER_FACTION = 3;
+const BASE_GAME_TICK_INTERVAL_MS = 3000;
+const BASE_GAME_TICK_STEP_MINUTES = 5;
+const TRANSIT_TICK_INTERVAL_MS = 250;
+const TRANSIT_TICK_STEP_MINUTES = 0.25;
 
 function getCookieValue(cookieName: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -668,6 +672,8 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<GameState>(createInitialGameState);
+  const activeMissionRef = useRef(state.activeMission);
+  const activeScoutsRef = useRef(state.activeScouts);
   const hydratedState = useMemo(() => hydrateGameState(state), [state]);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [hasSavedGame, setHasSavedGame] = useState(() => readPersistedGameState() !== null);
@@ -686,6 +692,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(persistedState);
     setIsGameStarted(true);
   }, []);
+
+  useEffect(() => {
+    activeMissionRef.current = state.activeMission;
+    activeScoutsRef.current = state.activeScouts;
+  }, [state.activeMission, state.activeScouts]);
 
   useEffect(() => {
     if (!isGameStarted) return;
@@ -834,19 +845,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Automatic game ticks: 5 minutes of game time advances every 3 seconds while at base
+  // Advance the shared simulation state on the existing cadence.
   useEffect(() => {
     if (state.activeMission && state.activeMission.status !== 'TRANSIT' && state.activeMission.status !== 'RETURNING') return;
     const interval = setInterval(() => {
-      advanceTime(5);
+      advanceTime(BASE_GAME_TICK_STEP_MINUTES);
+    }, BASE_GAME_TICK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [state.activeMission, advanceTime]);
 
-      if (state.activeMission && (state.activeMission.status === 'TRANSIT' || state.activeMission.status === 'RETURNING')) {
-        setState(prev => {
-          if (!prev.activeMission || (prev.activeMission.status !== 'TRANSIT' && prev.activeMission.status !== 'RETURNING')) return prev;
-          const remaining = prev.activeMission.transitTimeRemaining - 5;
+  // Update transit progress separately so troop movement and progress bars feel continuous.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hasTransitMission = Boolean(activeMissionRef.current && (activeMissionRef.current.status === 'TRANSIT' || activeMissionRef.current.status === 'RETURNING'));
+      const hasActiveScouts = Boolean(activeScoutsRef.current && activeScoutsRef.current.length > 0);
+      if (!hasTransitMission && !hasActiveScouts) return;
+
+      setState(prev => {
+        let nextState = prev;
+        const scoutIntelById = new Map<string, { civilians: number; hostiles: number; resources: number }>();
+        (prev.activeScouts ?? []).forEach((scout) => {
+          if (scout.transitTimeRemaining <= TRANSIT_TICK_STEP_MINUTES) {
+            const seed = `${scout.buildingId}-${scout.id}`.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+            scoutIntelById.set(scout.id, {
+              civilians: seed % 20,
+              hostiles: (seed % 12) + 3,
+              resources: (seed % 600) + 200,
+            });
+          }
+        });
+
+        if (prev.activeMission && (prev.activeMission.status === 'TRANSIT' || prev.activeMission.status === 'RETURNING')) {
+          const remaining = prev.activeMission.transitTimeRemaining - TRANSIT_TICK_STEP_MINUTES;
           if (remaining <= 0) {
             if (prev.activeMission.status === 'RETURNING') {
-              // Units are back at BASE
               const updatedUnits = { ...prev.units };
               const returnBuildingId = prev.activeMission.startBuildingId || 'player-hq';
               prev.activeMission.units.forEach(uId => {
@@ -854,23 +886,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   updatedUnits[uId] = { ...updatedUnits[uId], location: 'BASE', currentBuildingId: returnBuildingId };
                 }
               });
-              return {
+              nextState = {
                 ...prev,
                 units: updatedUnits,
                 activeMission: undefined
               };
             } else {
-              // Update unit locations to MISSION
               const updatedUnits = { ...prev.units };
-              if (prev.activeMission) {
-                prev.activeMission.units.forEach(uId => {
-                  if (updatedUnits[uId]) {
-                    updatedUnits[uId] = { ...updatedUnits[uId], location: 'MISSION' };
-                  }
-                });
-              }
-
-              return {
+              prev.activeMission.units.forEach(uId => {
+                if (updatedUnits[uId]) {
+                  updatedUnits[uId] = { ...updatedUnits[uId], location: 'MISSION' };
+                }
+              });
+              nextState = {
                 ...prev,
                 units: updatedUnits,
                 activeMission: {
@@ -880,19 +908,71 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               };
             }
+          } else {
+            nextState = {
+              ...prev,
+              activeMission: {
+                ...prev.activeMission,
+                transitTimeRemaining: remaining
+              }
+            };
           }
-          return {
-            ...prev,
-            activeMission: {
-              ...prev.activeMission,
-              transitTimeRemaining: remaining
+        }
+
+        if (nextState.activeScouts && nextState.activeScouts.length > 0) {
+          const updatedScouts = [...nextState.activeScouts];
+          let didUpdateScouts = false;
+
+          for (let index = updatedScouts.length - 1; index >= 0; index -= 1) {
+            const scout = updatedScouts[index];
+            if (!scout) continue;
+            const nextRemaining = scout.transitTimeRemaining - TRANSIT_TICK_STEP_MINUTES;
+            if (nextRemaining <= 0) {
+              const buildingId = scout.buildingId;
+              const building = nextState.buildings[buildingId];
+              if (building) {
+                const intel = scoutIntelById.get(scout.id) || {
+                  civilians: 0,
+                  hostiles: 3,
+                  resources: 200,
+                };
+                nextState = {
+                  ...nextState,
+                  buildings: {
+                    ...nextState.buildings,
+                    [buildingId]: {
+                      ...building,
+                      isScouted: true,
+                      intel: building.intel || intel
+                    }
+                  }
+                };
+              }
+              updatedScouts.splice(index, 1);
+              didUpdateScouts = true;
+            } else {
+              updatedScouts[index] = {
+                ...scout,
+                transitTimeRemaining: nextRemaining
+              };
+              didUpdateScouts = true;
             }
-          };
-        });
-      }
-    }, 3000);
+          }
+
+          if (didUpdateScouts) {
+            nextState = {
+              ...nextState,
+              activeScouts: updatedScouts
+            };
+          }
+        }
+
+        return nextState;
+      });
+    }, TRANSIT_TICK_INTERVAL_MS);
+
     return () => clearInterval(interval);
-  }, [state.activeMission, advanceTime]);
+  }, []);
 
   const startMission = useCallback((mission: TacticalMission) => {
     setState(prev => {
