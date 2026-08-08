@@ -12,7 +12,7 @@ import {
   Radio, Zap, Shield, Warehouse, Building2, Factory, Crosshair, 
   AlertTriangle, Compass, Flame, Sun, Layers, HelpCircle
 } from 'lucide-react';
-import ThreeCityScene from './ThreeCityScene';
+import ThreeCityScene, { getSceneLayout } from './ThreeCityScene';
 import { getBuildingVisualMetrics } from '../buildingGeometry';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
@@ -528,6 +528,45 @@ const CityMap = () => {
     return Object.values(worldBuildings as Record<string, Building>) as Building[];
   }, [state.world, state.buildings]);
 
+  const sceneLayout = useMemo(() => getSceneLayout(sceneBuildings), [sceneBuildings]);
+  const sceneMarkers = useMemo(() => {
+    const markers: Array<{ id: string; type: 'mission' | 'scout'; x: number; z: number; color: string }> = [];
+
+    if (isInTransit && missionRoute && mission) {
+      const progressPoint = getPointOnRoute(missionRoute, missionProgress);
+      if (progressPoint) {
+        markers.push({
+          id: `mission-${mission.id}`,
+          type: 'mission',
+          x: (progressPoint.x - sceneLayout.centerX) * sceneLayout.lotScale,
+          z: (progressPoint.y - sceneLayout.centerY) * sceneLayout.lotScale,
+          color: activeVehicle ? '#60a5fa' : '#f8fafc',
+        });
+      }
+    }
+
+    (state.activeScouts || []).forEach((scout) => {
+      const route = scoutRouteMap.get(scout.id);
+      if (!route) {
+        return;
+      }
+
+      const progress = scout.transitTimeTotal > 0 ? 1 - (scout.transitTimeRemaining / scout.transitTimeTotal) : 0;
+      const progressPoint = getPointOnRoute(route, Math.max(0, Math.min(1, progress)));
+      if (progressPoint) {
+        markers.push({
+          id: `scout-${scout.id}`,
+          type: 'scout',
+          x: (progressPoint.x - sceneLayout.centerX) * sceneLayout.lotScale,
+          z: (progressPoint.y - sceneLayout.centerY) * sceneLayout.lotScale,
+          color: '#34d399',
+        });
+      }
+    });
+
+    return markers;
+  }, [activeVehicle, isInTransit, mission, missionProgress, missionRoute, sceneLayout, scoutRouteMap, state.activeScouts]);
+
   return (
     <div 
       className="h-full w-full flex overflow-hidden bg-[#0a0d14] select-none relative touch-none font-sans"
@@ -690,6 +729,7 @@ const CityMap = () => {
           selectedBuildingId={selectedBuildingId}
           camera={{ zoom, rotation, pitch, offset }}
           onBuildingSelect={(buildingId) => { setSelectedBuildingId(buildingId); setShowInfo(true); }}
+          markers={sceneMarkers}
         />
         <div className="hidden">
         {/* Subtle Ambient City Glow Background */}
