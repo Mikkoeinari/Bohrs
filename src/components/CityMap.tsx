@@ -388,6 +388,7 @@ const CityMap = () => {
 
   const mission = state.activeMission;
   const isInTransit = mission?.status === 'TRANSIT' || mission?.status === 'RETURNING';
+  const formatTransitEtaMinutes = (remaining: number) => Math.max(0, Math.round(remaining));
   const getTransitProgressPercent = (remaining: number, total: number) => {
     if (!total) return 0;
     return Math.max(0, Math.min(100, (1 - remaining / total) * 100));
@@ -590,7 +591,7 @@ const CityMap = () => {
                     {mission.status === 'RETURNING' ? 'Squad Returning' : 'Squad in Transit'}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-black text-high-primary animate-pulse">ETA: {mission.transitTimeRemaining} MIN</span>
+                    <span className="text-[10px] font-mono font-black text-high-primary animate-pulse">ETA: {formatTransitEtaMinutes(mission.transitTimeRemaining)} MIN</span>
                     <button
                       onClick={() => cancelMission()}
                       className="px-2 py-1 border border-high-primary/40 bg-slate-800/80 text-[8px] font-mono font-black uppercase tracking-[0.15em] text-high-primary hover:bg-slate-700 transition-colors rounded-sm"
@@ -624,7 +625,7 @@ const CityMap = () => {
                       Scout: {tb.name}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-mono text-emerald-400 font-bold">ETA: {scout.transitTimeRemaining}m</span>
+                      <span className="text-[9px] font-mono text-emerald-400 font-bold">ETA: {formatTransitEtaMinutes(scout.transitTimeRemaining)}m</span>
                       <button
                         onClick={() => cancelScout(scout.id)}
                         className="px-2 py-1 border border-emerald-500/30 bg-slate-800/80 text-[8px] font-mono font-black uppercase tracking-[0.15em] text-emerald-400 hover:bg-slate-700 transition-colors rounded-sm"

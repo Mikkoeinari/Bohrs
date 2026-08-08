@@ -21,8 +21,8 @@ const RIVAL_AI_TICK_MINUTES = 15;
 const MAX_RIVAL_UNITS_PER_FACTION = 3;
 const BASE_GAME_TICK_INTERVAL_MS = 3000;
 const BASE_GAME_TICK_STEP_MINUTES = 5;
-const TRANSIT_TICK_INTERVAL_MS = 250;
-const TRANSIT_TICK_STEP_MINUTES = 0.25;
+const TRANSIT_TICK_INTERVAL_MS = 1000;
+const TRANSIT_TICK_STEP_MINUTES = 1;
 
 function getCookieValue(cookieName: string): string | null {
   if (typeof document === 'undefined') return null;
