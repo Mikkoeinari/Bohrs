@@ -606,7 +606,18 @@ function applyRivalAi(state: GameState): GameState {
         const relationFactor = Math.max(0.25, 1 - (factionRelation + 100) / 200);
         const activeTruce = Boolean(faction.truceUntil && nextState.time < faction.truceUntil);
         const targetIsPlayer = target.ownerId === 'player';
-        const hasFactionVehicleSupport = Object.values(nextState.vehicles).some((vehicle) => vehicle.factionId === factionId);
+        const hasFactionVehicleSupport = Object.values(nextState.vehicles).some((vehicle) => {
+          if (vehicle.factionId === factionId) {
+            return true;
+          }
+
+          if (!vehicle.currentBuildingId) {
+            return false;
+          }
+
+          const baseBuilding = nextState.buildings[vehicle.currentBuildingId];
+          return baseBuilding?.ownerId === factionId;
+        });
         if (!activeTruce && (targetIsPlayer || factionRelation < 0)) {
           const successChance = targetIsPlayer
             ? hasFactionVehicleSupport
