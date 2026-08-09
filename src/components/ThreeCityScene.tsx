@@ -475,11 +475,11 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       addStreetLine({ lotCoord, axis: 'z' });
     }
 
-    const ringRoadInsetLots = 2.25;
-    const ringMinLotX = minX - ringRoadInsetLots;
-    const ringMaxLotX = maxX + ringRoadInsetLots;
-    const ringMinLotZ = minY - ringRoadInsetLots;
-    const ringMaxLotZ = maxY + ringRoadInsetLots;
+    const ringRoadPaddingLots = 2.25;
+    const ringMinLotX = minX - ringRoadPaddingLots;
+    const ringMaxLotX = maxX + ringRoadPaddingLots;
+    const ringMinLotZ = minY - ringRoadPaddingLots;
+    const ringMaxLotZ = maxY + ringRoadPaddingLots;
     const ringWorldMinX = (ringMinLotX - centerX) * lotScale;
     const ringWorldMaxX = (ringMaxLotX - centerX) * lotScale;
     const ringWorldMinZ = (ringMinLotZ - centerY) * lotScale;
@@ -488,25 +488,25 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     addRoadSegment({
       x: (ringWorldMinX + ringWorldMaxX) / 2,
       z: ringWorldMinZ,
-      length: ringWorldMaxX - ringWorldMinX,
+      length: ringWorldMaxX - ringWorldMinX + roadWidth,
       axis: 'x',
     });
     addRoadSegment({
       x: (ringWorldMinX + ringWorldMaxX) / 2,
       z: ringWorldMaxZ,
-      length: ringWorldMaxX - ringWorldMinX,
+      length: ringWorldMaxX - ringWorldMinX + roadWidth,
       axis: 'x',
     });
     addRoadSegment({
       x: ringWorldMinX,
       z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-      length: ringWorldMaxZ - ringWorldMinZ,
+      length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
       axis: 'z',
     });
     addRoadSegment({
       x: ringWorldMaxX,
       z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-      length: ringWorldMaxZ - ringWorldMinZ,
+      length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
       axis: 'z',
     });
 
