@@ -375,18 +375,23 @@ function generateProceduralBuildings(): Record<string, Building> {
     '1,1', '13,13', '17,17', '21,17', '25,17', '29,21',
   ]);
 
-  // Grid: 8 columns × 8 rows of 3-cell lots (lot origin = col*4+1, row*4+1)
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
-      const x = col * 4 + 1;
-      const y = row * 4 + 1;
+  const cityGridCols = 10;
+  const cityGridRows = 10;
+  const cityLotSpacing = 4;
+  const cityOccupancyChance = 0.82;
+
+  // Grid: 10 columns × 10 rows of 4-cell lots (lot origin = col*4+1, row*4+1)
+  for (let row = 0; row < cityGridRows; row++) {
+    for (let col = 0; col < cityGridCols; col++) {
+      const x = col * cityLotSpacing + 1;
+      const y = row * cityLotSpacing + 1;
       const lotKey = `${x},${y}`;
 
       if (reservedLots.has(lotKey)) continue;
 
-      // ~78% of non-reserved lots get a building — outer edge lots are sparser (~58%)
-      const edgeSparsityReduction = (col === 0 || col === 7 || row === 0 || row === 7) ? 0.20 : 0;
-      if (rng.next() > 0.78 - edgeSparsityReduction) continue;
+      // ~82% of non-reserved lots get a building — outer edge lots are slightly sparser
+      const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.14 : 0;
+      if (rng.next() > cityOccupancyChance - edgeSparsityReduction) continue;
 
       const factionId = getZoneFaction(col, row, rng);
       const type = getZoneBuildingType(factionId, col, row, rng);
