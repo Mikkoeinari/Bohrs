@@ -2410,7 +2410,10 @@ const TacticalMission = () => {
             })}
 
             {/* Movement path overlays */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-15 overflow-visible">
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+              style={{ zIndex: 15 }}
+            >
               {units
                 .filter((unit) => unit.hp > 0 && unit.path && unit.path.length > 0)
                 .map((unit) => {
