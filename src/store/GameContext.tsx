@@ -816,31 +816,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newState = applyRivalAi(newState);
       }
 
-      if (newState.activeScouts && newState.activeScouts.length > 0) {
-        const newScouts = [...newState.activeScouts];
-        for (let i = newScouts.length - 1; i >= 0; i--) {
-          newScouts[i].transitTimeRemaining -= minutes;
-          if (newScouts[i].transitTimeRemaining <= 0) {
-            const bId = newScouts[i].buildingId;
-            const b = newState.buildings[bId];
-            if (b) {
-              const newIntel = b.intel || {
-                civilians: Math.floor(Math.random() * 20),
-                hostiles: Math.floor(Math.random() * 15) + 3,
-                resources: Math.floor(Math.random() * 800) + 200
-              };
-              newState.buildings[bId] = {
-                ...b,
-                isScouted: true,
-                intel: newIntel
-              };
-            }
-            newScouts.splice(i, 1);
-          }
-        }
-        newState.activeScouts = newScouts;
-      }
-
       return newState;
     });
   }, []);
