@@ -177,6 +177,7 @@ export interface Vehicle {
   id: VehicleId;
   name: string;
   type: 'SCOUTER' | 'SEDAN' | 'VAN' | 'APC' | 'INTERCEPTOR';
+  factionId?: FactionId;
   stats: {
     speed: number;
     armor: number;

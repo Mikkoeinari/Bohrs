@@ -606,9 +606,12 @@ function applyRivalAi(state: GameState): GameState {
         const relationFactor = Math.max(0.25, 1 - (factionRelation + 100) / 200);
         const activeTruce = Boolean(faction.truceUntil && nextState.time < faction.truceUntil);
         const targetIsPlayer = target.ownerId === 'player';
+        const hasFactionVehicleSupport = Object.values(nextState.vehicles).some((vehicle) => vehicle.factionId === factionId);
         if (!activeTruce && (targetIsPlayer || factionRelation < 0)) {
           const successChance = targetIsPlayer
-            ? 0.35 * relationFactor * (faction.isVendetta ? 1.35 : 1)
+            ? hasFactionVehicleSupport
+              ? 0.35 * relationFactor * (faction.isVendetta ? 1.35 : 1)
+              : 0
             : 0.2 * relationFactor;
           if (Math.random() < successChance) {
             nextState.buildings[target.id] = {
@@ -1808,7 +1811,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!template || prev.funds < template.cost) return prev;
       
       const instanceId = `veh_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      const newVehicle = { ...template, id: instanceId };
+      const newVehicle = { ...template, id: instanceId, factionId: 'player' };
       
       return {
         ...prev,
