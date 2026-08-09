@@ -24,6 +24,16 @@ type RoutePoint = {
   y: number;
 };
 
+const getRoadAxes = (gridSize: number) => {
+  const axes = new Set<number>();
+  for (let axis = 0; axis < gridSize; axis += 4) {
+    axes.add(axis);
+  }
+  axes.add(0);
+  axes.add(gridSize - 1);
+  return axes;
+};
+
 const isRoadCell = (x: number, y: number, gridSize: number) => {
   if (x <= 0 || y <= 0 || x >= gridSize - 1 || y >= gridSize - 1) {
     return true;
@@ -233,16 +243,6 @@ const CityMap = () => {
   const SELECTION_HIGHLIGHT_OFFSET = 0.15;
   // Keep labels slightly above the building roofs so they remain readable while the camera moves.
   const LABEL_HEIGHT_OFFSET = 22;
-
-  const getRoadAxes = (gridSize: number) => {
-    const axes = new Set<number>();
-    for (let axis = 0; axis < gridSize; axis += 4) {
-      axes.add(axis);
-    }
-    axes.add(0);
-    axes.add(gridSize - 1);
-    return axes;
-  };
 
   const ROAD_AXES_X = useMemo(() => getRoadAxes(GRID_SIZE), [GRID_SIZE]);
   const ROAD_AXES_Y = useMemo(() => getRoadAxes(GRID_SIZE), [GRID_SIZE]);
@@ -814,8 +814,8 @@ const CityMap = () => {
                   const key = `${gx},${gy}`;
                   
                   const isOccupied = buildingOccupiedMap.has(key);
-                  const isRoadX = ROAD_AXES_X.has(gx) || gx === 0 || gx === GRID_SIZE - 1;
-                  const isRoadY = ROAD_AXES_Y.has(gy) || gy === 0 || gy === GRID_SIZE - 1;
+                  const isRoadX = ROAD_AXES_X.has(gx);
+                  const isRoadY = ROAD_AXES_Y.has(gy);
 
                   // Subway tracks lead to Player HQ Depot
                   const isSubwayTrack = (gx >= 1 && gx <= 3 && gy === 4);
