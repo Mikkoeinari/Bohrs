@@ -261,7 +261,7 @@ export interface TacticalMission {
   id: string;
   buildingId: BuildingId;
   startBuildingId?: BuildingId;
-  type: 'RAID' | 'DEFEND' | 'INFILTRATE';
+  type: 'RAID' | 'DEFEND' | 'INFILTRATE' | 'URBAN';
   units: UnitId[];
   enemyUnits: UnitId[];
   map: {
