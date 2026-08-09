@@ -301,7 +301,7 @@ function generateProceduralBuildings(): Record<string, Building> {
   const playerHqLayout = getProceduralBuildingLayout('BASE', 6, true);
   buildings['player-hq'] = {
     id: 'player-hq',
-    name: buildBuildingName('player-hq'),
+    name: 'Subway HQ',
     ownerId: 'player',
     x: 1, y: 1, width: playerHqLayout.width, height: playerHqLayout.height,
     type: 'BASE',
