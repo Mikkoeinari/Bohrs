@@ -373,11 +373,18 @@ const CityMap = () => {
 
     if (squadUnits.length === 0) return;
 
+    const isUrbanEncounter = Boolean(
+      building &&
+      building.ownerId !== 'player' &&
+      building.ownerId !== 'player-hq' &&
+      (building.intel?.hostiles ?? 0) > 0
+    );
+
     startMission({
       id: `mission-${Date.now()}`,
       buildingId: building.id,
       startBuildingId: launchBaseId,
-      type: 'RAID',
+      type: isUrbanEncounter ? 'URBAN' : 'RAID',
       units: squadUnits,
       enemyUnits: [], 
       map: { width: 10, height: 10, tiles: [] },

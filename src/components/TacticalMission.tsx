@@ -236,7 +236,72 @@ interface RoomConnectionSpec {
   axis: 'H' | 'V';
 }
 
-export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = []) => {
+export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = [], missionType: string = 'RAID') => {
+  if (missionType === 'URBAN') {
+    const rooms: Room[] = [];
+    const floorPlan: Record<string, FloorPlanTile> = {};
+    const obstacles: Record<string, ObstacleData> = {};
+
+    const setTile = (x: number, y: number, label: FloorTileLabel) => {
+      floorPlan[`${x},${y}`] = { label };
+    };
+
+    const placeObstacle = (x: number, y: number, type: ObstacleType, hp: number) => {
+      setTile(x, y, 'furniture');
+      obstacles[`${x},${y}`] = { type, hp, maxHp: hp };
+    };
+
+    for (let x = 0; x < MAP_GRID_SIZE; x++) {
+      for (let y = 0; y < MAP_GRID_SIZE; y++) {
+        const isBoundary = x === 0 || x === MAP_GRID_SIZE - 1 || y === 0 || y === MAP_GRID_SIZE - 1;
+        setTile(x, y, isBoundary ? 'wall' : 'floor');
+        if (isBoundary) {
+          obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+        }
+      }
+    }
+
+    const roadY = Math.floor(MAP_GRID_SIZE / 2);
+    const alleyX = Math.floor(MAP_GRID_SIZE / 2);
+
+    for (let x = 0; x < MAP_GRID_SIZE; x++) {
+      setTile(x, roadY, 'accessway');
+      delete obstacles[`${x},${roadY}`];
+    }
+
+    for (let y = 0; y < MAP_GRID_SIZE; y++) {
+      setTile(alleyX, y, 'accessway');
+      delete obstacles[`${alleyX},${y}`];
+    }
+
+    const fallbackCoverPositions = [
+      { x: 0.12, y: 0.12 },
+      { x: 0.24, y: 0.42 },
+      { x: 0.58, y: 0.16 },
+      { x: 0.70, y: 0.48 },
+      { x: 0.42, y: 0.64 },
+      { x: 0.80, y: 0.76 },
+    ];
+    const gridMax = Math.max(2, MAP_GRID_SIZE - 2);
+    const coverPositions = fallbackCoverPositions.map(({ x, y }) => ({
+      x: Math.max(1, Math.min(gridMax, Math.floor(MAP_GRID_SIZE * x))),
+      y: Math.max(1, Math.min(gridMax, Math.floor(MAP_GRID_SIZE * y))),
+    }));
+
+    coverPositions.forEach(({ x, y }) => {
+      placeObstacle(x, y, 'crate', 70);
+    });
+
+    placeObstacle(Math.max(1, Math.floor(MAP_GRID_SIZE * 0.46)), Math.max(1, Math.floor(MAP_GRID_SIZE * 0.24)), 'desk', 60);
+    placeObstacle(Math.max(1, Math.floor(MAP_GRID_SIZE * 0.50)), Math.max(1, Math.floor(MAP_GRID_SIZE * 0.58)), 'generator', 85);
+    placeObstacle(Math.max(1, Math.floor(MAP_GRID_SIZE * 0.34)), Math.max(1, Math.floor(MAP_GRID_SIZE * 0.76)), 'crate', 65);
+
+    rooms.push({ name: 'MAIN STREET', x1: 0, y1: roadY - 1, x2: MAP_GRID_SIZE - 1, y2: roadY + 1, color: 'text-slate-300 border-slate-500/30', bgClass: 'bg-slate-950/10', type: 'STREET' });
+    rooms.push({ name: 'SIDE ALLEY', x1: alleyX - 1, y1: 0, x2: alleyX + 1, y2: MAP_GRID_SIZE - 1, color: 'text-amber-300 border-amber-500/30', bgClass: 'bg-amber-950/10', type: 'ALLEY' });
+
+    return { rooms, floorPlan, obstacles, lootTiles: [] as { x: number; y: number; itemId: string; name: string }[] };
+  }
+
   const roomTypes = sectors
     .filter((sector): sector is BaseSector => Boolean(sector?.type && sector.type !== 'EMPTY'))
     .map((sector) => sector.type);
@@ -755,7 +820,7 @@ const TacticalMission = () => {
       (sector: BaseSector) => (sector.buildingId || 'player-hq') === (activeMission?.buildingId || 'player-hq')
     );
 
-    const { rooms: genRooms, floorPlan: generatedFloorPlan, obstacles: generatedObstacles, lootTiles: generatedLootTiles } = getLayoutForBuildingType(buildingType, buildingSectors);
+    const { rooms: genRooms, floorPlan: generatedFloorPlan, obstacles: generatedObstacles, lootTiles: generatedLootTiles } = getLayoutForBuildingType(buildingType, buildingSectors, activeMission?.type);
     setRooms(genRooms);
     setFloorPlan(generatedFloorPlan);
     setObstacles(generatedObstacles);
