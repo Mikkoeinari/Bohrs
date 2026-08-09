@@ -2409,6 +2409,44 @@ const TacticalMission = () => {
               );
             })}
 
+            {/* Movement path overlays */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-15 overflow-visible">
+              {units
+                .filter((unit) => unit.hp > 0 && unit.path && unit.path.length > 0)
+                .map((unit) => {
+                  const points = [{ x: unit.x, y: unit.y }, ...unit.path]
+                    .map((coord) => `${coord.x * CELL_SIZE + CELL_SIZE / 2},${coord.y * CELL_SIZE + CELL_SIZE / 2}`)
+                    .join(' ');
+                  const strokeColor = unit.faction === 'ENEMY' ? '#f56565' : '#38bdf8';
+                  const dash = unit.faction === 'ENEMY' ? '6 4' : '4 3';
+                  const nextStep = unit.path[0];
+
+                  return (
+                    <g key={`movement-${unit.id}`}>
+                      <polyline
+                        points={points}
+                        fill="none"
+                        stroke={strokeColor}
+                        strokeWidth={unit.faction === 'ENEMY' ? 3 : 2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeDasharray={dash}
+                        opacity={unit.faction === 'ENEMY' ? 0.85 : 0.75}
+                      />
+                      {nextStep && (
+                        <circle
+                          cx={nextStep.x * CELL_SIZE + CELL_SIZE / 2}
+                          cy={nextStep.y * CELL_SIZE + CELL_SIZE / 2}
+                          r={unit.faction === 'ENEMY' ? 4 : 3}
+                          fill={strokeColor}
+                          opacity={0.95}
+                        />
+                      )}
+                    </g>
+                  );
+                })}
+            </svg>
+
             {/* SVG Shot Tracers */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none z-30 overflow-visible">
               {shotTracers.map(tracer => (
