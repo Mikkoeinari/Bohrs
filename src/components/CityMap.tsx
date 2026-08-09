@@ -331,7 +331,7 @@ const CityMap = () => {
   };
 
   const distance = calculateDistance(state.buildings[launchBaseId] || playerHq, selectedBuilding);
-  const missionStartBaseId = mission?.startBuildingId ?? launchBaseId;
+  const missionStartBaseId = mission?.startBuildingId || launchBaseId;
   let activeVehicle = state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null;
   if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== missionStartBaseId) {
     activeVehicle = null;
