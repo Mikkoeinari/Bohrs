@@ -24,7 +24,23 @@ type RoutePoint = {
   y: number;
 };
 
-const isRoadCell = (x: number, y: number) => x % 4 === 0 || y % 4 === 0;
+const getRoadAxes = (gridSize: number) => {
+  const axes = new Set<number>();
+  for (let axis = 0; axis < gridSize; axis += 4) {
+    axes.add(axis);
+  }
+  axes.add(0);
+  axes.add(gridSize - 1);
+  return axes;
+};
+
+const isRoadCell = (x: number, y: number, gridSize: number) => {
+  if (x <= 0 || y <= 0 || x >= gridSize - 1 || y >= gridSize - 1) {
+    return true;
+  }
+
+  return x % 4 === 0 || y % 4 === 0;
+};
 
 function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {
   return {
@@ -37,7 +53,7 @@ function findNearestTraversableCell(
   start: RoutePoint,
   occupiedCells: Set<string>,
   gridSize: number,
-  isRoadCell: (x: number, y: number) => boolean
+  isRoadCell: (x: number, y: number, gridSize: number) => boolean
 ): RoutePoint {
   const centerKey = `${start.x},${start.y}`;
   const preferredCandidates: RoutePoint[] = [];
@@ -61,7 +77,7 @@ function findNearestTraversableCell(
           continue;
         }
 
-        if (isRoadCell(x, y)) {
+        if (isRoadCell(x, y, gridSize)) {
           preferredCandidates.push({ x, y });
         } else {
           fallbackCandidates.push({ x, y });
@@ -82,7 +98,7 @@ function findRoadRoute(
   end: RoutePoint,
   occupiedCells: Set<string>,
   gridSize: number,
-  isRoadCell: (x: number, y: number) => boolean
+  isRoadCell: (x: number, y: number, gridSize: number) => boolean
 ): RoutePoint[] {
   const startKey = `${start.x},${start.y}`;
   const endKey = `${end.x},${end.y}`;
@@ -129,7 +145,7 @@ function findRoadRoute(
       }
 
       const neighborKey = `${neighbor.x},${neighbor.y}`;
-      const isTraversable = !occupiedCells.has(neighborKey) && (isRoadCell(neighbor.x, neighbor.y) || neighborKey === routeStartKey || neighborKey === routeEndKey);
+      const isTraversable = !occupiedCells.has(neighborKey) && (isRoadCell(neighbor.x, neighbor.y, gridSize) || neighborKey === routeStartKey || neighborKey === routeEndKey);
       if (!isTraversable || visited.has(neighborKey)) {
         continue;
       }
@@ -218,8 +234,8 @@ const CityMap = () => {
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
   const [lastTouchDist, setLastTouchDist] = useState<number | null>(null);
 
-  const GRID_SIZE = 36;
-  const CELL_SIZE = 75;
+  const GRID_SIZE = 60;
+  const CELL_SIZE = 60;
   // Keep the terrain layers separated enough that they don't fight each other when the camera is rotated or pitched.
   const GROUND_PLANE_DEPTH_OFFSET = 0.8;
   const BUILDING_BASE_DEPTH_OFFSET = 0.45;
@@ -228,9 +244,8 @@ const CityMap = () => {
   // Keep labels slightly above the building roofs so they remain readable while the camera moves.
   const LABEL_HEIGHT_OFFSET = 22;
 
-  // Evenly spaced road axes (Grid lines where roads run every 4 cells)
-  const ROAD_AXES_X = useMemo(() => new Set([0, 4, 8, 12, 16, 20, 24, 28, 32]), []);
-  const ROAD_AXES_Y = useMemo(() => new Set([0, 4, 8, 12, 16, 20, 24, 28, 32]), []);
+  const ROAD_AXES_X = useMemo(() => getRoadAxes(GRID_SIZE), [GRID_SIZE]);
+  const ROAD_AXES_Y = useMemo(() => getRoadAxes(GRID_SIZE), [GRID_SIZE]);
 
   useEffect(() => {
     if (selectedBuildingId) setShowInfo(true);
