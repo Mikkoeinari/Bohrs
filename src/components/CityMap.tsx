@@ -322,7 +322,7 @@ const CityMap = () => {
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
 
   const selectedBuilding = selectedBuildingId ? (state.world?.buildings[selectedBuildingId] || state.buildings[selectedBuildingId]) : null;
-  let activeVehicle = state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null;
+  const mission = state.activeMission;
   const playerHq = (state.world?.buildings['player-hq'] || state.buildings['player-hq']) as Building | undefined;
 
   const calculateDistance = (b1: any, b2: any) => {
@@ -331,8 +331,9 @@ const CityMap = () => {
   };
 
   const distance = calculateDistance(state.buildings[launchBaseId] || playerHq, selectedBuilding);
-  activeVehicle = state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null;
-  if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== launchBaseId) {
+  const missionStartBaseId = mission?.startBuildingId ?? launchBaseId;
+  let activeVehicle = state.activeVehicleId ? state.vehicles[state.activeVehicleId] : null;
+  if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== missionStartBaseId) {
     activeVehicle = null;
   }
   const travelSpeed = activeVehicle ? activeVehicle.stats.speed : 10; 
@@ -386,7 +387,6 @@ const CityMap = () => {
     }
   };
 
-  const mission = state.activeMission;
   const isInTransit = mission?.status === 'TRANSIT' || mission?.status === 'RETURNING';
   const formatTransitEtaMinutes = (remaining: number) => Math.max(0, Math.round(remaining));
   const getTransitProgressPercent = (remaining: number, total: number) => {
