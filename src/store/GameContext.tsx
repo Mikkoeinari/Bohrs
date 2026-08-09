@@ -84,10 +84,6 @@ function getBuildingRoomCount(building: Pick<Building, 'presetFacilities' | 'wid
   return Math.max(1, Math.min(9, Math.round(Math.sqrt(footprintArea) * Math.max(1, floorCount))));
 }
 
-function getBuildingDisplayName(building: Pick<Building, 'id' | 'name'>): string {
-  return building.id === 'player-hq' ? 'Subway HQ' : building.name;
-}
-
 function createInitialWorld(buildings: Record<string, Building>): GameWorld {
   const terrain: GameWorld['terrain'] = Array.from({ length: 24 }, (_, index) => ({
     id: `terrain-${index}`,
@@ -104,7 +100,7 @@ function createInitialWorld(buildings: Record<string, Building>): GameWorld {
     accumulator[building.id] = {
       id: building.id,
       buildingId: building.id,
-      name: getBuildingDisplayName(building),
+      name: building.name,
       ownerId: building.ownerId,
       x: building.x,
       y: building.y,
@@ -154,7 +150,7 @@ function hydrateGameState(state: GameState): GameState {
       ...(existingWorldBuilding || {}),
       id: building.id,
       buildingId: building.id,
-      name: getBuildingDisplayName(building),
+      name: building.id === 'player-hq' ? 'Subway HQ' : building.name,
       ownerId: building.ownerId,
       x: building.x,
       y: building.y,
