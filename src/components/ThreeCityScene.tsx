@@ -637,8 +637,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const typeTheme = getBuildingTypeTheme(buildingType);
       const baseHeight = metrics.heightMeters;
       const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
-      const x = (building.x + metrics.footprintW / 2 - centerX) * lotScale;
-      const z = (building.y + metrics.footprintH / 2 - centerY) * lotScale;
+      // Keep the HQ centered in its lot so its larger shell doesn't encroach the adjacent road.
+      const placementOffset = building.id === 'player-hq' ? 0.36 : 0;
+      const x = (building.x + metrics.footprintW / 2 - centerX - placementOffset) * lotScale;
+      const z = (building.y + metrics.footprintH / 2 - centerY - placementOffset) * lotScale;
       const isSelected = building.id === selectedBuildingId;
       const accentColorHex = building.ownerId === 'player'
         ? '#38bdf8'
