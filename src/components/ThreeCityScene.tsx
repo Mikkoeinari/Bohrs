@@ -72,27 +72,27 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
 
 const getBuildingLotCenter = ({
   building,
-  footprintW,
-  footprintH,
 }: {
   building: Building;
-  footprintW: number;
-  footprintH: number;
-}) => ({
-  x: building.x + footprintW / 2,
-  y: building.y + footprintH / 2,
-});
+}) => {
+  const lotW = Math.max(1, building.width || 1);
+  const lotH = Math.max(1, building.height || 1);
+
+  return {
+    x: building.x + lotW / 2,
+    y: building.y + lotH / 2,
+  };
+};
 
 export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
-    const metrics = getBuildingVisualMetrics(building);
-    const footprintW = Math.max(1, metrics.footprintW);
-    const footprintH = Math.max(1, metrics.footprintH);
+    const lotW = Math.max(1, building.width || 1);
+    const lotH = Math.max(1, building.height || 1);
     return {
       minX: building.x,
-      maxX: building.x + footprintW,
+      maxX: building.x + lotW,
       minY: building.y,
-      maxY: building.y + footprintH,
+      maxY: building.y + lotH,
     };
   });
   const minX = Math.min(...extents.map((extent) => extent.minX), 1);
@@ -656,8 +656,6 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
       const lotCenter = getBuildingLotCenter({
         building,
-        footprintW,
-        footprintH,
       });
       const x = (lotCenter.x - centerX) * lotScale;
       const z = (lotCenter.y - centerY) * lotScale;
