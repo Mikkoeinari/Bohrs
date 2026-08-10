@@ -27,9 +27,9 @@ export interface BuildingLotBounds {
   maxY: number;
 }
 
-export const getBuildingLotCenter = (building: Pick<Building, 'x' | 'y'>, lotSideRooms = MAX_ROOM_GRID_SIDE) => ({
-  x: building.x + lotSideRooms / 2,
-  y: building.y + lotSideRooms / 2,
+export const getBuildingLotCenter = (building: Pick<Building, 'x' | 'y'>, _lotSideRooms = MAX_ROOM_GRID_SIDE) => ({
+  x: building.x,
+  y: building.y,
 });
 
 export const getBuildingLotBounds = (building: Pick<Building, 'x' | 'y' | 'width' | 'height'>, lotSideRooms = MAX_ROOM_GRID_SIDE): BuildingLotBounds => {

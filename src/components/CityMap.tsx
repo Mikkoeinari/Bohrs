@@ -13,7 +13,7 @@ import {
   AlertTriangle, Compass, Flame, Sun, Layers, HelpCircle
 } from 'lucide-react';
 import ThreeCityScene, { getSceneLayout } from './ThreeCityScene';
-import { getBuildingLotBounds, getBuildingLotCenter, getBuildingLotOriginOffset, getBuildingVisualMetrics } from '../buildingGeometry';
+import { getBuildingLotBounds, getBuildingLotCenter, getBuildingVisualMetrics } from '../buildingGeometry';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
  return getBuildingVisualMetrics(building, baseSectors);
@@ -425,10 +425,8 @@ const CityMap = () => {
     const map = new Map<string, string>();
     Object.values(state.world?.buildings || {}).forEach((b: any) => {
       const { footprintW, footprintH } = getDynamicBuildingSize(b, state.baseSectors || []);
-      const offsetX = getBuildingLotOriginOffset(footprintW);
-      const offsetY = getBuildingLotOriginOffset(footprintH);
-      const startX = b.x + offsetX;
-      const startY = b.y + offsetY;
+      const startX = Math.round(b.x - footprintW / 2);
+      const startY = Math.round(b.y - footprintH / 2);
       for (let bx = startX; bx < startX + footprintW; bx++) {
         for (let by = startY; by < startY + footprintH; by++) {
           map.set(`${bx},${by}`, b.id);
