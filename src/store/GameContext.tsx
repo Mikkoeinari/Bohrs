@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld } from '../types';
+import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld, BaseSector } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 import { buildSoldierName } from '../nameData';
 
@@ -138,6 +138,9 @@ function createInitialWorld(buildings: Record<string, Building>): GameWorld {
 
 function hydrateGameState(state: GameState): GameState {
   const baseWorld = state.world && isWorld(state.world) ? state.world : createInitialWorld(state.buildings);
+  const baseSectors = Array.isArray(state.baseSectors) && state.baseSectors.length > 0
+    ? state.baseSectors
+    : createInitialBaseSectors(state.buildings);
   const hydratedBuildings = Object.entries(state.buildings).reduce<Record<string, GameWorld['buildings'][string]>>((accumulator, [buildingId, building]) => {
     const existingWorldBuilding = baseWorld.buildings[buildingId];
     const healthRatio = building.maxHealth > 0 ? building.health / building.maxHealth : 1;
@@ -147,7 +150,7 @@ function hydrateGameState(state: GameState): GameState {
       ...(existingWorldBuilding || {}),
       id: building.id,
       buildingId: building.id,
-      name: building.name,
+      name: building.id === 'player-hq' ? 'Subway HQ' : building.name,
       ownerId: building.ownerId,
       x: building.x,
       y: building.y,
@@ -177,6 +180,7 @@ function hydrateGameState(state: GameState): GameState {
 
   return {
     ...state,
+    baseSectors,
     world: {
       version: 1,
       terrain: baseWorld.terrain,
@@ -222,14 +226,7 @@ function createInitialGameState(): GameState {
     researchProgress: 0,
     manufacturingQueue: [],
     baseStructuralIntegrity: 92,
-    baseSectors: [
-      { id: 'sec-1', name: 'Command Center', type: 'COMMAND', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-2', name: 'Tech Laboratory', type: 'LAB', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-3', name: 'Tactical Armory', type: 'ARMORY', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-4', name: 'Med Infirmary', type: 'INFIRMARY', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-5', name: 'Crew Quarters', type: 'QUARTERS', level: 1, buildingId: 'player-hq' },
-      { id: 'sec-6', name: 'Workshop Bay', type: 'WORKSHOP', level: 1, buildingId: 'player-hq' }
-    ],
+    baseSectors: createInitialBaseSectors(INITIAL_BUILDINGS),
     vehicles: {},
     unlockedVehicles: ['scouter', 'sedan', 'van'],
     world: createInitialWorld(INITIAL_BUILDINGS),
@@ -389,6 +386,21 @@ const FACILITY_LABEL_NAMES: Record<string, string> = {
   GARAGE: 'Garage Terminal',
   EMPTY: 'Inactive Bay'
 };
+
+function createInitialBaseSectors(buildings: Record<string, Building>): BaseSector[] {
+  const playerHq = buildings['player-hq'];
+  const facilityTypes = (playerHq?.presetFacilities?.length ?? 0) > 0
+    ? playerHq.presetFacilities!
+    : ['COMMAND', 'LAB', 'ARMORY', 'INFIRMARY', 'QUARTERS', 'WORKSHOP'];
+
+  return facilityTypes.map((facilityType, index) => ({
+    id: `sec-${index + 1}`,
+    name: FACILITY_LABEL_NAMES[facilityType] || FACILITY_LABEL_NAMES.EMPTY,
+    type: facilityType as BaseSector['type'],
+    level: 1,
+    buildingId: 'player-hq',
+  }));
+}
 
 export function getInitialFacilitiesForBuilding(
   building: { name: string; type: string; presetFacilities?: string[]; width?: number; height?: number },
