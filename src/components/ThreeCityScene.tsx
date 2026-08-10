@@ -70,14 +70,29 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
   }
 };
 
+const getBuildingLotCenter = ({
+  building,
+  footprintW,
+  footprintH,
+}: {
+  building: Building;
+  footprintW: number;
+  footprintH: number;
+}) => ({
+  x: building.x + footprintW / 2,
+  y: building.y + footprintH / 2,
+});
+
 export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
     const metrics = getBuildingVisualMetrics(building);
+    const footprintW = Math.max(1, metrics.footprintW);
+    const footprintH = Math.max(1, metrics.footprintH);
     return {
       minX: building.x,
-      maxX: building.x + Math.max(1, metrics.footprintW),
+      maxX: building.x + footprintW,
       minY: building.y,
-      maxY: building.y + Math.max(1, metrics.footprintH),
+      maxY: building.y + footprintH,
     };
   });
   const minX = Math.min(...extents.map((extent) => extent.minX), 1);
@@ -627,20 +642,25 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
     buildingList.forEach((building) => {
       const metrics = getBuildingVisualMetrics(building);
+      const footprintW = Math.max(1, metrics.footprintW);
+      const footprintH = Math.max(1, metrics.footprintH);
       const footprintScale = 1.7;
       const heightScale = 0.6;
-      const footprintWidth = Math.max(1.2, Math.min(10, metrics.footprintW * footprintScale));
-      const footprintDepth = Math.max(1.2, Math.min(10, metrics.footprintH * footprintScale));
+      const footprintWidth = Math.max(1.2, Math.min(10, footprintW * footprintScale));
+      const footprintDepth = Math.max(1.2, Math.min(10, footprintH * footprintScale));
       const width = Math.max(1.2, Math.min(8.4, footprintWidth * 0.84));
       const depth = Math.max(1.2, Math.min(8.4, footprintDepth * 0.84));
       const buildingType = building.type ?? 'OFFICE';
       const typeTheme = getBuildingTypeTheme(buildingType);
       const baseHeight = metrics.heightMeters;
       const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
-      // Keep the HQ centered in its lot so its larger shell doesn't encroach the adjacent road.
-      const placementOffset = building.id === 'player-hq' ? 0.36 : 0;
-      const x = (building.x + metrics.footprintW / 2 - centerX - placementOffset) * lotScale;
-      const z = (building.y + metrics.footprintH / 2 - centerY - placementOffset) * lotScale;
+      const lotCenter = getBuildingLotCenter({
+        building,
+        footprintW,
+        footprintH,
+      });
+      const x = (lotCenter.x - centerX) * lotScale;
+      const z = (lotCenter.y - centerY) * lotScale;
       const isSelected = building.id === selectedBuildingId;
       const accentColorHex = building.ownerId === 'player'
         ? '#38bdf8'
