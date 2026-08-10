@@ -303,7 +303,7 @@ function generateProceduralBuildings(): Record<string, Building> {
     id: 'player-hq',
     name: 'Subway HQ',
     ownerId: 'player',
-    x: 1, y: 1, width: playerHqLayout.width, height: playerHqLayout.height,
+    x: 2, y: 2, width: playerHqLayout.width, height: playerHqLayout.height,
     type: 'BASE',
     health: 1000, maxHealth: 1000,
     unlockedFloors: playerHqLayout.unlockedFloors,
@@ -315,7 +315,7 @@ function generateProceduralBuildings(): Record<string, Building> {
     id: 'rival-base',
     name: buildBuildingName('rival-base'),
     ownerId: 'rivals',
-    x: 13, y: 13, width: rivalBaseLayout.width, height: rivalBaseLayout.height,
+    x: 14, y: 14, width: rivalBaseLayout.width, height: rivalBaseLayout.height,
     type: 'BASE',
     health: 800, maxHealth: 800,
     unlockedFloors: rivalBaseLayout.unlockedFloors,
@@ -327,7 +327,7 @@ function generateProceduralBuildings(): Record<string, Building> {
     id: 'city-hall',
     name: buildBuildingName('city-hall'),
     ownerId: 'police',
-    x: 17, y: 17, width: cityHallLayout.width, height: cityHallLayout.height,
+    x: 18, y: 18, width: cityHallLayout.width, height: cityHallLayout.height,
     type: 'OFFICE',
     health: 5000, maxHealth: 5000,
     unlockedFloors: cityHallLayout.unlockedFloors,
@@ -339,7 +339,7 @@ function generateProceduralBuildings(): Record<string, Building> {
     id: 'corp-tower',
     name: buildBuildingName('corp-tower'),
     ownerId: 'corps',
-    x: 25, y: 17, width: corpTowerLayout.width, height: corpTowerLayout.height,
+    x: 26, y: 18, width: corpTowerLayout.width, height: corpTowerLayout.height,
     type: 'OFFICE',
     health: 3000, maxHealth: 3000,
     unlockedFloors: corpTowerLayout.unlockedFloors,
@@ -351,7 +351,7 @@ function generateProceduralBuildings(): Record<string, Building> {
     id: 'corp-lab',
     name: buildBuildingName('corp-lab'),
     ownerId: 'corps',
-    x: 21, y: 17, width: corpLabLayout.width, height: corpLabLayout.height,
+    x: 22, y: 18, width: corpLabLayout.width, height: corpLabLayout.height,
     type: 'FACTORY',
     health: 2000, maxHealth: 2000,
     unlockedFloors: corpLabLayout.unlockedFloors,
@@ -363,16 +363,16 @@ function generateProceduralBuildings(): Record<string, Building> {
     id: 'police-precinct',
     name: buildBuildingName('police-precinct'),
     ownerId: 'police',
-    x: 29, y: 21, width: policePrecinctLayout.width, height: policePrecinctLayout.height,
+    x: 30, y: 22, width: policePrecinctLayout.width, height: policePrecinctLayout.height,
     type: 'BASE',
     health: 2500, maxHealth: 2500,
     unlockedFloors: policePrecinctLayout.unlockedFloors,
     presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY', 'QUARTERS'],
   };
 
-  // Lots occupied by special buildings (x,y top-left)
+  // Lots occupied by special buildings (x,y lot centers)
   const reservedLots = new Set([
-    '1,1', '13,13', '17,17', '21,17', '25,17', '29,21',
+    '2,2', '14,14', '18,18', '22,18', '26,18', '30,22',
   ]);
 
   const cityGridCols = 10;
@@ -380,11 +380,11 @@ function generateProceduralBuildings(): Record<string, Building> {
   const cityLotSpacing = 4;
   const cityOccupancyChance = 0.82;
 
-  // Grid: 10 columns × 10 rows of 4-cell lots (lot origin = col*4+1, row*4+1)
+  // Grid: 10 columns × 10 rows of 4-cell lots (lot centers at col*4+2, row*4+2)
   for (let row = 0; row < cityGridRows; row++) {
     for (let col = 0; col < cityGridCols; col++) {
-      const x = col * cityLotSpacing + 1;
-      const y = row * cityLotSpacing + 1;
+      const x = col * cityLotSpacing + 2;
+      const y = row * cityLotSpacing + 2;
       const lotKey = `${x},${y}`;
 
       if (reservedLots.has(lotKey)) continue;
