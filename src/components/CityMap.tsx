@@ -13,7 +13,7 @@ import {
   AlertTriangle, Compass, Flame, Sun, Layers, HelpCircle
 } from 'lucide-react';
 import ThreeCityScene, { getSceneLayout } from './ThreeCityScene';
-import { getBuildingVisualMetrics } from '../buildingGeometry';
+import { getBuildingLotBounds, getBuildingLotCenter, getBuildingLotOriginOffset, getBuildingVisualMetrics } from '../buildingGeometry';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
  return getBuildingVisualMetrics(building, baseSectors);
@@ -43,9 +43,10 @@ const isRoadCell = (x: number, y: number, gridSize: number) => {
 };
 
 function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {
+  const lotCenter = getBuildingLotCenter(building);
   return {
-    x: Math.round(building.x + (building.width || 1) / 2),
-    y: Math.round(building.y + (building.height || 1) / 2),
+    x: Math.round(lotCenter.x),
+    y: Math.round(lotCenter.y),
   };
 }
 
@@ -424,8 +425,8 @@ const CityMap = () => {
     const map = new Map<string, string>();
     Object.values(state.world?.buildings || {}).forEach((b: any) => {
       const { footprintW, footprintH } = getDynamicBuildingSize(b, state.baseSectors || []);
-      const offsetX = Math.floor((3 - footprintW) / 2);
-      const offsetY = Math.floor((3 - footprintH) / 2);
+      const offsetX = getBuildingLotOriginOffset(footprintW);
+      const offsetY = getBuildingLotOriginOffset(footprintH);
       const startX = b.x + offsetX;
       const startY = b.y + offsetY;
       for (let bx = startX; bx < startX + footprintW; bx++) {
@@ -519,13 +520,13 @@ const CityMap = () => {
     const pitchCos = Math.cos(pitchRad);
 
     return Object.values(state.world?.buildings || {}).slice().sort((a: Building, b: Building) => {
-      const { footprintW: fWa, footprintH: fHa } = getDynamicBuildingSize(a, state.baseSectors || []);
-      const { footprintW: fWb, footprintH: fHb } = getDynamicBuildingSize(b, state.baseSectors || []);
+      const boundsA = getBuildingLotBounds(a);
+      const boundsB = getBuildingLotBounds(b);
       
-      const centerAx = (a.x + (3 - fWa)/2) + fWa / 2;
-      const centerAy = (a.y + (3 - fHa)/2) + fHa / 2;
-      const centerBx = (b.x + (3 - fWb)/2) + fWb / 2;
-      const centerBy = (b.y + (3 - fHb)/2) + fHb / 2;
+      const centerAx = (boundsA.minX + boundsA.maxX) / 2;
+      const centerAy = (boundsA.minY + boundsA.maxY) / 2;
+      const centerBx = (boundsB.minX + boundsB.maxX) / 2;
+      const centerBy = (boundsB.minY + boundsB.maxY) / 2;
 
       // Depth sort should account for both the orbit rotation and the tilt/pitch so the scene
       // doesn't pop or shimmer when the camera is moved.

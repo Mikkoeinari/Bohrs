@@ -11,13 +11,43 @@ export interface BuildingVisualMetrics {
   heightMeters: number;
 }
 
-const FLOOR_HEIGHT_METERS = 5;
-const MAX_ROOMS_PER_FLOOR = 9;
-const MAX_ROOM_GRID_SIDE = 3;
+export const FLOOR_HEIGHT_METERS = 5;
+export const MAX_ROOMS_PER_FLOOR = 9;
+export const MAX_ROOM_GRID_SIDE = 3;
 
 const getRoomGridSide = (roomsPerFloor: number) => {
   const gridSide = Math.max(1, Math.ceil(Math.sqrt(roomsPerFloor)));
   return Math.min(MAX_ROOM_GRID_SIDE, gridSide);
+};
+
+export interface BuildingLotBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+export const getBuildingLotCenter = (building: Pick<Building, 'x' | 'y'>, lotSideRooms = MAX_ROOM_GRID_SIDE) => ({
+  x: building.x + lotSideRooms / 2,
+  y: building.y + lotSideRooms / 2,
+});
+
+export const getBuildingLotBounds = (building: Pick<Building, 'x' | 'y' | 'width' | 'height'>, lotSideRooms = MAX_ROOM_GRID_SIDE): BuildingLotBounds => {
+  const center = getBuildingLotCenter(building, lotSideRooms);
+  const footprintW = Math.max(1, building.width || 1);
+  const footprintH = Math.max(1, building.height || 1);
+
+  return {
+    minX: center.x - footprintW / 2,
+    maxX: center.x + footprintW / 2,
+    minY: center.y - footprintH / 2,
+    maxY: center.y + footprintH / 2,
+  };
+};
+
+export const getBuildingLotOriginOffset = (footprintSize: number, lotSideRooms = MAX_ROOM_GRID_SIDE) => {
+  const normalizedFootprintSize = Math.max(1, footprintSize);
+  return Math.floor((lotSideRooms - normalizedFootprintSize) / 2);
 };
 
 export function getBuildingVisualMetrics(building: Building | null | undefined, baseSectors: Array<{ buildingId?: string; level?: number }> = []): BuildingVisualMetrics {

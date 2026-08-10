@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Building } from '../types';
-import { getBuildingVisualMetrics } from '../buildingGeometry';
+import { getBuildingLotBounds, getBuildingLotCenter, getBuildingVisualMetrics } from '../buildingGeometry';
 
 export interface SceneEntityMarker {
   id: string;
@@ -70,29 +70,14 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
   }
 };
 
-const getBuildingLotCenter = ({
-  building,
-}: {
-  building: Building;
-}) => {
-  const lotW = Math.max(1, building.width || 1);
-  const lotH = Math.max(1, building.height || 1);
-
-  return {
-    x: building.x + lotW / 2,
-    y: building.y + lotH / 2,
-  };
-};
-
 export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
-    const lotW = Math.max(1, building.width || 1);
-    const lotH = Math.max(1, building.height || 1);
+    const bounds = getBuildingLotBounds(building);
     return {
-      minX: building.x,
-      maxX: building.x + lotW,
-      minY: building.y,
-      maxY: building.y + lotH,
+      minX: bounds.minX,
+      maxX: bounds.maxX,
+      minY: bounds.minY,
+      maxY: bounds.maxY,
     };
   });
   const minX = Math.min(...extents.map((extent) => extent.minX), 1);
@@ -654,9 +639,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const typeTheme = getBuildingTypeTheme(buildingType);
       const baseHeight = metrics.heightMeters;
       const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
-      const lotCenter = getBuildingLotCenter({
-        building,
-      });
+      const lotCenter = getBuildingLotCenter(building);
       const x = (lotCenter.x - centerX) * lotScale;
       const z = (lotCenter.y - centerY) * lotScale;
       const isSelected = building.id === selectedBuildingId;
