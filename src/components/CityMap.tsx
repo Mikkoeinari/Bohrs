@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import ThreeCityScene, { getSceneLayout } from './ThreeCityScene';
 import { getBuildingLotBounds, getBuildingLotCenter, getBuildingVisualMetrics } from '../buildingGeometry';
+import { DISTANCE_TO_TIME_MULTIPLIER } from '../travel';
 
 export function getDynamicBuildingSize(building: Building, baseSectors: any[] = []) {
  return getBuildingVisualMetrics(building, baseSectors);
@@ -353,10 +354,10 @@ const CityMap = () => {
     activeVehicle = null;
   }
   const travelSpeed = activeVehicle ? activeVehicle.stats.speed : 10; 
-  const travelTimeMinutes = Math.round((distance * 100) / travelSpeed);
+  const travelTimeMinutes = Math.round((distance * DISTANCE_TO_TIME_MULTIPLIER) / travelSpeed);
 
   const scoutTravelSpeed = 30;
-  const scoutTravelTimeMinutes = Math.round((distance * 100) / scoutTravelSpeed);
+  const scoutTravelTimeMinutes = Math.round((distance * DISTANCE_TO_TIME_MULTIPLIER) / scoutTravelSpeed);
   const scoutCost = (selectedBuilding?.width || 1) * (selectedBuilding?.height || 1) * 100;
 
   const dismissInfoPanel = () => {

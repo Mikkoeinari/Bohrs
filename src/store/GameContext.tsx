@@ -7,10 +7,10 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { GameState, TacticalMission, UnitId, ItemId, TechId, VehicleId, Faction, Unit, ManufacturingJob, Building, GameWorld, BaseSector } from '../types';
 import { INITIAL_FACTIONS, INITIAL_BUILDINGS, INITIAL_UNITS, ITEMS, TECH_TREE, VEHICLES, VEHICLE_UPGRADES, SOLDIER_SKILLS } from '../data';
 import { buildSoldierName } from '../nameData';
+import { DISTANCE_TO_TIME_MULTIPLIER } from '../travel';
 
 const MIN_TRANSIT_TIME = 1;
 const DEFAULT_WALK_SPEED = 10;
-const DISTANCE_TO_TIME_MULTIPLIER = 100;
 const GAME_STATE_COOKIE_NAME = 'bohrs-game-state';
 const GAME_STATE_STORAGE_KEY = 'bohrs-game-state-storage';
 const GAME_STATE_COOKIE_DURATION_SECONDS = 60 * 60 * 24 * 365;
@@ -1130,7 +1130,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         travelSpeed = activeVehicle.stats.speed;
       }
       
-      const transitTime = Math.round((distance * 100) / travelSpeed);
+      const transitTime = Math.round((distance * DISTANCE_TO_TIME_MULTIPLIER) / travelSpeed);
 
       // Update unit locations
       const updatedUnits = { ...prev.units };
@@ -1171,7 +1171,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const distance = Math.sqrt(Math.pow(startX - b.x, 2) + Math.pow(startY - b.y, 2));
       
       const travelSpeed = 30; // 3x foot speed (only on foot)
-      const transitTime = Math.round((distance * 100) / travelSpeed);
+      const transitTime = Math.round((distance * DISTANCE_TO_TIME_MULTIPLIER) / travelSpeed);
 
       return {
         ...prev,
@@ -1393,20 +1393,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Instead of instant return, start RETURNING transit
+      // Instead of instant return, start RETURNING transit from the squad's current position.
       const hq = prev.buildings['player-hq'];
       const startBuilding = prev.activeMission.startBuildingId ? prev.buildings[prev.activeMission.startBuildingId] : hq;
       const target = prev.buildings[prev.activeMission.buildingId];
-      let transitTime = 10;
-      if (startBuilding && target) {
-        const distance = Math.sqrt(Math.pow(startBuilding.x - target.x, 2) + Math.pow(startBuilding.y - target.y, 2));
-        let activeVehicle = prev.activeVehicleId ? prev.vehicles[prev.activeVehicleId] : null;
-        if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== prev.activeMission.startBuildingId) {
-          activeVehicle = null;
-        }
-        const travelSpeed = activeVehicle ? activeVehicle.stats.speed : 10;
-        transitTime = Math.round((distance * 100) / travelSpeed);
+      const currentStartX = prev.activeMission.startPosX ?? (startBuilding?.x ?? target?.x ?? 0);
+      const currentStartY = prev.activeMission.startPosY ?? (startBuilding?.y ?? target?.y ?? 0);
+      const totalTransitTime = prev.activeMission.transitTimeTotal > 0 ? prev.activeMission.transitTimeTotal : MIN_TRANSIT_TIME;
+      const progress = prev.activeMission.transitTimeRemaining <= 0 ? 1 : 1 - (prev.activeMission.transitTimeRemaining / totalTransitTime);
+      const currentPosX = target && typeof currentStartX === 'number'
+        ? currentStartX + (target.x - currentStartX) * progress
+        : currentStartX;
+      const currentPosY = target && typeof currentStartY === 'number'
+        ? currentStartY + (target.y - currentStartY) * progress
+        : currentStartY;
+      const returnDistance = Math.hypot((currentPosX ?? 0) - (startBuilding?.x ?? currentPosX ?? 0), (currentPosY ?? 0) - (startBuilding?.y ?? currentPosY ?? 0));
+      let activeVehicle = prev.activeVehicleId ? prev.vehicles[prev.activeVehicleId] : null;
+      if (activeVehicle && (activeVehicle.currentBuildingId || 'player-hq') !== prev.activeMission.startBuildingId) {
+        activeVehicle = null;
       }
+      const travelSpeed = activeVehicle ? activeVehicle.stats.speed : DEFAULT_WALK_SPEED;
+      const transitTime = Math.max(MIN_TRANSIT_TIME, Math.round((returnDistance * DISTANCE_TO_TIME_MULTIPLIER) / travelSpeed));
 
       // Set units back to TRANSIT for return trip
       prev.activeMission.units.forEach(uId => {
@@ -1427,8 +1434,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           status: 'RETURNING',
           transitTimeRemaining: transitTime,
           transitTimeTotal: transitTime,
-          startPosX: target?.x,
-          startPosY: target?.y
+          startPosX: currentPosX,
+          startPosY: currentPosY
         }
       };
     });
