@@ -364,19 +364,76 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
   const floorPlan: Record<string, FloorPlanTile> = {};
   const obstacles: Record<string, ObstacleData> = {};
 
-  const roomStyles: Record<string, { name: string; color: string; bgClass: string; furnitureType: PlacedObstacleType; furniturePositions: Array<{ x: number; y: number }> }> = {
-    COMMAND: { name: 'COMMAND BAY', color: 'text-red-400 border-red-500/30', bgClass: 'bg-red-950/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 0 }, { x: 0, y: 1 }] },
-    LAB: { name: 'LAB BAY', color: 'text-cyan-400 border-cyan-500/30', bgClass: 'bg-cyan-950/10', furnitureType: 'server', furniturePositions: [{ x: 0, y: 0 }, { x: 1, y: 0 }] },
-    ARMORY: { name: 'ARMORY BAY', color: 'text-orange-400 border-orange-500/30', bgClass: 'bg-orange-950/10', furnitureType: 'generator', furniturePositions: [{ x: 0, y: 1 }, { x: 1, y: 1 }] },
-    INFIRMARY: { name: 'MED BAY', color: 'text-emerald-400 border-emerald-500/30', bgClass: 'bg-emerald-950/10', furnitureType: 'bed', furniturePositions: [{ x: 0, y: 0 }] },
-    QUARTERS: { name: 'QUARTERS', color: 'text-slate-400 border-slate-500/30', bgClass: 'bg-slate-900/10', furnitureType: 'bed', furniturePositions: [{ x: 0, y: 0 }] },
-    WORKSHOP: { name: 'WORKSHOP', color: 'text-amber-400 border-amber-500/30', bgClass: 'bg-amber-950/10', furnitureType: 'generator', furniturePositions: [{ x: 0, y: 0 }] },
-    POWER: { name: 'POWER BAY', color: 'text-purple-400 border-purple-500/30', bgClass: 'bg-purple-950/10', furnitureType: 'vat', furniturePositions: [{ x: 1, y: 0 }] },
-    HYDROPONICS: { name: 'HYDROPONICS', color: 'text-lime-400 border-lime-500/30', bgClass: 'bg-lime-950/10', furnitureType: 'vat', furniturePositions: [{ x: 0, y: 0 }, { x: 1, y: 1 }] },
-    GARAGE: { name: 'GARAGE', color: 'text-zinc-400 border-zinc-500/30', bgClass: 'bg-zinc-900/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 1 }] },
-    STAIRCASE: { name: 'STAIRS', color: 'text-yellow-400 border-yellow-500/30', bgClass: 'bg-yellow-950/10', furnitureType: 'desk', furniturePositions: [] },
-    LOUNGE: { name: 'LOUNGE', color: 'text-indigo-400 border-indigo-500/30', bgClass: 'bg-indigo-950/10', furnitureType: 'bed', furniturePositions: [{ x: 0, y: 0 }] },
-    LOBBY: { name: 'LOBBY', color: 'text-blue-400 border-blue-500/30', bgClass: 'bg-blue-950/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 0 }] },
+  // Room furniture: positions are relative to interior top-left (x1+1, y1+1), range 0–8 each axis.
+  // Furniture is pushed to walls leaving centre clear for unit movement.
+  const roomStyles: Record<string, { name: string; color: string; bgClass: string; furniture: Array<{ x: number; y: number; type: PlacedObstacleType }> }> = {
+    // Command bay: row of consoles along north wall, server racks on west wall, single desk at south
+    COMMAND: { name: 'COMMAND BAY', color: 'text-red-400 border-red-500/30', bgClass: 'bg-red-950/10', furniture: [
+      { x: 1, y: 0, type: 'desk' }, { x: 3, y: 0, type: 'desk' }, { x: 5, y: 0, type: 'desk' }, { x: 7, y: 0, type: 'desk' },
+      { x: 0, y: 2, type: 'server' }, { x: 0, y: 4, type: 'server' },
+      { x: 4, y: 7, type: 'desk' },
+    ] },
+    // Lab: server racks lining both side walls, chemical vats at south
+    LAB: { name: 'LAB BAY', color: 'text-cyan-400 border-cyan-500/30', bgClass: 'bg-cyan-950/10', furniture: [
+      { x: 0, y: 1, type: 'server' }, { x: 0, y: 3, type: 'server' }, { x: 0, y: 5, type: 'server' },
+      { x: 8, y: 1, type: 'server' }, { x: 8, y: 3, type: 'server' }, { x: 8, y: 5, type: 'server' },
+      { x: 2, y: 7, type: 'vat' }, { x: 6, y: 7, type: 'vat' },
+    ] },
+    // Armory: crates stacked in two parallel columns, walkway between
+    ARMORY: { name: 'ARMORY BAY', color: 'text-orange-400 border-orange-500/30', bgClass: 'bg-orange-950/10', furniture: [
+      { x: 1, y: 1, type: 'crate' }, { x: 2, y: 1, type: 'crate' },
+      { x: 1, y: 3, type: 'crate' }, { x: 2, y: 3, type: 'crate' },
+      { x: 6, y: 1, type: 'crate' }, { x: 7, y: 1, type: 'crate' },
+      { x: 6, y: 3, type: 'crate' }, { x: 7, y: 3, type: 'crate' },
+      { x: 4, y: 6, type: 'desk' },
+    ] },
+    // Infirmary: beds in two rows along side walls, record desk at south
+    INFIRMARY: { name: 'MED BAY', color: 'text-emerald-400 border-emerald-500/30', bgClass: 'bg-emerald-950/10', furniture: [
+      { x: 1, y: 1, type: 'bed' }, { x: 1, y: 3, type: 'bed' }, { x: 1, y: 5, type: 'bed' },
+      { x: 7, y: 1, type: 'bed' }, { x: 7, y: 3, type: 'bed' },
+      { x: 4, y: 7, type: 'desk' },
+    ] },
+    // Quarters: bunk rows against both side walls, writing desk at south
+    QUARTERS: { name: 'QUARTERS', color: 'text-slate-400 border-slate-500/30', bgClass: 'bg-slate-900/10', furniture: [
+      { x: 1, y: 0, type: 'bed' }, { x: 1, y: 2, type: 'bed' }, { x: 1, y: 4, type: 'bed' }, { x: 1, y: 6, type: 'bed' },
+      { x: 7, y: 0, type: 'bed' }, { x: 7, y: 2, type: 'bed' },
+      { x: 4, y: 7, type: 'desk' },
+    ] },
+    // Workshop: heavy machinery along north wall, spare-parts crates in corners, workbench at south
+    WORKSHOP: { name: 'WORKSHOP', color: 'text-amber-400 border-amber-500/30', bgClass: 'bg-amber-950/10', furniture: [
+      { x: 0, y: 0, type: 'generator' }, { x: 0, y: 2, type: 'generator' },
+      { x: 6, y: 0, type: 'crate' }, { x: 7, y: 0, type: 'crate' },
+      { x: 6, y: 2, type: 'crate' }, { x: 7, y: 2, type: 'crate' },
+      { x: 3, y: 6, type: 'desk' },
+    ] },
+    // Power bay: generators and coolant vats in symmetric grid
+    POWER: { name: 'POWER BAY', color: 'text-purple-400 border-purple-500/30', bgClass: 'bg-purple-950/10', furniture: [
+      { x: 1, y: 1, type: 'generator' }, { x: 4, y: 1, type: 'generator' }, { x: 7, y: 1, type: 'generator' },
+      { x: 1, y: 5, type: 'vat' }, { x: 4, y: 5, type: 'vat' }, { x: 7, y: 5, type: 'vat' },
+    ] },
+    // Hydroponics: growing vats in a 4×2 grid, leaving pathways between
+    HYDROPONICS: { name: 'HYDROPONICS', color: 'text-lime-400 border-lime-500/30', bgClass: 'bg-lime-950/10', furniture: [
+      { x: 1, y: 0, type: 'vat' }, { x: 3, y: 0, type: 'vat' }, { x: 5, y: 0, type: 'vat' }, { x: 7, y: 0, type: 'vat' },
+      { x: 1, y: 3, type: 'vat' }, { x: 3, y: 3, type: 'vat' }, { x: 5, y: 3, type: 'vat' }, { x: 7, y: 3, type: 'vat' },
+    ] },
+    // Garage: supply crates along north wall, generator/compressor on west side
+    GARAGE: { name: 'GARAGE', color: 'text-zinc-400 border-zinc-500/30', bgClass: 'bg-zinc-900/10', furniture: [
+      { x: 1, y: 0, type: 'crate' }, { x: 3, y: 0, type: 'crate' }, { x: 5, y: 0, type: 'crate' }, { x: 7, y: 0, type: 'crate' },
+      { x: 0, y: 6, type: 'generator' },
+    ] },
+    // Staircase: no furniture, just stairs
+    STAIRCASE: { name: 'STAIRS', color: 'text-yellow-400 border-yellow-500/30', bgClass: 'bg-yellow-950/10', furniture: [] },
+    // Lounge: couches/beds along side walls, coffee tables (desks) in centre area
+    LOUNGE: { name: 'LOUNGE', color: 'text-indigo-400 border-indigo-500/30', bgClass: 'bg-indigo-950/10', furniture: [
+      { x: 1, y: 1, type: 'bed' }, { x: 1, y: 3, type: 'bed' },
+      { x: 7, y: 1, type: 'bed' }, { x: 7, y: 3, type: 'bed' },
+      { x: 3, y: 6, type: 'desk' }, { x: 5, y: 6, type: 'desk' },
+    ] },
+    // Lobby: reception desk counter along north wall, additional desk on each side
+    LOBBY: { name: 'LOBBY', color: 'text-blue-400 border-blue-500/30', bgClass: 'bg-blue-950/10', furniture: [
+      { x: 2, y: 0, type: 'desk' }, { x: 4, y: 0, type: 'desk' }, { x: 6, y: 0, type: 'desk' },
+      { x: 1, y: 3, type: 'desk' }, { x: 2, y: 3, type: 'desk' }, { x: 3, y: 3, type: 'desk' },
+    ] },
   };
 
   // Building-geometry-aware layout: each floor is a row of rooms, each column is a room slot.
@@ -401,6 +458,7 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     if (type === 'generator') return 120;
     if (type === 'vat') return 80;
     if (type === 'server' || type === 'desk') return 60;
+    if (type === 'crate') return 40;
     if (type === 'bed') return 50;
     return 50;
   };
@@ -411,7 +469,7 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     obstacles[`${x},${y}`] = { type: 'door', hp: 0, maxHp: 0 };
   };
 
-  const carveRoom = (x1: number, y1: number, x2: number, y2: number, roomType: string, template: { name: string; color: string; bgClass: string; furnitureType: PlacedObstacleType; furniturePositions: Array<{ x: number; y: number }> }) => {
+  const carveRoom = (x1: number, y1: number, x2: number, y2: number, roomType: string, template: { name: string; color: string; bgClass: string; furniture: Array<{ x: number; y: number; type: PlacedObstacleType }> }) => {
     rooms.push({
       name: template.name,
       x1,
@@ -438,12 +496,12 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
       const stairsY = y1 + 1;
       setTile(stairsX, stairsY, 'stairs', roomType, template.name);
     } else {
-      template.furniturePositions.forEach((slot) => {
+      template.furniture.forEach((slot) => {
         const furnitureX = x1 + 1 + slot.x;
         const furnitureY = y1 + 1 + slot.y;
-        const hp = getTileHp(template.furnitureType);
+        const hp = getTileHp(slot.type);
         setTile(furnitureX, furnitureY, 'furniture', roomType, template.name);
-        obstacles[`${furnitureX},${furnitureY}`] = { type: template.furnitureType, hp, maxHp: hp };
+        obstacles[`${furnitureX},${furnitureY}`] = { type: slot.type, hp, maxHp: hp };
       });
     }
   };
