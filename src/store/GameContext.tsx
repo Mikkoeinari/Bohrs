@@ -492,6 +492,64 @@ export function getUnitEncumbrance(unit: Unit | any): {
   };
 }
 
+function createReasonableRecruitLoadout(stats: { strength: number; speed: number; bravery: number }, random: () => number = Math.random): Unit['equipment'] {
+  const carryLimit = Math.max(7, Math.floor(stats.strength / 5));
+  const candidateLoadouts: Array<Unit['equipment']> = [
+    {
+      handRight: 'pistol',
+      head: 'comm_band',
+      legs: 'cargo_pants',
+      inventory: ['medkit', 'stim'],
+    },
+    {
+      handRight: 'smg',
+      head: 'comm_band',
+      legs: 'cargo_pants',
+      backpack: 'light_pouch',
+      inventory: ['medkit', 'stim'],
+    },
+    {
+      handRight: 'smg',
+      armor: 'light_rig',
+      head: 'helmet',
+      legs: 'cargo_pants',
+      backpack: 'light_pouch',
+      inventory: ['medkit', 'stim', 'grenade'],
+    },
+    {
+      handRight: 'rifle',
+      armor: 'vest',
+      head: 'helmet',
+      legs: 'cargo_pants',
+      inventory: ['medkit', 'stim'],
+    },
+    {
+      handRight: 'pistol',
+      head: 'comm_band',
+      legs: 'holster_jeans',
+      backpack: 'light_pouch',
+      inventory: ['medkit', 'stim', 'grenade'],
+    },
+  ];
+
+  const selectedLoadout = candidateLoadouts.find((candidate) => {
+    const totalWeight = getUnitTotalWeight({ stats, equipment: candidate });
+    return totalWeight <= carryLimit + 1;
+  }) ?? candidateLoadouts[0];
+
+  const inventory = [...(selectedLoadout.inventory || [])];
+  const fallbackLoadout: Unit['equipment'] = {
+    ...selectedLoadout,
+    inventory,
+  };
+
+  if (random() < 0.5 && getUnitTotalWeight({ stats, equipment: fallbackLoadout }) <= carryLimit) {
+    fallbackLoadout.inventory = [...inventory, 'grenade'];
+  }
+
+  return fallbackLoadout;
+}
+
 function createRivalUnit(unitId: string, factionId: string, baseBuildingId: string): Unit {
   const factionProfile = factionId === 'corps'
     ? {
@@ -1721,12 +1779,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (playerUnitsCount >= maxCrewCapacity) return prev;
 
       const newUnitId = `u_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const equipment = createReasonableRecruitLoadout(stats);
       const newUnit = {
         id: newUnitId,
         name,
         factionId: 'player',
         stats,
-        equipment: { inventory: [] },
+        equipment,
         location: 'BASE' as const,
         currentBuildingId: 'player-hq'
       };

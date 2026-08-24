@@ -811,13 +811,11 @@ export const INITIAL_UNITS: Record<string, Unit> = {
     name: buildSoldierName('u1'),
     factionId: 'player',
     stats: { hp: 50, maxHp: 50, accuracy: 65, reactions: 45, strength: 40, speed: 60, stamina: 50, bravery: 70 },
-    equipment: { 
-      handRight: 'pistol', 
-      armor: 'vest', 
+    equipment: {
+      handRight: 'pistol',
       head: 'comm_band',
-      legs: 'cargo_pants', 
-      backpack: 'light_pouch', 
-      inventory: ['medkit', 'medkit', 'medkit', 'grenade', 'stim'] 
+      legs: 'cargo_pants',
+      inventory: ['medkit', 'stim']
     },
     location: 'BASE',
     currentBuildingId: 'player-hq',
@@ -827,13 +825,13 @@ export const INITIAL_UNITS: Record<string, Unit> = {
     name: buildSoldierName('u2'),
     factionId: 'player',
     stats: { hp: 80, maxHp: 80, accuracy: 45, reactions: 30, strength: 80, speed: 30, stamina: 40, bravery: 90 },
-    equipment: { 
-      handRight: 'shotgun', 
-      armor: 'exovest', 
-      head: 'helmet', 
-      legs: 'cargo_pants', 
-      backpack: 'tactical_backpack', 
-      inventory: ['medkit', 'medkit', 'medkit', 'stim', 'grenade'] 
+    equipment: {
+      handRight: 'smg',
+      armor: 'light_rig',
+      head: 'helmet',
+      legs: 'cargo_pants',
+      backpack: 'light_pouch',
+      inventory: ['medkit', 'stim', 'grenade']
     },
     location: 'BASE',
     currentBuildingId: 'player-hq',
