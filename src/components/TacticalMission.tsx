@@ -8,7 +8,7 @@ import { useGame, getUnitEncumbrance } from '../store/GameContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Target, Swords, ArrowRight, User, X, ChevronLeft, ChevronRight, List, Move, Crosshair, Package, RefreshCw, Zap, Sparkles, Scale, Gauge } from 'lucide-react';
 import { ITEMS } from '../data';
-import type { BaseSector } from '../types';
+import type { BaseSector, Building } from '../types';
 
 export type BehavioralStance = 'AMOK' | 'AGGRESSIVE' | 'SUPPORT' | 'DEFENSIVE' | 'PASSIVE';
 
@@ -222,21 +222,8 @@ interface FloorPlanTile {
   roomName?: string;
 }
 
-interface RoomPlacementSpec {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  roomType: string;
-}
 
-interface RoomConnectionSpec {
-  fromIndex: number;
-  toIndex: number;
-  axis: 'H' | 'V';
-}
-
-export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = [], missionType: string = 'RAID') => {
+export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSector[] = [], missionType: string = 'RAID', building?: Building | null) => {
   if (missionType === 'URBAN') {
     const rooms: Room[] = [];
     const floorPlan: Record<string, FloorPlanTile> = {};
@@ -392,70 +379,19 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     LOBBY: { name: 'LOBBY', color: 'text-blue-400 border-blue-500/30', bgClass: 'bg-blue-950/10', furnitureType: 'desk', furniturePositions: [{ x: 0, y: 0 }] },
   };
 
-  const roomBoxSize = 11;
-  const roomPadding = 1;
+  // Building-geometry-aware layout: each floor is a row of rooms, each column is a room slot.
+  // ROOM_STEP = 6: rooms are 7 tiles wide/tall (5 interior + shared walls), stepping 6 tiles apart.
+  const ROOM_STEP = 6;
+  const numFloors = Math.max(1, Math.min(3, building?.unlockedFloors || 1));
+  const numCols = building
+    ? Math.max(1, Math.min(3, building.width))
+    : Math.max(1, Math.min(3, Math.ceil(Math.sqrt(roomCount))));
 
-  const buildRoomLayout = (count: number) => {
-    const placements: RoomPlacementSpec[] = [];
-    const connections: RoomConnectionSpec[] = [];
-
-    const makePlacement = (x1: number, y1: number, index: number) => {
-      const roomType = resolvedRoomTypes[index] || resolvedRoomTypes[resolvedRoomTypes.length - 1] || 'LOBBY';
-      placements.push({
-        x1,
-        y1,
-        x2: x1 + roomBoxSize - 1,
-        y2: y1 + roomBoxSize - 1,
-        roomType,
-      });
-    };
-
-    if (count === 1) {
-      makePlacement(6, 7, 0);
-      return { placements, connections };
-    }
-
-    if (count === 2) {
-      makePlacement(2, 7, 0);
-      makePlacement(13, 7, 1);
-      connections.push({ fromIndex: 0, toIndex: 1, axis: 'H' });
-      return { placements, connections };
-    }
-
-    if (count === 3) {
-      makePlacement(2, 2, 0);
-      makePlacement(2, 14, 1);
-      makePlacement(13, 2, 2);
-      connections.push({ fromIndex: 0, toIndex: 1, axis: 'V' });
-      connections.push({ fromIndex: 1, toIndex: 2, axis: 'H' });
-      return { placements, connections };
-    }
-
-    const columns = Math.min(3, Math.ceil(Math.sqrt(count)));
-    const rows = Math.ceil(count / columns);
-    const maxX = MAP_GRID_SIZE - roomBoxSize - 1;
-    const maxY = MAP_GRID_SIZE - roomBoxSize - 1;
-    const xStep = columns > 1 ? Math.floor(maxX / (columns - 1)) : 0;
-    const yStep = rows > 1 ? Math.floor(maxY / (rows - 1)) : 0;
-
-    for (let index = 0; index < count; index++) {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const x1 = Math.min(1 + column * xStep, maxX);
-      const y1 = Math.min(1 + row * yStep, maxY);
-      makePlacement(x1, y1, index);
-    }
-
-    for (let index = 1; index < count; index++) {
-      const previousIndex = index - 1;
-      const previousPlacement = placements[previousIndex];
-      const currentPlacement = placements[index];
-      const axis = currentPlacement.x1 >= previousPlacement.x2 ? 'H' : 'V';
-      connections.push({ fromIndex: previousIndex, toIndex: index, axis });
-    }
-
-    return { placements, connections };
-  };
+  // Building bounding box, centered in the map
+  const buildingW = numCols * ROOM_STEP + 1;
+  const buildingH = numFloors * ROOM_STEP + 1;
+  const bx = Math.max(1, Math.floor((MAP_GRID_SIZE - buildingW) / 2));
+  const by = Math.max(1, Math.floor((MAP_GRID_SIZE - buildingH) / 2));
 
   const setTile = (x: number, y: number, label: FloorTileLabel, roomType?: string, roomName?: string) => {
     floorPlan[`${x},${y}`] = { label, roomType, roomName };
@@ -512,49 +448,7 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     }
   };
 
-  const carveConnection = (fromPlacement: RoomPlacementSpec, toPlacement: RoomPlacementSpec) => {
-    const clearConnectionTile = (x: number, y: number) => {
-      setTile(x, y, 'accessway');
-      delete obstacles[`${x},${y}`];
-    };
-
-    if (toPlacement.x1 >= fromPlacement.x2) {
-      const corridorY = Math.round((fromPlacement.y1 + fromPlacement.y2) / 2);
-      const corridorStart = fromPlacement.x2 + roomPadding;
-      const corridorEnd = toPlacement.x1 - roomPadding;
-      const doorX = Math.max(corridorStart, Math.min(corridorEnd, Math.floor((corridorStart + corridorEnd) / 2)));
-
-      clearConnectionTile(fromPlacement.x2, corridorY);
-      clearConnectionTile(toPlacement.x1, corridorY);
-
-      for (let tileX = corridorStart; tileX <= corridorEnd; tileX++) {
-        setTile(tileX, corridorY, 'accessway');
-        delete obstacles[`${tileX},${corridorY}`];
-      }
-
-      placeDoor(doorX, corridorY);
-      return;
-    }
-
-    if (toPlacement.y1 >= fromPlacement.y2) {
-      const corridorX = Math.round((fromPlacement.x1 + fromPlacement.x2) / 2);
-      const corridorStart = fromPlacement.y2 + roomPadding;
-      const corridorEnd = toPlacement.y1 - roomPadding;
-      const doorY = Math.max(corridorStart, Math.min(corridorEnd, Math.floor((corridorStart + corridorEnd) / 2)));
-
-      clearConnectionTile(corridorX, fromPlacement.y2);
-      clearConnectionTile(corridorX, toPlacement.y1);
-
-      for (let tileY = corridorStart; tileY <= corridorEnd; tileY++) {
-        setTile(corridorX, tileY, 'accessway');
-        delete obstacles[`${corridorX},${tileY}`];
-      }
-
-      placeDoor(corridorX, doorY);
-      return;
-    }
-  };
-
+  // Fill the entire map — boundary tiles become walls, interior is open floor
   for (let x = 0; x < MAP_GRID_SIZE; x++) {
     for (let y = 0; y < MAP_GRID_SIZE; y++) {
       const isBoundary = x === 0 || x === MAP_GRID_SIZE - 1 || y === 0 || y === MAP_GRID_SIZE - 1;
@@ -565,21 +459,42 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     }
   }
 
-  const { placements, connections } = buildRoomLayout(roomCount);
-  placements.forEach((placement) => {
-    const template = roomStyles[placement.roomType] || roomStyles.LOBBY;
-    carveRoom(placement.x1, placement.y1, placement.x2, placement.y2, placement.roomType, template);
-  });
-
-  if (placements.length > 0) {
-    const firstPlacement = placements[0];
-    const exteriorDoorY = Math.round((firstPlacement.y1 + firstPlacement.y2) / 2);
-    placeDoor(firstPlacement.x1, exteriorDoorY);
+  // Carve each room in the building grid (floor row × column)
+  for (let floor = 0; floor < numFloors; floor++) {
+    for (let col = 0; col < numCols; col++) {
+      const roomIndex = floor * numCols + col;
+      const roomType = resolvedRoomTypes[roomIndex % resolvedRoomTypes.length] || 'LOBBY';
+      const x1 = bx + col * ROOM_STEP;
+      const y1 = by + floor * ROOM_STEP;
+      const x2 = x1 + ROOM_STEP;
+      const y2 = y1 + ROOM_STEP;
+      const template = roomStyles[roomType] || roomStyles.LOBBY;
+      carveRoom(x1, y1, x2, y2, roomType, template);
+    }
   }
 
-  connections.forEach((connection) => {
-    carveConnection(placements[connection.fromIndex], placements[connection.toIndex]);
-  });
+  // Doors between horizontally adjacent rooms on the same floor (through shared vertical walls)
+  for (let floor = 0; floor < numFloors; floor++) {
+    for (let col = 0; col < numCols - 1; col++) {
+      const sharedWallX = bx + (col + 1) * ROOM_STEP;
+      const doorY = by + floor * ROOM_STEP + Math.floor(ROOM_STEP / 2);
+      placeDoor(sharedWallX, doorY);
+    }
+  }
+
+  // Staircase access between floors (through shared horizontal walls at rightmost column's centre)
+  if (numFloors > 1) {
+    const stairX = bx + (numCols - 1) * ROOM_STEP + Math.floor(ROOM_STEP / 2);
+    for (let floor = 0; floor < numFloors - 1; floor++) {
+      const sharedWallY = by + (floor + 1) * ROOM_STEP;
+      setTile(stairX, sharedWallY, 'stairs');
+      delete obstacles[`${stairX},${sharedWallY}`];
+    }
+  }
+
+  // Entry door on the left outer wall of the ground floor
+  const entryDoorY = by + Math.floor(ROOM_STEP / 2);
+  placeDoor(bx, entryDoorY);
 
   return { rooms, floorPlan, obstacles, lootTiles: [] as { x: number; y: number; itemId: string; name: string }[] };
 };
@@ -875,7 +790,7 @@ const TacticalMission = () => {
       (sector: BaseSector) => (sector.buildingId || 'player-hq') === (activeMission?.buildingId || 'player-hq')
     );
 
-    const { rooms: genRooms, floorPlan: generatedFloorPlan, obstacles: generatedObstacles, lootTiles: generatedLootTiles } = getLayoutForBuildingType(buildingType, buildingSectors, activeMission?.type);
+    const { rooms: genRooms, floorPlan: generatedFloorPlan, obstacles: generatedObstacles, lootTiles: generatedLootTiles } = getLayoutForBuildingType(buildingType, buildingSectors, activeMission?.type, activeBuilding);
     setRooms(genRooms);
     setFloorPlan(generatedFloorPlan);
     setObstacles(generatedObstacles);
