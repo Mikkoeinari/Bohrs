@@ -538,6 +538,84 @@ function createRivalUnit(unitId: string, factionId: string, baseBuildingId: stri
   };
 }
 
+const PATROL_SPEED = 0.45; // world units per minute
+const ENCOUNTER_DISTANCE = 2.5; // world units proximity to trigger street combat
+const MAX_PATROL_AGENTS_PER_FACTION = 2;
+
+function updateEnemyPatrols(state: GameState, minutesPassed: number): GameState {
+  const updatedAgents = { ...(state.world?.agents || {}) };
+  let newState = state;
+  let encounterTriggered = false;
+
+  // Move existing patrol agents toward their target building
+  Object.entries(updatedAgents).forEach(([agentId, agent]) => {
+    if (agent.kind !== 'UNIT') return;
+    const targetBuilding = agent.buildingId ? state.buildings[agent.buildingId] : null;
+    if (!targetBuilding) {
+      delete updatedAgents[agentId];
+      return;
+    }
+    const dx = targetBuilding.x - agent.x;
+    const dy = targetBuilding.y - agent.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.8) {
+      const factionBuildings = Object.values(state.buildings).filter((b) => b.ownerId === agent.factionId);
+      const candidates = factionBuildings.filter((b) => b.id !== agent.buildingId);
+      const nextBuilding = candidates.length > 0
+        ? candidates[Math.floor(Math.random() * candidates.length)]
+        : factionBuildings[0];
+      updatedAgents[agentId] = { ...agent, x: targetBuilding.x, y: targetBuilding.y, buildingId: nextBuilding?.id || agent.buildingId };
+    } else {
+      const moveAmount = Math.min(dist, PATROL_SPEED * minutesPassed);
+      updatedAgents[agentId] = { ...agent, x: agent.x + (dx / dist) * moveAmount, y: agent.y + (dy / dist) * moveAmount };
+    }
+  });
+
+  // Check for street combat encounter with the player squad in transit
+  const activeMission = state.activeMission;
+  if (activeMission && activeMission.status === 'TRANSIT') {
+    const targetBuilding = state.buildings[activeMission.buildingId];
+    if (targetBuilding) {
+      const progress = activeMission.transitTimeTotal > 0
+        ? 1 - (activeMission.transitTimeRemaining / activeMission.transitTimeTotal)
+        : 0;
+      const fromX = activeMission.startPosX ?? 0;
+      const fromY = activeMission.startPosY ?? 0;
+      const squadX = fromX + (targetBuilding.x - fromX) * progress;
+      const squadY = fromY + (targetBuilding.y - fromY) * progress;
+
+      for (const [agentId, agent] of Object.entries(updatedAgents)) {
+        if (agent.kind !== 'UNIT' || agent.factionId === 'player') continue;
+        const faction = state.factions[agent.factionId];
+        const playerRelation = faction?.relations?.['player'] ?? 0;
+        if (playerRelation >= 0) continue; // skip neutral / friendly factions
+        const dist = Math.sqrt((agent.x - squadX) ** 2 + (agent.y - squadY) ** 2);
+        if (dist < ENCOUNTER_DISTANCE) {
+          encounterTriggered = true;
+          const updatedUnits = { ...state.units };
+          activeMission.units.forEach((uId) => {
+            if (updatedUnits[uId]) updatedUnits[uId] = { ...updatedUnits[uId], location: 'MISSION' };
+          });
+          delete updatedAgents[agentId];
+          newState = {
+            ...state,
+            units: updatedUnits,
+            activeMission: { ...activeMission, type: 'URBAN', status: 'IN_PROGRESS', transitTimeRemaining: 0 },
+            world: { ...(state.world ?? { version: 1, terrain: [], buildings: {}, agents: {} }), agents: updatedAgents },
+          };
+          break;
+        }
+      }
+    }
+  }
+
+  if (!encounterTriggered) {
+    newState = { ...state, world: { ...(state.world ?? { version: 1, terrain: [], buildings: {}, agents: {} }), agents: updatedAgents } };
+  }
+
+  return newState;
+}
+
 function applyRivalAi(state: GameState): GameState {
   const nextState: GameState = {
     ...state,
@@ -652,6 +730,36 @@ function applyRivalAi(state: GameState): GameState {
       }
     }
   });
+
+  // Spawn patrol agents for enemy factions that are under the cap
+  const existingPatrolAgents = Object.values(nextState.world?.agents || {});
+  const newPatrolAgents: Record<string, import('../types').WorldAgentState> = {};
+  factionIds.forEach((factionId) => {
+    const ownedBuildings = Object.values(nextState.buildings).filter((b) => b.ownerId === factionId);
+    if (ownedBuildings.length === 0) return;
+    const factionAgentCount = existingPatrolAgents.filter((a) => a.factionId === factionId && a.kind === 'UNIT').length;
+    if (factionAgentCount >= MAX_PATROL_AGENTS_PER_FACTION) return;
+    const baseBuilding = ownedBuildings.find((b) => b.type === 'BASE') || ownedBuildings[0];
+    const targetBuilding = ownedBuildings[ownedBuildings.length > 1 ? 1 : 0];
+    const agentId = `patrol-${factionId}-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
+    newPatrolAgents[agentId] = {
+      id: agentId,
+      kind: 'UNIT',
+      factionId,
+      buildingId: targetBuilding.id,
+      x: baseBuilding.x + (Math.random() - 0.5),
+      y: baseBuilding.y + (Math.random() - 0.5),
+      status: 'MOVING',
+    };
+  });
+
+  if (Object.keys(newPatrolAgents).length > 0) {
+    const worldState = nextState.world ?? { version: 1, terrain: [], buildings: {}, agents: {} };
+    return {
+      ...nextState,
+      world: { ...worldState, agents: { ...worldState.agents, ...newPatrolAgents } },
+    };
+  }
 
   return nextState;
 }
@@ -841,6 +949,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (newState.time > 0 && newState.time % RIVAL_AI_TICK_MINUTES === 0) {
         newState = applyRivalAi(newState);
       }
+
+      // Move enemy patrol agents and check for player-enemy street encounters
+      newState = updateEnemyPatrols(newState, minutes);
 
       return newState;
     });

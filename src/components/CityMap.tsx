@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGame, getInitialFacilitiesForBuilding } from '../store/GameContext';
-import { Building } from '../types';
+import { Building, WorldAgentState } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Info, Target, ShieldAlert, X, ChevronRight, Truck, User, 
@@ -552,7 +552,7 @@ const CityMap = () => {
 
   const sceneLayout = useMemo(() => getSceneLayout(sceneBuildings), [sceneBuildings]);
   const sceneMarkers = useMemo(() => {
-    const markers: Array<{ id: string; type: 'mission' | 'scout'; x: number; z: number; color: string }> = [];
+    const markers: Array<{ id: string; type: 'mission' | 'scout' | 'enemy'; x: number; z: number; color: string }> = [];
 
     if (isInTransit && missionRoute && mission) {
       const progressPoint = getPointOnRoute(missionRoute, missionProgress);
@@ -586,8 +586,21 @@ const CityMap = () => {
       }
     });
 
+    // Enemy patrol agents — visible on the city map
+    Object.values((state.world?.agents || {}) as Record<string, WorldAgentState>).forEach((agent) => {
+      if (agent.kind !== 'UNIT' || agent.factionId === 'player') return;
+      const factionColor = state.factions[agent.factionId]?.color || '#ef4444';
+      markers.push({
+        id: `enemy-patrol-${agent.id}`,
+        type: 'enemy',
+        x: (agent.x - sceneLayout.centerX) * sceneLayout.lotScale,
+        z: (agent.y - sceneLayout.centerY) * sceneLayout.lotScale,
+        color: factionColor,
+      });
+    });
+
     return markers;
-  }, [activeVehicle, isInTransit, mission, missionProgress, missionRoute, sceneLayout, scoutRouteMap, state.activeScouts]);
+  }, [activeVehicle, isInTransit, mission, missionProgress, missionRoute, sceneLayout, scoutRouteMap, state.activeScouts, state.world, state.factions]);
 
   return (
     <div 

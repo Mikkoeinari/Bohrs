@@ -5,7 +5,7 @@ import { getBuildingLotBounds, getBuildingLotCenter, getBuildingVisualMetrics } 
 
 export interface SceneEntityMarker {
   id: string;
-  type: 'mission' | 'scout';
+  type: 'mission' | 'scout' | 'enemy';
   x: number;
   z: number;
   color: string;
@@ -777,6 +777,31 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         wheels[0].position.set(-0.24, 0.08, -0.3);
         wheels[1].position.set(0.24, 0.08, -0.3);
         wheels.forEach((wheel) => markerGroup.add(wheel));
+      } else if (marker.type === 'enemy') {
+        // Enemy troop — armoured soldier silhouette in red
+        const bodyMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(marker.color), roughness: 0.5, metalness: 0.15 });
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0505, roughness: 0.7, metalness: 0.05 });
+
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.38, 0.18), bodyMat);
+        torso.position.set(0, 0.38, 0);
+        markerGroup.add(torso);
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), darkMat);
+        head.position.set(0, 0.68, 0);
+        markerGroup.add(head);
+
+        const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.26, 0.1), bodyMat);
+        legL.position.set(-0.1, 0.12, 0);
+        markerGroup.add(legL);
+
+        const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.26, 0.1), bodyMat);
+        legR.position.set(0.1, 0.12, 0);
+        markerGroup.add(legR);
+
+        // Weapon barrel
+        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.38), darkMat);
+        gun.position.set(0.17, 0.42, 0.2);
+        markerGroup.add(gun);
       } else {
         const bodyMaterial = new THREE.MeshStandardMaterial({
           color: new THREE.Color(marker.color),

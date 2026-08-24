@@ -242,62 +242,117 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     const floorPlan: Record<string, FloorPlanTile> = {};
     const obstacles: Record<string, ObstacleData> = {};
 
-    const setTile = (x: number, y: number, label: FloorTileLabel) => {
-      floorPlan[`${x},${y}`] = { label };
+    // Track tile roomType for visual styling (ROAD, SIDEWALK, BUILDING, PAVEMENT)
+    const setTile = (x: number, y: number, label: FloorTileLabel, roomType?: string) => {
+      floorPlan[`${x},${y}`] = { label, roomType };
     };
 
-    const placeObstacle = (x: number, y: number, type: ObstacleType, hp: number) => {
-      setTile(x, y, 'furniture');
+    const placeObstacle = (x: number, y: number, type: ObstacleType, hp: number, roomType?: string) => {
+      setTile(x, y, 'furniture', roomType);
       obstacles[`${x},${y}`] = { type, hp, maxHp: hp };
     };
 
+    // Road runs horizontally through the middle (3 tiles wide)
+    const roadY = Math.floor(MAP_GRID_SIZE / 2);       // centre lane y=12
+    // Cross-street runs vertically (3 tiles wide)
+    const alleyX = Math.floor(MAP_GRID_SIZE / 2);      // centre lane x=12
+
+    // Helpers
+    const isRoadRow = (y: number) => y >= roadY - 1 && y <= roadY + 1;
+    const isAlleyCol = (x: number) => x >= alleyX - 1 && x <= alleyX + 1;
+    const isSidewalkRow = (y: number) => y === roadY - 2 || y === roadY + 2;
+    const isSidewalkCol = (x: number) => x === alleyX - 2 || x === alleyX + 2;
+
+    // Lay down every tile
     for (let x = 0; x < MAP_GRID_SIZE; x++) {
       for (let y = 0; y < MAP_GRID_SIZE; y++) {
         const isBoundary = x === 0 || x === MAP_GRID_SIZE - 1 || y === 0 || y === MAP_GRID_SIZE - 1;
-        setTile(x, y, isBoundary ? 'wall' : 'floor');
-        if (isBoundary) {
+        // Open the boundary where road/alley exits the map
+        const isOpenBoundary = isBoundary && (isRoadRow(y) || isAlleyCol(x));
+
+        if (isOpenBoundary) {
+          setTile(x, y, 'accessway', 'ROAD');
+        } else if (isBoundary) {
+          setTile(x, y, 'wall', 'BUILDING');
           obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+        } else if (isRoadRow(y) || isAlleyCol(x)) {
+          setTile(x, y, 'accessway', 'ROAD');
+        } else if (isSidewalkRow(y) || isSidewalkCol(x)) {
+          setTile(x, y, 'floor', 'SIDEWALK');
+        } else {
+          setTile(x, y, 'floor', 'PAVEMENT');
         }
       }
     }
 
-    const roadY = Math.floor(MAP_GRID_SIZE / 2);
-    const alleyX = Math.floor(MAP_GRID_SIZE / 2);
+    // Building block walls in the four quadrant corners (leaves sidewalks open)
+    const buildBlock = (bx1: number, by1: number, bx2: number, by2: number) => {
+      for (let bx = bx1; bx <= bx2; bx++) {
+        for (let by = by1; by <= by2; by++) {
+          if (isRoadRow(by) || isAlleyCol(bx)) continue; // never overwrite street
+          const isFacade = bx === bx1 || bx === bx2 || by === by1 || by === by2;
+          if (isFacade) {
+            setTile(bx, by, 'wall', 'BUILDING');
+            obstacles[`${bx},${by}`] = { type: 'wall', hp: 100, maxHp: 100 };
+          } else {
+            setTile(bx, by, 'floor', 'BUILDING');
+          }
+        }
+      }
+    };
 
-    for (let x = 0; x < MAP_GRID_SIZE; x++) {
-      setTile(x, roadY, 'accessway');
-      delete obstacles[`${x},${roadY}`];
-    }
+    // NW building block
+    buildBlock(2, 2, 8, 8);
+    // NE building block
+    buildBlock(15, 2, 21, 8);
+    // SW building block
+    buildBlock(2, 15, 8, 21);
+    // SE building block
+    buildBlock(15, 15, 21, 21);
 
-    for (let y = 0; y < MAP_GRID_SIZE; y++) {
-      setTile(alleyX, y, 'accessway');
-      delete obstacles[`${alleyX},${y}`];
-    }
-
-    const fallbackCoverPositions = [
-      { x: 0.12, y: 0.12 },
-      { x: 0.24, y: 0.42 },
-      { x: 0.58, y: 0.16 },
-      { x: 0.70, y: 0.48 },
-      { x: 0.42, y: 0.64 },
-      { x: 0.80, y: 0.76 },
+    // Parked cars (desk = car body) on road shoulders
+    const carPositions: {x: number; y: number}[] = [
+      { x: 4,  y: roadY - 1 }, { x: 5,  y: roadY - 1 },
+      { x: 17, y: roadY + 1 }, { x: 18, y: roadY + 1 },
+      { x: 8,  y: roadY + 1 }, { x: 9,  y: roadY + 1 },
     ];
-    const gridMax = Math.max(2, MAP_GRID_SIZE - 2);
-    const coverPositions = fallbackCoverPositions.map(({ x, y }) => ({
-      x: Math.max(1, Math.min(gridMax, Math.floor(MAP_GRID_SIZE * x))),
-      y: Math.max(1, Math.min(gridMax, Math.floor(MAP_GRID_SIZE * y))),
-    }));
-
-    coverPositions.forEach(({ x, y }) => {
-      placeObstacle(x, y, 'crate', 70);
+    carPositions.forEach(({ x, y }) => {
+      if (floorPlan[`${x},${y}`]?.label !== 'wall') {
+        placeObstacle(x, y, 'desk', 55, 'ROAD');
+      }
     });
 
-    placeObstacle(Math.max(1, Math.floor(MAP_GRID_SIZE * 0.46)), Math.max(1, Math.floor(MAP_GRID_SIZE * 0.24)), 'desk', 60);
-    placeObstacle(Math.max(1, Math.floor(MAP_GRID_SIZE * 0.50)), Math.max(1, Math.floor(MAP_GRID_SIZE * 0.58)), 'generator', 85);
-    placeObstacle(Math.max(1, Math.floor(MAP_GRID_SIZE * 0.34)), Math.max(1, Math.floor(MAP_GRID_SIZE * 0.76)), 'crate', 65);
+    // Street barriers / concrete blocks (crates) — mid-road cover for both sides
+    const barrierPositions: {x: number; y: number}[] = [
+      { x: 3,  y: roadY },  { x: 13, y: roadY - 1 },
+      { x: 20, y: roadY },  { x: 7,  y: roadY + 1 },
+    ];
+    barrierPositions.forEach(({ x, y }) => {
+      if (floorPlan[`${x},${y}`]?.label !== 'wall') {
+        placeObstacle(x, y, 'crate', 80, 'ROAD');
+      }
+    });
 
+    // Dumpsters/bins on sidewalks
+    const binPositions: {x: number; y: number}[] = [
+      { x: 10, y: roadY - 2 }, { x: 14, y: roadY + 2 },
+      { x: alleyX - 2, y: 5 }, { x: alleyX + 2, y: 18 },
+    ];
+    binPositions.forEach(({ x, y }) => {
+      if (floorPlan[`${x},${y}`]?.label === 'floor') {
+        placeObstacle(x, y, 'crate', 50, 'SIDEWALK');
+      }
+    });
+
+    // Generator / utility box near alley
+    placeObstacle(alleyX + 2, roadY - 3, 'generator', 90, 'SIDEWALK');
+    placeObstacle(alleyX - 2, roadY + 3, 'generator', 90, 'SIDEWALK');
+
+    // Named zones
     rooms.push({ name: 'MAIN STREET', x1: 0, y1: roadY - 1, x2: MAP_GRID_SIZE - 1, y2: roadY + 1, color: 'text-slate-300 border-slate-500/30', bgClass: 'bg-slate-950/10', type: 'STREET' });
-    rooms.push({ name: 'SIDE ALLEY', x1: alleyX - 1, y1: 0, x2: alleyX + 1, y2: MAP_GRID_SIZE - 1, color: 'text-amber-300 border-amber-500/30', bgClass: 'bg-amber-950/10', type: 'ALLEY' });
+    rooms.push({ name: 'CROSS STREET', x1: alleyX - 1, y1: 0, x2: alleyX + 1, y2: MAP_GRID_SIZE - 1, color: 'text-amber-300 border-amber-500/30', bgClass: 'bg-amber-950/10', type: 'ALLEY' });
+    rooms.push({ name: 'NORTH SIDEWALK', x1: 1, y1: roadY - 2, x2: MAP_GRID_SIZE - 2, y2: roadY - 2, color: 'text-zinc-300 border-zinc-500/20', bgClass: 'bg-zinc-950/10', type: 'SIDEWALK' });
+    rooms.push({ name: 'SOUTH SIDEWALK', x1: 1, y1: roadY + 2, x2: MAP_GRID_SIZE - 2, y2: roadY + 2, color: 'text-zinc-300 border-zinc-500/20', bgClass: 'bg-zinc-950/10', type: 'SIDEWALK' });
 
     return { rooms, floorPlan, obstacles, lootTiles: [] as { x: number; y: number; itemId: string; name: string }[] };
   }
@@ -2271,7 +2326,7 @@ const TacticalMission = () => {
             <div
               className="absolute inset-0 overflow-hidden rounded-sm border border-[#1a1f2b] shadow-[0_0_100px_rgba(0,0,0,0.5)]"
               style={{
-                backgroundColor: '#0c0e14',
+                backgroundColor: activeMission?.type === 'URBAN' ? '#141417' : '#0c0e14',
                 transform: 'translateZ(-1px)',
                 transformStyle: 'preserve-3d',
               }}
@@ -2330,6 +2385,22 @@ const TacticalMission = () => {
               // Keep the tile cells visually transparent so the combat map stays as a continuous floor plane.
               const tileCellClassName = 'absolute flex items-center justify-center transition-all group';
 
+              // Street visual tile background based on roomType for URBAN missions
+              const tileRoomType = tileInfo?.roomType;
+              const isUrbanMission = activeMission?.type === 'URBAN';
+              const roadCenterY = Math.floor(GRID_SIZE / 2);
+              const streetBg: string | undefined = isUrbanMission
+                ? tileRoomType === 'ROAD'
+                  ? '#1a1a1e'
+                  : tileRoomType === 'SIDEWALK'
+                    ? '#272730'
+                    : tileRoomType === 'BUILDING'
+                      ? '#1c1f2e'
+                      : tileRoomType === 'PAVEMENT'
+                        ? '#1e2030'
+                        : undefined
+                : undefined;
+
               return (
                 <div 
                   key={i}
@@ -2345,6 +2416,34 @@ const TacticalMission = () => {
                     zIndex: 1,
                   }}
                 >
+                  {/* Street tile visual background for URBAN missions */}
+                  {streetBg && (
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ backgroundColor: streetBg }}
+                    />
+                  )}
+                  {/* Road lane markings — dashed yellow centre line on main road */}
+                  {isUrbanMission && tileRoomType === 'ROAD' && y === roadCenterY && x % 3 !== 2 && (
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{ left: '10%', right: '10%', top: '46%', height: '8%', backgroundColor: 'rgba(234,179,8,0.55)', borderRadius: 1 }}
+                    />
+                  )}
+                  {/* Sidewalk kerb edge highlight */}
+                  {isUrbanMission && tileRoomType === 'SIDEWALK' && (
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ borderTop: '1px solid rgba(148,163,184,0.18)', borderBottom: '1px solid rgba(148,163,184,0.18)' }}
+                    />
+                  )}
+                  {/* Building facade texture stripe */}
+                  {isUrbanMission && tileRoomType === 'BUILDING' && tileLabel === 'floor' && (
+                    <div
+                      className="absolute inset-0 pointer-events-none opacity-20"
+                      style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(100,116,139,0.4) 0px, rgba(100,116,139,0.4) 1px, transparent 1px, transparent 8px)' }}
+                    />
+                  )}
                   {/* Failed Action Overlay */}
                   <AnimatePresence>
                     {failedAction && failedAction.x === x && failedAction.y === y && (
