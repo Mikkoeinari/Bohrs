@@ -586,9 +586,6 @@ function updateEnemyPatrols(state: GameState, minutesPassed: number): GameState 
 
       for (const [agentId, agent] of Object.entries(updatedAgents)) {
         if (agent.kind !== 'UNIT' || agent.factionId === 'player') continue;
-        const faction = state.factions[agent.factionId];
-        const playerRelation = faction?.relations?.['player'] ?? 0;
-        if (playerRelation >= 0) continue; // skip neutral / friendly factions
         const dist = Math.sqrt((agent.x - squadX) ** 2 + (agent.y - squadY) ** 2);
         if (dist < ENCOUNTER_DISTANCE) {
           encounterTriggered = true;

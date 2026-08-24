@@ -376,9 +376,7 @@ const CityMap = () => {
 
     const isUrbanEncounter = Boolean(
       building &&
-      building.ownerId !== 'player' &&
-      building.ownerId !== 'player-hq' &&
-      (building.intel?.hostiles ?? 0) > 0
+      building.ownerId !== 'player'
     );
 
     startMission({
