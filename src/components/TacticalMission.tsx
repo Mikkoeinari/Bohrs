@@ -67,6 +67,7 @@ interface ObstacleData {
 }
 
 const MIN_VOXEL_CUBE_SIZE = 24;
+const DOOR_MAX_HP = 60;
 
 const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, frontColor, backColor, leftColor, rightColor, children, offsetZ = 0 }: any) => {
   // Allows non-uniform dimensions (width x depth footprint, height = vertical)
@@ -515,8 +516,8 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
     setTile(x2, y2, 'accessway');
     delete obstacles[key1];
     delete obstacles[key2];
-    obstacles[key1] = { type: 'door', hp: 60, maxHp: 60, linkedDoor: key2 };
-    obstacles[key2] = { type: 'door', hp: 60, maxHp: 60, linkedDoor: key1 };
+    obstacles[key1] = { type: 'door', hp: DOOR_MAX_HP, maxHp: DOOR_MAX_HP, linkedDoor: key2 };
+    obstacles[key2] = { type: 'door', hp: DOOR_MAX_HP, maxHp: DOOR_MAX_HP, linkedDoor: key1 };
   };
 
   const carveRoom = (x1: number, y1: number, x2: number, y2: number, roomType: string, template: { name: string; color: string; bgClass: string; furniture: Array<{ x: number; y: number; type: PlacedObstacleType }> }) => {
@@ -1777,7 +1778,7 @@ const TacticalMission = () => {
                   logs.push(`[BREACHED] 💥 The ${obs.type.toUpperCase()} at (${obsX},${obsY}) was completely destroyed and reduced to rubble!`);
                   // Destroy linked door block
                   const linked = nextObs[key].linkedDoor;
-                  if (linked && nextObs[linked]) {
+                  if (linked && nextObs[linked] && nextObs[linked].hp > 0) {
                     nextObs[linked] = { ...nextObs[linked], hp: 0 };
                   }
                 }
