@@ -93,35 +93,33 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         transformStyle: 'preserve-3d'
       }}
     >
-      {/* Top face (w × d) – flat in XY plane, translated up along Z */}
+      {/* Top face (X/Y plane, lifted along +Z) */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${d}px`,
           left: 0, top: 0,
           backgroundColor: topColor,
-          transform: `translateZ(${halfH}px)`,
+          transform: `translate3d(0, 0, ${halfH}px)`,
           boxSizing: 'border-box'
         }}
       >
         {children}
       </div>
 
-      {/* Bottom face (w × d) – flat in XY plane, translated down along Z */}
+      {/* Bottom face (X/Y plane, lifted along -Z) */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${d}px`,
           left: 0, top: 0,
           backgroundColor: bottomColor,
-          transform: `translateZ(${-halfH}px)`,
+          transform: `translate3d(0, 0, ${-halfH}px) rotateX(180deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Front face (w × h) – vertical wall at +Y edge of box.
-          Start as w×h in XY, rotate 90deg around X-axis to stand vertical,
-          then translate along new local Z (which is +Y in parent) to front edge. */}
+      {/* Front face (X/Z plane, pushed to +Y edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -129,12 +127,12 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
           left: 0, top: `${halfD - halfH}px`,
           backgroundColor: frontColor,
           transformOrigin: 'center center',
-          transform: `translateY(${halfD}px) rotateX(-90deg)`,
+          transform: `translate3d(0, ${halfD}px, 0) rotateX(-90deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Back face (w × h) – vertical wall at -Y edge of box */}
+      {/* Back face (X/Z plane, pushed to -Y edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -142,12 +140,12 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
           left: 0, top: `${halfD - halfH}px`,
           backgroundColor: backColor,
           transformOrigin: 'center center',
-          transform: `translateY(${-halfD}px) rotateX(90deg)`,
+          transform: `translate3d(0, ${-halfD}px, 0) rotateX(90deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Left face (d × h) – vertical wall at -X edge of box */}
+      {/* Left face (Y/Z plane, pushed to -X edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -155,12 +153,12 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
           left: `${halfW - halfD}px`, top: `${halfD - halfH}px`,
           backgroundColor: leftColor,
           transformOrigin: 'center center',
-          transform: `translateX(${-halfW}px) rotateY(-90deg)`,
+          transform: `translate3d(${-halfW}px, 0, 0) rotateY(-90deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Right face (d × h) – vertical wall at +X edge of box */}
+      {/* Right face (Y/Z plane, pushed to +X edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -168,7 +166,7 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
           left: `${halfW - halfD}px`, top: `${halfD - halfH}px`,
           backgroundColor: rightColor,
           transformOrigin: 'center center',
-          transform: `translateX(${halfW}px) rotateY(90deg)`,
+          transform: `translate3d(${halfW}px, 0, 0) rotateY(90deg)`,
           boxSizing: 'border-box'
         }}
       />
