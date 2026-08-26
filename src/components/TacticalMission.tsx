@@ -63,40 +63,41 @@ interface ObstacleData {
   type: ObstacleType;
   hp: number;
   maxHp: number;
+  linkedDoor?: string; // coordinate key of paired door block
 }
 
-const VOXEL_MIN_FOOTPRINT_SIZE = 48;
-const VOXEL_FOOTPRINT_SIZE_SCALE = 1;
-const VOXEL_MIN_HEIGHT = 48;
-const VOXEL_HEIGHT_SIZE_SCALE = 1;
 const MIN_VOXEL_CUBE_SIZE = 24;
+const DOOR_MAX_HP = 60;
 
-const calculateVoxelDimension = (cellSize: number, scale: number, minSize: number) =>
-  Math.max(minSize, Math.round(cellSize * scale));
-
-const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor, frontColor, backColor, leftColor, rightColor, children }: any) => {
-  const cubeSize = Math.max(MIN_VOXEL_CUBE_SIZE, Math.min(width, depth, height));
-  const halfCube = cubeSize / 2;
-  const cubeOffsetZ = halfCube;
+const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, frontColor, backColor, leftColor, rightColor, children, offsetZ = 0 }: any) => {
+  // Allows non-uniform dimensions (width x depth footprint, height = vertical)
+  const w = Math.max(4, width);
+  const h = Math.max(4, height);
+  const d = Math.max(4, depth);
+  const halfW = w / 2;
+  const halfH = h / 2;
+  const halfD = d / 2;
+  const baseOffsetZ = offsetZ || halfH;
 
   return (
-    <div 
+    <div
       className="absolute pointer-events-none"
       style={{
-        width: `${cubeSize}px`,
-        height: `${cubeSize}px`,
+        width: `${w}px`,
+        height: `${d}px`,
         left: '50%',
         top: '50%',
-        transform: `translate3d(-50%, -50%, ${cubeOffsetZ}px)`,
+        transform: `translate3d(-50%, -50%, ${baseOffsetZ}px)`,
         transformStyle: 'preserve-3d'
       }}
     >
       {/* Top face */}
-      <div 
-        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+      <div
+        className="absolute border border-black/20"
         style={{
+          width: `${w}px`, height: `${d}px`,
           backgroundColor: topColor,
-          transform: `rotateX(90deg) translateZ(${halfCube}px)`,
+          transform: `rotateX(90deg) translateZ(${halfH}px)`,
           boxSizing: 'border-box'
         }}
       >
@@ -104,51 +105,60 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
       </div>
 
       {/* Bottom face */}
-      <div 
-        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+      <div
+        className="absolute border border-black/20"
         style={{
+          width: `${w}px`, height: `${d}px`,
           backgroundColor: bottomColor,
-          transform: `rotateX(-90deg) translateZ(${halfCube}px)`,
+          transform: `rotateX(-90deg) translateZ(${halfH}px)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Front face (facing South / positive Y) */}
-      <div 
-        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+      {/* Front face */}
+      <div
+        className="absolute border border-black/20"
         style={{
+          width: `${w}px`, height: `${h}px`,
+          top: `${(d - h) / 2}px`,
           backgroundColor: frontColor,
-          transform: `translateZ(${halfCube}px)`,
+          transform: `translateZ(${halfD}px)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Back face (facing North / negative Y) */}
-      <div 
-        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+      {/* Back face */}
+      <div
+        className="absolute border border-black/20"
         style={{
+          width: `${w}px`, height: `${h}px`,
+          top: `${(d - h) / 2}px`,
           backgroundColor: backColor,
-          transform: `rotateY(180deg) translateZ(${halfCube}px)`,
+          transform: `rotateY(180deg) translateZ(${halfD}px)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Left face (facing West / negative X) */}
-      <div 
-        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+      {/* Left face */}
+      <div
+        className="absolute border border-black/20"
         style={{
+          width: `${d}px`, height: `${h}px`,
+          left: `${(w - d) / 2}px`, top: `${(d - h) / 2}px`,
           backgroundColor: leftColor,
-          transform: `rotateY(-90deg) translateZ(${halfCube}px)`,
+          transform: `rotateY(-90deg) translateZ(${halfW}px)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Right face (facing East / positive X) */}
-      <div 
-        className="absolute inset-0 border border-black/20 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+      {/* Right face */}
+      <div
+        className="absolute border border-black/20"
         style={{
+          width: `${d}px`, height: `${h}px`,
+          left: `${(w - d) / 2}px`, top: `${(d - h) / 2}px`,
           backgroundColor: rightColor,
-          transform: `rotateY(90deg) translateZ(${halfCube}px)`,
+          transform: `rotateY(90deg) translateZ(${halfW}px)`,
           boxSizing: 'border-box'
         }}
       />
@@ -157,57 +167,86 @@ const VoxelCube = ({ width = 36, height = 30, depth = 36, topColor, bottomColor,
 };
 
 const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType; hp: number; maxHp: number; cellSize?: number }) => {
-  const axisColors = {
-    topColor: '#22c55e',
-    bottomColor: '#f8fafc',
-    frontColor: '#eab308',
-    backColor: '#d946ef',
-    leftColor: '#3b82f6',
-    rightColor: '#ef4444',
-  };
+  const s = Math.max(24, Math.round(cellSize * 0.85));
 
-  const detailClassName = (() => {
+  // Type-specific shapes: width, height (vertical), depth, and colors
+  const shapeConfig = useMemo(() => {
     switch (type) {
+      case 'wall':
+        // Thin wall slab: full width, tall, thin depth (like 7DTD frame blocks)
+        return {
+          w: s, h: Math.round(s * 0.9), d: Math.round(s * 0.18),
+          top: '#6b7280', bottom: '#374151', front: '#9ca3af', back: '#4b5563', left: '#6b7280', right: '#6b7280'
+        };
       case 'server':
-        return 'border border-cyan-300/60 bg-cyan-400/25';
+        // Tall thin server rack
+        return {
+          w: Math.round(s * 0.5), h: Math.round(s * 0.95), d: Math.round(s * 0.35),
+          top: '#1e293b', bottom: '#0f172a', front: '#334155', back: '#1e293b', left: '#1e293b', right: '#1e293b'
+        };
       case 'vat':
-        return 'border border-emerald-200/60 bg-emerald-300/20';
+        // Cylindrical approximation: medium cube, slightly taller
+        return {
+          w: Math.round(s * 0.55), h: Math.round(s * 0.7), d: Math.round(s * 0.55),
+          top: '#065f46', bottom: '#064e3b', front: '#10b981', back: '#047857', left: '#059669', right: '#059669'
+        };
       case 'crate':
-        return 'border border-amber-200/50 bg-amber-200/20';
+        // Squat crate box
+        return {
+          w: Math.round(s * 0.6), h: Math.round(s * 0.45), d: Math.round(s * 0.6),
+          top: '#92400e', bottom: '#78350f', front: '#d97706', back: '#b45309', left: '#b45309', right: '#d97706'
+        };
       case 'desk':
-        return 'border border-zinc-200/40 bg-zinc-100/15';
+        // Flat slab table: wide, short, decent depth
+        return {
+          w: Math.round(s * 0.8), h: Math.round(s * 0.25), d: Math.round(s * 0.5),
+          top: '#44403c', bottom: '#292524', front: '#57534e', back: '#44403c', left: '#44403c', right: '#57534e'
+        };
       case 'generator':
-        return 'border border-red-200/50 bg-red-300/20';
+        // Large boxy machine
+        return {
+          w: Math.round(s * 0.7), h: Math.round(s * 0.6), d: Math.round(s * 0.6),
+          top: '#374151', bottom: '#1f2937', front: '#dc2626', back: '#991b1b', left: '#4b5563', right: '#4b5563'
+        };
       case 'bed':
-        return 'border border-sky-200/50 bg-sky-100/15';
+        // Low flat slab: wide, very short, long depth
+        return {
+          w: Math.round(s * 0.45), h: Math.round(s * 0.2), d: Math.round(s * 0.85),
+          top: '#e0e7ff', bottom: '#6366f1', front: '#a5b4fc', back: '#818cf8', left: '#818cf8', right: '#a5b4fc'
+        };
+      case 'door':
+        // Tall thin door panel
+        return {
+          w: Math.round(s * 0.75), h: Math.round(s * 0.95), d: Math.round(s * 0.12),
+          top: '#78350f', bottom: '#451a03', front: '#a16207', back: '#92400e', left: '#92400e', right: '#a16207'
+        };
       default:
-        return 'border border-slate-100/20 bg-slate-100/10';
+        return {
+          w: Math.round(s * 0.6), h: Math.round(s * 0.6), d: Math.round(s * 0.6),
+          top: '#475569', bottom: '#1e293b', front: '#64748b', back: '#334155', left: '#475569', right: '#475569'
+        };
     }
-  })();
+  }, [type, s]);
 
-  const voxelMetrics = useMemo(() => {
-    const footprintSize = calculateVoxelDimension(cellSize, VOXEL_FOOTPRINT_SIZE_SCALE, VOXEL_MIN_FOOTPRINT_SIZE);
-    const voxelHeight = calculateVoxelDimension(cellSize, VOXEL_HEIGHT_SIZE_SCALE, VOXEL_MIN_HEIGHT);
-    return { footprintSize, voxelHeight };
-  }, [cellSize]);
-
-  const { footprintSize, voxelHeight } = voxelMetrics;
+  // Damage tint: darken as HP drops
+  const damageOpacity = maxHp > 0 ? Math.max(0, 1 - hp / maxHp) * 0.5 : 0;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
-      <VoxelCube
-        width={footprintSize}
-        height={voxelHeight}
-        depth={footprintSize}
-        topColor={axisColors.topColor}
-        bottomColor={axisColors.bottomColor}
-        frontColor={axisColors.frontColor}
-        backColor={axisColors.backColor}
-        leftColor={axisColors.leftColor}
-        rightColor={axisColors.rightColor}
-      >
-        <div className={`absolute inset-[16%] rounded-[2px] ${detailClassName}`} />
-      </VoxelCube>
+      <VoxelBox
+        width={shapeConfig.w}
+        height={shapeConfig.h}
+        depth={shapeConfig.d}
+        topColor={shapeConfig.top}
+        bottomColor={shapeConfig.bottom}
+        frontColor={shapeConfig.front}
+        backColor={shapeConfig.back}
+        leftColor={shapeConfig.left}
+        rightColor={shapeConfig.right}
+      />
+      {damageOpacity > 0 && (
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: `rgba(0,0,0,${damageOpacity})`, borderRadius: '2px' }} />
+      )}
     </div>
   );
 };
@@ -464,9 +503,21 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
   };
 
   const placeDoor = (x: number, y: number) => {
+    // 2-block door: place door at (x,y) and an adjacent tile
+    // Determine second block direction: prefer vertical (y+1), fallback to horizontal (x+1)
+    let x2 = x;
+    let y2 = y + 1;
+    if (y2 >= MAP_GRID_SIZE) { y2 = y - 1; }
+
+    const key1 = `${x},${y}`;
+    const key2 = `${x2},${y2}`;
+
     setTile(x, y, 'accessway');
-    delete obstacles[`${x},${y}`];
-    obstacles[`${x},${y}`] = { type: 'door', hp: 0, maxHp: 0 };
+    setTile(x2, y2, 'accessway');
+    delete obstacles[key1];
+    delete obstacles[key2];
+    obstacles[key1] = { type: 'door', hp: DOOR_MAX_HP, maxHp: DOOR_MAX_HP, linkedDoor: key2 };
+    obstacles[key2] = { type: 'door', hp: DOOR_MAX_HP, maxHp: DOOR_MAX_HP, linkedDoor: key1 };
   };
 
   const carveRoom = (x1: number, y1: number, x2: number, y2: number, roomType: string, template: { name: string; color: string; bgClass: string; furniture: Array<{ x: number; y: number; type: PlacedObstacleType }> }) => {
@@ -1096,7 +1147,7 @@ const TacticalMission = () => {
     }
 
     const obs = obstacles[`${x},${y}`];
-    const isObstacle = !!(obs && obs.hp > 0 && obs.type !== 'door');
+    const isObstacle = !!(obs && obs.hp > 0);
 
     if (pendingAction && pendingAction.unitId === selectedUnitId && pendingAction.x === x && pendingAction.y === y) {
       if (pendingAction.type === 'ATTACK') {
@@ -1250,6 +1301,11 @@ const TacticalMission = () => {
 
               if (nextHp <= 0) {
                 rubbleLogs.push(`[MORTAR DEMOLITION] 💥 The ${obs.type.toUpperCase()} at (${nx},${ny}) collapsed into rubble under heavy bombardment!`);
+                // Destroy linked door block
+                const linked = nextObs[key].linkedDoor;
+                if (linked && nextObs[linked] && nextObs[linked].hp > 0) {
+                  nextObs[linked] = { ...nextObs[linked], hp: 0 };
+                }
               }
             }
           }
@@ -1720,6 +1776,11 @@ const TacticalMission = () => {
                 nextObs[key] = { ...nextObs[key], hp: updatedHp };
                 if (updatedHp <= 0) {
                   logs.push(`[BREACHED] 💥 The ${obs.type.toUpperCase()} at (${obsX},${obsY}) was completely destroyed and reduced to rubble!`);
+                  // Destroy linked door block
+                  const linked = nextObs[key].linkedDoor;
+                  if (linked && nextObs[linked] && nextObs[linked].hp > 0) {
+                    nextObs[linked] = { ...nextObs[linked], hp: 0 };
+                  }
                 }
               }
               return nextObs;
@@ -1993,7 +2054,7 @@ const TacticalMission = () => {
       const obstacleTarget = selectedUnit.targetObstacleCoords;
       const obstacleKey = `${obstacleTarget.x},${obstacleTarget.y}`;
       const obstacle = obstacles[obstacleKey];
-      if (obstacle && obstacle.hp > 0 && obstacle.type !== 'door') {
+      if (obstacle && obstacle.hp > 0) {
         return { type: 'ATTACK_OBSTACLE' as const, x: obstacleTarget.x, y: obstacleTarget.y };
       }
     }
@@ -2331,7 +2392,7 @@ const TacticalMission = () => {
               const isSelected = selectedUnitId === unit?.id;
               const destruction = destructionGrid[`${x},${y}`] || 0;
               const obsData = obstacles[`${x},${y}`];
-              const isObstacle = !!(obsData && obsData.hp > 0 && obsData.type !== 'door');
+              const isObstacle = !!(obsData && obsData.hp > 0);
               const room = rooms.find(r => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
               const tileInfo = floorPlan[`${x},${y}`];
               const tileLabel = tileInfo?.label ?? 'floor';
@@ -2446,10 +2507,8 @@ const TacticalMission = () => {
                   )}
 
                   {obsData && !isObstacle && obsData.type === 'door' && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10" style={{ transformStyle: 'preserve-3d' }}>
-                      <div className="w-8 h-8 rounded-sm border border-amber-400/70 bg-amber-500/20 shadow-[0_0_16px_rgba(245,158,11,0.35)]" />
-                      <div className="absolute inset-x-2 bottom-2 h-1.5 rounded-full bg-amber-300/70" />
-                      <span className="absolute bottom-3 text-[6px] font-black uppercase tracking-[0.25em] text-amber-100">DOOR</span>
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      <span className="text-[5px] font-black uppercase tracking-widest text-amber-700/50">RUBBLE</span>
                     </div>
                   )}
 
