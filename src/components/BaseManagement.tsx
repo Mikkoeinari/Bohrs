@@ -207,6 +207,10 @@ export default function BaseManagement() {
 
   const selectedSector = selectedSectorIdx !== null ? baseSectors[selectedSectorIdx] : null;
 
+  const marketplaceOffers = useMemo(() => (
+    activeBaseView === 'ARMORY' ? getMarketplaceOffers(state.factions, state.time) : []
+  ), [activeBaseView, state.factions, state.time]);
+
   // Render sub-view with consistent back button
   if (activeBaseView === 'STAFF') {
     return (
@@ -579,10 +583,6 @@ export default function BaseManagement() {
       </div>
     );
   }
-
-  const marketplaceOffers = useMemo(() => (
-    activeBaseView === 'ARMORY' ? getMarketplaceOffers(state.factions, state.time) : []
-  ), [activeBaseView, state.factions, state.time]);
 
   if (activeBaseView === 'ARMORY') {
     const inventoryItems = Object.entries(state.inventory || {})
