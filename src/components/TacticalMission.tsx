@@ -70,10 +70,11 @@ const MIN_VOXEL_CUBE_SIZE = 24;
 const DOOR_MAX_HP = 60;
 
 const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, frontColor, backColor, leftColor, rightColor, children, offsetZ = 0 }: any) => {
-  // Allows non-uniform dimensions (width x depth footprint, height = vertical)
+  // Dimensions: width (X-axis), depth (Y-axis on board), height (Z-axis = vertical above board)
+  // The container sits in the board's XY plane; Z points up from the board surface.
   const w = Math.max(4, width);
-  const h = Math.max(4, height);
-  const d = Math.max(4, depth);
+  const h = Math.max(4, height); // vertical extent
+  const d = Math.max(4, depth);  // Y-axis extent
   const halfW = w / 2;
   const halfH = h / 2;
   const halfD = d / 2;
@@ -91,74 +92,82 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         transformStyle: 'preserve-3d'
       }}
     >
-      {/* Top face */}
+      {/* Top face (w × d) – flat in XY plane, translated up along Z */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${d}px`,
+          left: 0, top: 0,
           backgroundColor: topColor,
-          transform: `rotateX(90deg) translateZ(${halfH}px)`,
+          transform: `translateZ(${halfH}px)`,
           boxSizing: 'border-box'
         }}
       >
         {children}
       </div>
 
-      {/* Bottom face */}
+      {/* Bottom face (w × d) – flat in XY plane, translated down along Z */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${d}px`,
+          left: 0, top: 0,
           backgroundColor: bottomColor,
-          transform: `rotateX(-90deg) translateZ(${halfH}px)`,
+          transform: `translateZ(${-halfH}px)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Front face */}
+      {/* Front face (w × h) – vertical wall at +Y edge of box.
+          Start as w×h in XY, rotate 90deg around X-axis to stand vertical,
+          then translate along new local Z (which is +Y in parent) to front edge. */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${h}px`,
-          top: `${(d - h) / 2}px`,
+          left: 0, top: `${halfD - halfH}px`,
           backgroundColor: frontColor,
-          transform: `translateZ(${halfD}px)`,
+          transformOrigin: 'center center',
+          transform: `translateY(${halfD}px) rotateX(-90deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Back face */}
+      {/* Back face (w × h) – vertical wall at -Y edge of box */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${h}px`,
-          top: `${(d - h) / 2}px`,
+          left: 0, top: `${halfD - halfH}px`,
           backgroundColor: backColor,
-          transform: `rotateY(180deg) translateZ(${halfD}px)`,
+          transformOrigin: 'center center',
+          transform: `translateY(${-halfD}px) rotateX(90deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Left face */}
+      {/* Left face (d × h) – vertical wall at -X edge of box */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${d}px`, height: `${h}px`,
-          left: `${(w - d) / 2}px`, top: `${(d - h) / 2}px`,
+          left: `${halfW - halfD}px`, top: `${halfD - halfH}px`,
           backgroundColor: leftColor,
-          transform: `rotateY(-90deg) translateZ(${halfW}px)`,
+          transformOrigin: 'center center',
+          transform: `translateX(${-halfW}px) rotateY(-90deg)`,
           boxSizing: 'border-box'
         }}
       />
 
-      {/* Right face */}
+      {/* Right face (d × h) – vertical wall at +X edge of box */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${d}px`, height: `${h}px`,
-          left: `${(w - d) / 2}px`, top: `${(d - h) / 2}px`,
+          left: `${halfW - halfD}px`, top: `${halfD - halfH}px`,
           backgroundColor: rightColor,
-          transform: `rotateY(90deg) translateZ(${halfW}px)`,
+          transformOrigin: 'center center',
+          transform: `translateX(${halfW}px) rotateY(90deg)`,
           boxSizing: 'border-box'
         }}
       />
