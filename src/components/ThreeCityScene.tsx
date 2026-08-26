@@ -11,8 +11,39 @@ export interface SceneEntityMarker {
   color: string;
 }
 
+export interface CombatSceneTile {
+  x: number;
+  y: number;
+  tileType: 'floor' | 'wall' | 'accessway' | 'stairs' | 'furniture';
+  roomType?: string;
+  roomName?: string;
+  obstacle?: {
+    type: string;
+    hp: number;
+    maxHp: number;
+    orientation?: 'ns' | 'ew';
+  };
+}
+
+export interface CombatSceneUnit {
+  id: string;
+  name: string;
+  faction: 'PLAYER' | 'ENEMY';
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  isSelected?: boolean;
+}
+
+export interface CombatSceneLayout {
+  gridSize: number;
+  tiles: CombatSceneTile[];
+  units: CombatSceneUnit[];
+}
+
 interface ThreeCitySceneProps {
-  buildings: Building[];
+  buildings?: Building[];
   selectedBuildingId?: string | null;
   camera: {
     zoom: number;
@@ -22,12 +53,92 @@ interface ThreeCitySceneProps {
   };
   onBuildingSelect?: (buildingId: string) => void;
   markers?: SceneEntityMarker[];
+  combatLayout?: CombatSceneLayout;
+  onTileSelect?: (x: number, y: number) => void;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const SCENE_BACKGROUND = '#f6fbff';
 const SCENE_FOG = '#dbeafe';
+
+const getCombatTileColor = (tileType: CombatSceneTile['tileType'], roomType?: string) => {
+  if (tileType === 'wall') {
+    return '#1e293b';
+  }
+  if (tileType === 'accessway') {
+    return '#334155';
+  }
+  if (tileType === 'stairs') {
+    return '#8b5cf6';
+  }
+  if (tileType === 'furniture') {
+    return '#64748b';
+  }
+  if (roomType === 'ROAD') {
+    return '#222633';
+  }
+  if (roomType === 'SIDEWALK') {
+    return '#424b5c';
+  }
+  if (roomType === 'BUILDING') {
+    return '#1f2937';
+  }
+  if (roomType === 'PAVEMENT') {
+    return '#2c3442';
+  }
+  return '#0f172a';
+};
+
+const getCombatObstacleGeometry = (type: string, orientation?: 'ns' | 'ew') => {
+  switch (type) {
+    case 'wall':
+      return {
+        width: orientation === 'ns' ? 0.22 : 1.0,
+        depth: orientation === 'ns' ? 1.0 : 0.22,
+        height: 1.2,
+      };
+    case 'server':
+      return { width: 0.42, depth: 0.28, height: 1.34 };
+    case 'vat':
+      return { width: 0.5, depth: 0.5, height: 0.82 };
+    case 'crate':
+      return { width: 0.54, depth: 0.54, height: 0.5 };
+    case 'desk':
+      return { width: 0.8, depth: 0.48, height: 0.46 };
+    case 'generator':
+      return { width: 0.56, depth: 0.56, height: 0.66 };
+    case 'bed':
+      return { width: 0.9, depth: 0.46, height: 0.28 };
+    case 'door':
+      return { width: 0.56, depth: 0.16, height: 1.12 };
+    default:
+      return { width: 0.6, depth: 0.6, height: 0.6 };
+  }
+};
+
+const getCombatObstacleMaterial = (type: string) => {
+  switch (type) {
+    case 'wall':
+      return { color: '#6b7280' };
+    case 'server':
+      return { color: '#1d4ed8' };
+    case 'vat':
+      return { color: '#10b981' };
+    case 'crate':
+      return { color: '#b45309' };
+    case 'desk':
+      return { color: '#7c2d12' };
+    case 'generator':
+      return { color: '#dc2626' };
+    case 'bed':
+      return { color: '#818cf8' };
+    case 'door':
+      return { color: '#a16207' };
+    default:
+      return { color: '#64748b' };
+  }
+};
 
 const getBuildingTypeTheme = (buildingType: Building['type']) => {
   switch (buildingType) {
@@ -266,7 +377,7 @@ const buildLabelTexture = (name: string, accentColor: string, selected: boolean)
   return texture;
 };
 
-const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [] }) => {
+const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -278,13 +389,14 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
   const raycasterRef = useRef(new THREE.Raycaster());
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const pointerMovedRef = useRef(false);
-  const buildingMeshesRef = useRef<THREE.Mesh[]>([]);
+  const interactiveMeshesRef = useRef<THREE.Object3D[]>([]);
 
-  const buildingList = useMemo(() => buildings.slice().sort((a, b) => {
+  const buildingList = useMemo(() => (buildings || []).slice().sort((a, b) => {
     const aCenter = a.x + a.width / 2 + a.y + a.height / 2;
     const bCenter = b.x + b.width / 2 + b.y + b.height / 2;
     return aCenter - bCenter;
   }), [buildings]);
+  const isCombatScene = Boolean(combatLayout);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -330,188 +442,6 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     accentLight.position.set(-8, 10, 8);
     scene.add(accentLight);
 
-    const sceneLayout = getSceneLayout(buildingList);
-    const {
-      centerX,
-      centerY,
-      minX,
-      maxX,
-      minY,
-      maxY,
-      lotScale,
-      terrainSize,
-    } = sceneLayout;
-    const terrain = new THREE.Mesh(
-      new THREE.PlaneGeometry(terrainSize, terrainSize, 64, 64),
-      new THREE.MeshStandardMaterial({
-        color: 0xf1f5f9,
-        roughness: 0.98,
-        metalness: 0.02,
-        vertexColors: true,
-      })
-    );
-    const terrainPositions = terrain.geometry.attributes.position;
-    const terrainColors = new Float32Array(terrainPositions.count * 3);
-    const terrainColorA = new THREE.Color('#f3f7fb');
-    const terrainColorB = new THREE.Color('#e2ebf5');
-    const terrainColorC = new THREE.Color('#d0ddeb');
-    for (let index = 0; index < terrainPositions.count; index += 1) {
-      const x = terrainPositions.getX(index);
-      const y = terrainPositions.getY(index);
-      const height = Math.sin(x * 0.22) * 0.06 + Math.cos(y * 0.18) * 0.04;
-      terrainPositions.setZ(index, height);
-
-      const paletteRoll = Math.sin(x * 0.14 + y * 0.1) * 0.5 + 0.5;
-      const terrainColor = paletteRoll > 0.3
-        ? terrainColorA.clone().lerp(terrainColorB, paletteRoll)
-        : terrainColorA.clone().lerp(terrainColorC, 0.5 + paletteRoll);
-      terrainColor.toArray(terrainColors, index * 3);
-    }
-    terrain.geometry.setAttribute('color', new THREE.BufferAttribute(terrainColors, 3));
-    terrain.geometry.computeVertexNormals();
-    terrain.rotation.x = -Math.PI / 2;
-    terrain.receiveShadow = true;
-    scene.add(terrain);
-
-    const roadMaterial = new THREE.MeshStandardMaterial({
-      color: 0x64748b,
-      roughness: 0.9,
-      metalness: 0.02,
-      emissive: 0x94a3b8,
-      emissiveIntensity: 0.05,
-    });
-    const centerlineMaterial = new THREE.MeshStandardMaterial({
-      color: 0xfacc15,
-      roughness: 0.92,
-      metalness: 0.01,
-      emissive: 0xfacc15,
-      emissiveIntensity: 0.12,
-    });
-    const roadWidth = 0.82;
-    const roadThickness = 0.12;
-    const roadGroup = new THREE.Group();
-    const streetLines = new Map<string, boolean>();
-    const majorRoadSpacing = 4;
-    const firstRoadCoord = Math.ceil(Math.min(minX, minY) / majorRoadSpacing) * majorRoadSpacing;
-    const lastRoadCoord = Math.floor(Math.max(maxX, maxY) / majorRoadSpacing) * majorRoadSpacing;
-
-    const addRoadSegment = ({
-      x,
-      z,
-      length,
-      axis,
-      laneOffset = 0,
-    }: {
-      x: number;
-      z: number;
-      length: number;
-      axis: 'x' | 'z';
-      laneOffset?: number;
-    }) => {
-      if (length <= 0.001) {
-        return;
-      }
-
-      if (axis === 'x') {
-        const road = new THREE.Mesh(
-          new THREE.BoxGeometry(length, roadThickness, roadWidth),
-          roadMaterial
-        );
-        road.position.set(x, 0.1, z);
-        road.receiveShadow = true;
-        roadGroup.add(road);
-
-        const centerline = new THREE.Mesh(
-          new THREE.BoxGeometry(length * 0.82, roadThickness * 0.18, roadWidth * 0.16),
-          centerlineMaterial
-        );
-        centerline.position.set(x, 0.12 + laneOffset, z);
-        centerline.receiveShadow = true;
-        roadGroup.add(centerline);
-        return;
-      }
-
-      const road = new THREE.Mesh(
-        new THREE.BoxGeometry(roadWidth, roadThickness, length),
-        roadMaterial
-      );
-      road.position.set(x, 0.1, z);
-      road.receiveShadow = true;
-      roadGroup.add(road);
-
-      const centerline = new THREE.Mesh(
-        new THREE.BoxGeometry(roadWidth * 0.16, roadThickness * 0.18, length * 0.82),
-        centerlineMaterial
-      );
-      centerline.position.set(x, 0.12 + laneOffset, z);
-      centerline.receiveShadow = true;
-      roadGroup.add(centerline);
-    };
-
-    const addStreetLine = ({
-      lotCoord,
-      axis,
-    }: {
-      lotCoord: number;
-      axis: 'x' | 'z';
-    }) => {
-      const worldCoord = (lotCoord - (axis === 'x' ? centerX : centerY)) * lotScale;
-      const key = `${axis}:${lotCoord.toFixed(3)}`;
-      if (streetLines.has(key)) {
-        return;
-      }
-      streetLines.set(key, true);
-
-      if (axis === 'x') {
-        addRoadSegment({ x: 0, z: worldCoord, length: terrainSize, axis: 'x' });
-        return;
-      }
-
-      addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
-    };
-
-    for (let lotCoord = firstRoadCoord; lotCoord <= lastRoadCoord; lotCoord += majorRoadSpacing) {
-      addStreetLine({ lotCoord, axis: 'x' });
-      addStreetLine({ lotCoord, axis: 'z' });
-    }
-
-    const ringRoadPaddingLots = 2.25;
-    const ringMinLotX = minX - ringRoadPaddingLots;
-    const ringMaxLotX = maxX + ringRoadPaddingLots;
-    const ringMinLotZ = minY - ringRoadPaddingLots;
-    const ringMaxLotZ = maxY + ringRoadPaddingLots;
-    const ringWorldMinX = (ringMinLotX - centerX) * lotScale;
-    const ringWorldMaxX = (ringMaxLotX - centerX) * lotScale;
-    const ringWorldMinZ = (ringMinLotZ - centerY) * lotScale;
-    const ringWorldMaxZ = (ringMaxLotZ - centerY) * lotScale;
-
-    addRoadSegment({
-      x: (ringWorldMinX + ringWorldMaxX) / 2,
-      z: ringWorldMinZ,
-      length: ringWorldMaxX - ringWorldMinX + roadWidth,
-      axis: 'x',
-    });
-    addRoadSegment({
-      x: (ringWorldMinX + ringWorldMaxX) / 2,
-      z: ringWorldMaxZ,
-      length: ringWorldMaxX - ringWorldMinX + roadWidth,
-      axis: 'x',
-    });
-    addRoadSegment({
-      x: ringWorldMinX,
-      z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-      length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
-      axis: 'z',
-    });
-    addRoadSegment({
-      x: ringWorldMaxX,
-      z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-      length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
-      axis: 'z',
-    });
-
-    scene.add(roadGroup);
-
     const buildingGroup = new THREE.Group();
     buildingGroup.name = 'building-group';
     scene.add(buildingGroup);
@@ -519,6 +449,219 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     const entityGroup = new THREE.Group();
     entityGroup.name = 'entity-group';
     scene.add(entityGroup);
+
+    if (!isCombatScene) {
+      const sceneLayout = getSceneLayout(buildingList);
+      const {
+        centerX,
+        centerY,
+        minX,
+        maxX,
+        minY,
+        maxY,
+        lotScale,
+        terrainSize,
+      } = sceneLayout;
+      const terrain = new THREE.Mesh(
+        new THREE.PlaneGeometry(terrainSize, terrainSize, 64, 64),
+        new THREE.MeshStandardMaterial({
+          color: 0xf1f5f9,
+          roughness: 0.98,
+          metalness: 0.02,
+          vertexColors: true,
+        })
+      );
+      const terrainPositions = terrain.geometry.attributes.position;
+      const terrainColors = new Float32Array(terrainPositions.count * 3);
+      const terrainColorA = new THREE.Color('#f3f7fb');
+      const terrainColorB = new THREE.Color('#e2ebf5');
+      const terrainColorC = new THREE.Color('#d0ddeb');
+      for (let index = 0; index < terrainPositions.count; index += 1) {
+        const x = terrainPositions.getX(index);
+        const y = terrainPositions.getY(index);
+        const height = Math.sin(x * 0.22) * 0.06 + Math.cos(y * 0.18) * 0.04;
+        terrainPositions.setZ(index, height);
+
+        const paletteRoll = Math.sin(x * 0.14 + y * 0.1) * 0.5 + 0.5;
+        const terrainColor = paletteRoll > 0.3
+          ? terrainColorA.clone().lerp(terrainColorB, paletteRoll)
+          : terrainColorA.clone().lerp(terrainColorC, 0.5 + paletteRoll);
+        terrainColor.toArray(terrainColors, index * 3);
+      }
+      terrain.geometry.setAttribute('color', new THREE.BufferAttribute(terrainColors, 3));
+      terrain.geometry.computeVertexNormals();
+      terrain.rotation.x = -Math.PI / 2;
+      terrain.receiveShadow = true;
+      scene.add(terrain);
+
+      const roadMaterial = new THREE.MeshStandardMaterial({
+        color: 0x64748b,
+        roughness: 0.9,
+        metalness: 0.02,
+        emissive: 0x94a3b8,
+        emissiveIntensity: 0.05,
+      });
+      const centerlineMaterial = new THREE.MeshStandardMaterial({
+        color: 0xfacc15,
+        roughness: 0.92,
+        metalness: 0.01,
+        emissive: 0xfacc15,
+        emissiveIntensity: 0.12,
+      });
+      const roadWidth = 0.82;
+      const roadThickness = 0.12;
+      const roadGroup = new THREE.Group();
+      const streetLines = new Map<string, boolean>();
+      const majorRoadSpacing = 4;
+      const firstRoadCoord = Math.ceil(Math.min(minX, minY) / majorRoadSpacing) * majorRoadSpacing;
+      const lastRoadCoord = Math.floor(Math.max(maxX, maxY) / majorRoadSpacing) * majorRoadSpacing;
+
+      const addRoadSegment = ({
+        x,
+        z,
+        length,
+        axis,
+        laneOffset = 0,
+      }: {
+        x: number;
+        z: number;
+        length: number;
+        axis: 'x' | 'z';
+        laneOffset?: number;
+      }) => {
+        if (length <= 0.001) {
+          return;
+        }
+
+        if (axis === 'x') {
+          const road = new THREE.Mesh(
+            new THREE.BoxGeometry(length, roadThickness, roadWidth),
+            roadMaterial
+          );
+          road.position.set(x, 0.1, z);
+          road.receiveShadow = true;
+          roadGroup.add(road);
+
+          const centerline = new THREE.Mesh(
+            new THREE.BoxGeometry(length * 0.82, roadThickness * 0.18, roadWidth * 0.16),
+            centerlineMaterial
+          );
+          centerline.position.set(x, 0.12 + laneOffset, z);
+          centerline.receiveShadow = true;
+          roadGroup.add(centerline);
+          return;
+        }
+
+        const road = new THREE.Mesh(
+          new THREE.BoxGeometry(roadWidth, roadThickness, length),
+          roadMaterial
+        );
+        road.position.set(x, 0.1, z);
+        road.receiveShadow = true;
+        roadGroup.add(road);
+
+        const centerline = new THREE.Mesh(
+          new THREE.BoxGeometry(roadWidth * 0.16, roadThickness * 0.18, length * 0.82),
+          centerlineMaterial
+        );
+        centerline.position.set(x, 0.12 + laneOffset, z);
+        centerline.receiveShadow = true;
+        roadGroup.add(centerline);
+      };
+
+      const addStreetLine = ({
+        lotCoord,
+        axis,
+      }: {
+        lotCoord: number;
+        axis: 'x' | 'z';
+      }) => {
+        const worldCoord = (lotCoord - (axis === 'x' ? centerX : centerY)) * lotScale;
+        const key = `${axis}:${lotCoord.toFixed(3)}`;
+        if (streetLines.has(key)) {
+          return;
+        }
+        streetLines.set(key, true);
+
+        if (axis === 'x') {
+          addRoadSegment({ x: 0, z: worldCoord, length: terrainSize, axis: 'x' });
+          return;
+        }
+
+        addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
+      };
+
+      for (let lotCoord = firstRoadCoord; lotCoord <= lastRoadCoord; lotCoord += majorRoadSpacing) {
+        addStreetLine({ lotCoord, axis: 'x' });
+        addStreetLine({ lotCoord, axis: 'z' });
+      }
+
+      const ringRoadPaddingLots = 2.25;
+      const ringMinLotX = minX - ringRoadPaddingLots;
+      const ringMaxLotX = maxX + ringRoadPaddingLots;
+      const ringMinLotZ = minY - ringRoadPaddingLots;
+      const ringMaxLotZ = maxY + ringRoadPaddingLots;
+      const ringWorldMinX = (ringMinLotX - centerX) * lotScale;
+      const ringWorldMaxX = (ringMaxLotX - centerX) * lotScale;
+      const ringWorldMinZ = (ringMinLotZ - centerY) * lotScale;
+      const ringWorldMaxZ = (ringMaxLotZ - centerY) * lotScale;
+
+      addRoadSegment({
+        x: (ringWorldMinX + ringWorldMaxX) / 2,
+        z: ringWorldMinZ,
+        length: ringWorldMaxX - ringWorldMinX + roadWidth,
+        axis: 'x',
+      });
+      addRoadSegment({
+        x: (ringWorldMinX + ringWorldMaxX) / 2,
+        z: ringWorldMaxZ,
+        length: ringWorldMaxX - ringWorldMinX + roadWidth,
+        axis: 'x',
+      });
+      addRoadSegment({
+        x: ringWorldMinX,
+        z: (ringWorldMinZ + ringWorldMaxZ) / 2,
+        length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
+        axis: 'z',
+      });
+      addRoadSegment({
+        x: ringWorldMaxX,
+        z: (ringWorldMinZ + ringWorldMaxZ) / 2,
+        length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
+        axis: 'z',
+      });
+
+      scene.add(roadGroup);
+    } else {
+      const gridSize = combatLayout?.gridSize ?? 24;
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(gridSize, gridSize, 48, 48),
+        new THREE.MeshStandardMaterial({
+          color: 0x0f172a,
+          roughness: 0.98,
+          metalness: 0.02,
+          emissive: 0x111827,
+          emissiveIntensity: 0.06,
+        })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const gridHelper = new THREE.GridHelper(gridSize, gridSize, 0x38bdf8, 0x1e293b);
+      gridHelper.position.y = 0.001;
+      gridHelper.material.transparent = true;
+      gridHelper.material.opacity = 0.3;
+      scene.add(gridHelper);
+
+      const floorBorder = new THREE.Mesh(
+        new THREE.BoxGeometry(gridSize + 0.6, 0.08, gridSize + 0.6),
+        new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.95, metalness: 0.02 })
+      );
+      floorBorder.position.set(0, 0.04, 0);
+      floorBorder.receiveShadow = true;
+      scene.add(floorBorder);
+    }
 
     const animate = () => {
       frameRef.current = window.requestAnimationFrame(animate);
@@ -564,11 +707,22 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(new THREE.Vector2(x, y), cameraObject);
-      const intersects = raycasterRef.current.intersectObjects(buildingMeshesRef.current, true);
+      const intersects = raycasterRef.current.intersectObjects(interactiveMeshesRef.current, true);
       const targetMesh = intersects[0]?.object as THREE.Mesh | undefined;
       const buildingId = targetMesh?.userData?.buildingId as string | undefined;
       if (buildingId && onBuildingSelect) {
         onBuildingSelect(buildingId);
+      } else if (isCombatScene && combatLayout && onTileSelect && targetMesh?.userData?.combatSelectionSurface) {
+        const point = intersects[0]?.point;
+        if (point) {
+          const gridSize = combatLayout.gridSize ?? 24;
+          const halfGrid = (gridSize - 1) / 2;
+          const tileX = Math.round(point.x + halfGrid);
+          const tileY = Math.round(point.z + halfGrid);
+          if (tileX >= 0 && tileX < gridSize && tileY >= 0 && tileY < gridSize) {
+            onTileSelect(tileX, tileY);
+          }
+        }
       }
       pointerDownRef.current = null;
       pointerMovedRef.current = false;
@@ -618,121 +772,225 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     }
 
     const buildingGroup = buildingGroupRef.current;
+    disposeMarkerResources(buildingGroup);
     buildingGroup.clear();
 
-    const selectedMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7, metalness: 0.2, emissive: 0x60a5fa, emissiveIntensity: 0.3 });
-    const { centerX, centerY, lotScale } = getSceneLayout(buildingList);
+    interactiveMeshesRef.current = [];
 
-    buildingMeshesRef.current = [];
+    if (!isCombatScene) {
+      const selectedMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7, metalness: 0.2, emissive: 0x60a5fa, emissiveIntensity: 0.3 });
+      const { centerX, centerY, lotScale } = getSceneLayout(buildingList);
 
-    buildingList.forEach((building) => {
-      const metrics = getBuildingVisualMetrics(building);
-      const footprintW = Math.max(1, metrics.footprintW);
-      const footprintH = Math.max(1, metrics.footprintH);
-      const footprintScale = 1.7;
-      const heightScale = 0.6;
-      const footprintWidth = Math.max(1.2, Math.min(10, footprintW * footprintScale));
-      const footprintDepth = Math.max(1.2, Math.min(10, footprintH * footprintScale));
-      const width = Math.max(1.2, Math.min(8.4, footprintWidth * 0.84));
-      const depth = Math.max(1.2, Math.min(8.4, footprintDepth * 0.84));
-      const buildingType = building.type ?? 'OFFICE';
-      const typeTheme = getBuildingTypeTheme(buildingType);
-      const baseHeight = metrics.heightMeters;
-      const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
-      const lotCenter = getBuildingLotCenter(building);
-      const x = (lotCenter.x - centerX) * lotScale;
-      const z = (lotCenter.y - centerY) * lotScale;
-      const isSelected = building.id === selectedBuildingId;
-      const accentColorHex = building.ownerId === 'player'
-        ? '#38bdf8'
-        : building.ownerId === 'rivals'
-          ? '#fb7185'
-          : building.ownerId === 'police'
-            ? '#60a5fa'
-            : building.ownerId === 'corps'
-              ? '#a78bfa'
-              : '#94a3b8';
-      const accentColor = new THREE.Color(accentColorHex);
-      const bodyColor = new THREE.Color(
-        isSelected ? '#1d4ed8' : building.ownerId === 'player'
-          ? '#16354f'
+      buildingList.forEach((building) => {
+        const metrics = getBuildingVisualMetrics(building);
+        const footprintW = Math.max(1, metrics.footprintW);
+        const footprintH = Math.max(1, metrics.footprintH);
+        const footprintScale = 1.7;
+        const heightScale = 0.6;
+        const footprintWidth = Math.max(1.2, Math.min(10, footprintW * footprintScale));
+        const footprintDepth = Math.max(1.2, Math.min(10, footprintH * footprintScale));
+        const width = Math.max(1.2, Math.min(8.4, footprintWidth * 0.84));
+        const depth = Math.max(1.2, Math.min(8.4, footprintDepth * 0.84));
+        const buildingType = building.type ?? 'OFFICE';
+        const typeTheme = getBuildingTypeTheme(buildingType);
+        const baseHeight = metrics.heightMeters;
+        const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
+        const lotCenter = getBuildingLotCenter(building);
+        const x = (lotCenter.x - centerX) * lotScale;
+        const z = (lotCenter.y - centerY) * lotScale;
+        const isSelected = building.id === selectedBuildingId;
+        const accentColorHex = building.ownerId === 'player'
+          ? '#38bdf8'
           : building.ownerId === 'rivals'
-            ? '#5a2020'
+            ? '#fb7185'
             : building.ownerId === 'police'
-              ? '#18355a'
+              ? '#60a5fa'
               : building.ownerId === 'corps'
-                ? '#352260'
-                : '#334155'
+                ? '#a78bfa'
+                : '#94a3b8';
+        const accentColor = new THREE.Color(accentColorHex);
+        const bodyColor = new THREE.Color(
+          isSelected ? '#1d4ed8' : building.ownerId === 'player'
+            ? '#16354f'
+            : building.ownerId === 'rivals'
+              ? '#5a2020'
+              : building.ownerId === 'police'
+                ? '#18355a'
+                : building.ownerId === 'corps'
+                  ? '#352260'
+                  : '#334155'
+        );
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+          color: bodyColor.clone().lerp(new THREE.Color(typeTheme.body), 0.35),
+          roughness: 0.82,
+          metalness: 0.08,
+        });
+        const accentMaterial = new THREE.MeshStandardMaterial({
+          color: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
+          roughness: 0.56,
+          metalness: 0.18,
+          emissive: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
+          emissiveIntensity: 0.24,
+        });
+        const roofMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(typeTheme.roof),
+          roughness: 0.72,
+          metalness: 0.14,
+        });
+        const windowMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(typeTheme.detail),
+          roughness: 0.28,
+          metalness: 0.12,
+          emissive: 0x38bdf8,
+          emissiveIntensity: 0.22,
+        });
+
+        const footprint = new THREE.Mesh(
+          new THREE.BoxGeometry(footprintWidth, 0.08, footprintDepth),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.95, metalness: 0.02 })
+        );
+        footprint.position.set(x, 0.04, z);
+        footprint.receiveShadow = true;
+        buildingGroup.add(footprint);
+
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(width * 1.02, 0.18, depth * 1.02),
+          new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.95, metalness: 0.03 })
+        );
+        base.position.set(x, 0.09, z);
+        base.receiveShadow = true;
+        buildingGroup.add(base);
+
+        const shellGroup = createBuildingShell({
+          width,
+          depth,
+          height,
+          bodyMaterial,
+          accentMaterial,
+          roofMaterial,
+          windowMaterial,
+          selectedMaterial,
+          buildingType,
+          isSelected,
+          buildingId: building.id,
+        });
+        shellGroup.shellGroup.position.set(x, 0, z);
+        buildingGroup.add(shellGroup.shellGroup);
+        interactiveMeshesRef.current.push(shellGroup.selectableMesh);
+
+        const labelTexture = buildLabelTexture(building.name, accentColorHex, isSelected);
+        if (labelTexture) {
+          const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false });
+          const label = new THREE.Sprite(labelMaterial);
+          label.position.set(0, height + 1.35, 0);
+          label.scale.set(4.2 + Math.min(1.2, width * 0.22), 1.2, 1);
+          label.renderOrder = 20;
+          shellGroup.shellGroup.add(label);
+        }
+      });
+    } else {
+      const gridSize = combatLayout?.gridSize ?? 24;
+      const halfGrid = (gridSize - 1) / 2;
+      const tileSpacing = 1;
+      const tileMaterials = new Map<string, THREE.Material>();
+      combatLayout?.tiles.forEach((tile) => {
+        const tileX = (tile.x - halfGrid) * tileSpacing;
+        const tileZ = (tile.y - halfGrid) * tileSpacing;
+        const color = getCombatTileColor(tile.tileType, tile.roomType);
+        const material = tileMaterials.get(color) ?? new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.95,
+          metalness: 0.02,
+          emissive: '#020617',
+          emissiveIntensity: 0.05,
+        });
+        if (!tileMaterials.has(color)) {
+          tileMaterials.set(color, material);
+        }
+        const tileMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(0.94, 0.04, 0.94),
+          material
+        );
+        tileMesh.position.set(tileX, 0.02, tileZ);
+        tileMesh.receiveShadow = true;
+        buildingGroup.add(tileMesh);
+
+        if (tile.obstacle && tile.obstacle.hp > 0) {
+          const obstacleGeometry = getCombatObstacleGeometry(tile.obstacle.type, tile.obstacle.orientation);
+          const obstacleMaterial = new THREE.MeshStandardMaterial({
+            color: getCombatObstacleMaterial(tile.obstacle.type).color,
+            roughness: 0.8,
+            metalness: 0.12,
+            emissive: '#111827',
+            emissiveIntensity: 0.08,
+          });
+          const obstacle = new THREE.Mesh(
+            new THREE.BoxGeometry(obstacleGeometry.width, obstacleGeometry.height, obstacleGeometry.depth),
+            obstacleMaterial
+          );
+          obstacle.position.set(tileX, obstacleGeometry.height / 2, tileZ);
+          obstacle.castShadow = true;
+          obstacle.receiveShadow = true;
+          buildingGroup.add(obstacle);
+        }
+      });
+
+      combatLayout?.units.forEach((unit) => {
+        const unitGroup = new THREE.Group();
+        const unitWorldX = (unit.x - halfGrid) * tileSpacing;
+        const unitWorldZ = (unit.y - halfGrid) * tileSpacing;
+        unitGroup.position.set(unitWorldX, 0.02, unitWorldZ);
+
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(0.32, 0.54, 0.2),
+          new THREE.MeshStandardMaterial({
+            color: unit.faction === 'PLAYER' ? '#38bdf8' : '#ef4444',
+            roughness: 0.5,
+            metalness: 0.15,
+          })
+        );
+        body.position.set(0, 0.27, 0);
+        body.castShadow = true;
+        unitGroup.add(body);
+
+        const head = new THREE.Mesh(
+          new THREE.BoxGeometry(0.2, 0.2, 0.2),
+          new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6, metalness: 0.1 })
+        );
+        head.position.set(0, 0.58, 0);
+        unitGroup.add(head);
+
+        const base = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.2, 0.24, 0.06, 12),
+          new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9, metalness: 0.03 })
+        );
+        base.position.set(0, 0.03, 0);
+        unitGroup.add(base);
+
+        if (unit.isSelected) {
+          const ring = new THREE.Mesh(
+            new THREE.TorusGeometry(0.3, 0.04, 8, 24),
+            new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xf59e0b, emissiveIntensity: 0.4 })
+          );
+          ring.position.set(0, 0.82, 0);
+          ring.rotation.x = Math.PI / 2;
+          unitGroup.add(ring);
+        }
+
+        buildingGroup.add(unitGroup);
+      });
+
+      const selectionSurface = new THREE.Mesh(
+        new THREE.PlaneGeometry(gridSize, gridSize),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
       );
-      const bodyMaterial = new THREE.MeshStandardMaterial({
-        color: bodyColor.clone().lerp(new THREE.Color(typeTheme.body), 0.35),
-        roughness: 0.82,
-        metalness: 0.08,
-      });
-      const accentMaterial = new THREE.MeshStandardMaterial({
-        color: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
-        roughness: 0.56,
-        metalness: 0.18,
-        emissive: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
-        emissiveIntensity: 0.24,
-      });
-      const roofMaterial = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(typeTheme.roof),
-        roughness: 0.72,
-        metalness: 0.14,
-      });
-      const windowMaterial = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(typeTheme.detail),
-        roughness: 0.28,
-        metalness: 0.12,
-        emissive: 0x38bdf8,
-        emissiveIntensity: 0.22,
-      });
-
-      const footprint = new THREE.Mesh(
-        new THREE.BoxGeometry(footprintWidth, 0.08, footprintDepth),
-        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.95, metalness: 0.02 })
-      );
-      footprint.position.set(x, 0.04, z);
-      footprint.receiveShadow = true;
-      buildingGroup.add(footprint);
-
-      const base = new THREE.Mesh(
-        new THREE.BoxGeometry(width * 1.02, 0.18, depth * 1.02),
-        new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.95, metalness: 0.03 })
-      );
-      base.position.set(x, 0.09, z);
-      base.receiveShadow = true;
-      buildingGroup.add(base);
-
-      const shellGroup = createBuildingShell({
-        width,
-        depth,
-        height,
-        bodyMaterial,
-        accentMaterial,
-        roofMaterial,
-        windowMaterial,
-        selectedMaterial,
-        buildingType,
-        isSelected,
-        buildingId: building.id,
-      });
-      shellGroup.shellGroup.position.set(x, 0, z);
-      buildingGroup.add(shellGroup.shellGroup);
-      buildingMeshesRef.current.push(shellGroup.selectableMesh);
-
-      const labelTexture = buildLabelTexture(building.name, accentColorHex, isSelected);
-      if (labelTexture) {
-        const labelMaterial = new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: false });
-        const label = new THREE.Sprite(labelMaterial);
-        label.position.set(0, height + 1.35, 0);
-        label.scale.set(4.2 + Math.min(1.2, width * 0.22), 1.2, 1);
-        label.renderOrder = 20;
-        shellGroup.shellGroup.add(label);
-      }
-    });
-  }, [buildingList, selectedBuildingId]);
+      selectionSurface.rotation.x = -Math.PI / 2;
+      selectionSurface.position.set(0, 0.001, 0);
+      selectionSurface.userData = { combatSelectionSurface: true };
+      buildingGroup.add(selectionSurface);
+      interactiveMeshesRef.current.push(selectionSurface);
+    }
+  }, [buildingList, combatLayout, isCombatScene, selectedBuildingId]);
 
   useEffect(() => {
     if (!entityGroupRef.current) {
@@ -859,4 +1117,5 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
   return <div ref={containerRef} className="absolute inset-0" />;
 };
 
+export { ThreeCityScene };
 export default ThreeCityScene;
