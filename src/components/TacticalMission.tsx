@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Target, Swords, ArrowRight, User, X, ChevronLeft, ChevronRight, List, Move, Crosshair, Package, RefreshCw, Zap, Sparkles, Scale, Gauge } from 'lucide-react';
 import { ITEMS } from '../data';
 import type { BaseSector, Building } from '../types';
+import { ThreeCityScene, type CombatSceneLayout } from './ThreeCityScene';
 
 export type BehavioralStance = 'AMOK' | 'AGGRESSIVE' | 'SUPPORT' | 'DEFENSIVE' | 'PASSIVE';
 
@@ -911,6 +912,53 @@ const TacticalMission = () => {
   const boardSize = GRID_SIZE * CELL_SIZE;
   const boardPadding = CELL_SIZE * 2;
   const boardViewportSize = boardSize + boardPadding * 2;
+
+  const combatLayout = useMemo<CombatSceneLayout | undefined>(() => {
+    const tiles = Object.entries(floorPlan as Record<string, FloorPlanTile>).map(([key, tile]) => {
+      const [xStr, yStr] = key.split(',');
+      const x = Number(xStr);
+      const y = Number(yStr);
+      const obstacle = obstacles[key] as ObstacleData | undefined;
+      const tileType = tile.label === 'wall'
+        ? 'wall'
+        : tile.label === 'accessway'
+          ? 'accessway'
+          : tile.label === 'stairs'
+            ? 'stairs'
+            : tile.label === 'furniture'
+              ? 'furniture'
+              : 'floor';
+
+      return {
+        x,
+        y,
+        tileType,
+        roomType: tile.roomType,
+        roomName: tile.roomName,
+        obstacle: obstacle && obstacle.hp > 0 ? {
+          type: obstacle.type,
+          hp: obstacle.hp,
+          maxHp: obstacle.maxHp,
+          orientation: obstacle.orientation,
+        } : undefined,
+      };
+    });
+
+    return {
+      gridSize: GRID_SIZE,
+      tiles,
+      units: units.filter((unit) => unit.hp > 0).map((unit) => ({
+        id: unit.id,
+        name: unit.name,
+        faction: unit.faction,
+        x: unit.x,
+        y: unit.y,
+        hp: unit.hp,
+        maxHp: unit.maxHp,
+        isSelected: unit.id === selectedUnitId,
+      })),
+    };
+  }, [floorPlan, obstacles, units, selectedUnitId]);
 
   // Initialize mission units
   useEffect(() => {
@@ -2287,12 +2335,6 @@ const TacticalMission = () => {
   return (
     <div 
       className="h-full w-full bg-[#0c0e14] flex flex-col overflow-hidden select-none relative touch-none"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onContextMenu={handleContextMenu}
     >
       {/* Tactical Header */}
       <div className="h-10 bg-[#161b26] border-b border-[#2d3748] px-2 md:px-4 flex items-center justify-between text-[10px] md:text-[11px] font-mono tracking-widest uppercase z-50 shrink-0 gap-2">
@@ -2353,375 +2395,36 @@ const TacticalMission = () => {
         </button>
       </div>
 
-      <div className="flex-1 flex min-h-0 relative overflow-hidden bg-[#090c12]">
-        {/* Combat Grid */}
-        <div 
-          className="absolute inset-0 flex items-center justify-center bg-transparent cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-          onWheel={handleWheel}
-          onTouchStart={handleTouchStart}
-          style={{ perspective: '2000px' }}
-        >
-          <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4a5568 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-	          
-          <div className="relative" style={{ width: boardViewportSize, height: boardViewportSize }}>
-            <div 
-              className="absolute transition-transform duration-75 ease-out pointer-events-auto will-change-transform"
-              style={{
-                width: boardSize,
-                height: boardSize,
-                left: boardPadding,
-                top: boardPadding,
-                transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom}) rotateX(${pitch}deg) rotateZ(${rotation}deg) translateZ(50px)`,
-                transformStyle: 'preserve-3d',
-                transformOrigin: 'center',
-                zIndex: 10
-              }}
+      <div 
+        className="flex-1 flex min-h-0 relative overflow-hidden bg-[#090c12]"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onContextMenu={handleContextMenu}
+      >
+        <div className="absolute inset-0">
+          <ThreeCityScene
+            camera={{ zoom, rotation, pitch, offset }}
+            combatLayout={combatLayout}
+            onTileSelect={handleTileClick}
+          />
+        </div>
+
+        <div className="absolute top-2 right-2 z-20 flex flex-col gap-2">
+          <div className="flex gap-2 justify-end">
+            <button 
+              onClick={() => { setZoom(1); setRotation(45); setPitch(60); setOffset({ x: 0, y: 0 }); }}
+              className="p-1.5 bg-[#1a1f2b] border border-[#2d3748] text-[#718096] hover:text-white text-[8px] uppercase font-bold tracking-tighter transition-colors"
             >
-            {/* Ground Plane */}
-            <div
-              className="absolute inset-0 overflow-hidden rounded-sm border border-[#1a1f2b] shadow-[0_0_100px_rgba(0,0,0,0.5)]"
-              style={{
-                backgroundColor: activeMission?.type === 'URBAN' ? '#141417' : '#0c0e14',
-                transform: 'translateZ(-1px)',
-                transformStyle: 'preserve-3d',
-              }}
-            >
-              <div
-                className="absolute inset-0 opacity-70"
-                style={{
-                  backgroundImage: `linear-gradient(rgba(148, 163, 184, 0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px)`,
-                  backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
-                  transform: 'translateZ(0.5px)',
-                  transformStyle: 'preserve-3d',
-                }}
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: 'radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 70%)',
-                  transform: 'translateZ(0.75px)',
-                  transformStyle: 'preserve-3d',
-                  opacity: 0.35,
-                }}
-              />
-            </div>
-
-            {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
-              const x = i % GRID_SIZE;
-              const y = Math.floor(i / GRID_SIZE);
-              const unit = units.find(u => u.x === x && u.y === y && u.hp > 0);
-              const isSelected = selectedUnitId === unit?.id;
-              const destruction = destructionGrid[`${x},${y}`] || 0;
-              const obsData = obstacles[`${x},${y}`];
-              const isObstacle = !!(obsData && obsData.hp > 0);
-              const room = rooms.find(r => x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2);
-              const tileInfo = floorPlan[`${x},${y}`];
-              const tileLabel = tileInfo?.label ?? 'floor';
-              const targetMarkerType = activeOrderTarget && activeOrderTarget.x === x && activeOrderTarget.y === y
-                ? activeOrderTarget.type
-                : null;
-
-              // Range calculations
-              let isInMoveRange = false;
-              let isInAttackRange = false;
-              let hasLos = false;
-              let hasAp = false;
-              
-              if (selectedUnit && !isPaused) {
-                const dist = Math.abs(selectedUnit.x - x) + Math.abs(selectedUnit.y - y);
-                isInMoveRange = !unit && !isObstacle && selectedUnit.ap >= dist * 2;
-                isInAttackRange = (unit?.faction === 'ENEMY' || isObstacle) && dist <= 10;
-                if (isInAttackRange) {
-                  hasLos = hasLineOfSight(selectedUnit.x, selectedUnit.y, x, y);
-                  hasAp = selectedUnit.ap >= 4;
-                }
-              }
-
-              // Keep the tile cells visually transparent so the combat map stays as a continuous floor plane.
-              const tileCellClassName = 'absolute flex items-center justify-center transition-all group';
-
-              // Street visual tile background based on roomType for URBAN missions
-              const tileRoomType = tileInfo?.roomType;
-              const isUrbanMission = activeMission?.type === 'URBAN';
-              const roadCenterY = Math.floor(GRID_SIZE / 2);
-              const streetBg: string | undefined = isUrbanMission
-                ? tileRoomType === 'ROAD'
-                  ? '#1a1a1e'
-                  : tileRoomType === 'SIDEWALK'
-                    ? '#272730'
-                    : tileRoomType === 'BUILDING'
-                      ? '#1c1f2e'
-                      : tileRoomType === 'PAVEMENT'
-                        ? '#1e2030'
-                        : undefined
-                : undefined;
-
-              return (
-                <div 
-                  key={i}
-                  onClick={() => handleTileClick(x, y)}
-                  className={tileCellClassName}
-                  style={{ 
-                    width: CELL_SIZE, 
-                    height: CELL_SIZE,
-                    left: x * CELL_SIZE,
-                    top: y * CELL_SIZE,
-                    transform: 'translateZ(1px)',
-                    transformStyle: 'preserve-3d',
-                    zIndex: 1,
-                  }}
-                >
-                  {/* Street tile visual background for URBAN missions */}
-                  {streetBg && (
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{ backgroundColor: streetBg }}
-                    />
-                  )}
-                  {/* Road lane markings — dashed yellow centre line on main road */}
-                  {isUrbanMission && tileRoomType === 'ROAD' && y === roadCenterY && x % 3 !== 2 && (
-                    <div
-                      className="absolute pointer-events-none"
-                      style={{ left: '10%', right: '10%', top: '46%', height: '8%', backgroundColor: 'rgba(234,179,8,0.55)', borderRadius: 1 }}
-                    />
-                  )}
-                  {/* Sidewalk kerb edge highlight */}
-                  {isUrbanMission && tileRoomType === 'SIDEWALK' && (
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{ borderTop: '1px solid rgba(148,163,184,0.18)', borderBottom: '1px solid rgba(148,163,184,0.18)' }}
-                    />
-                  )}
-                  {/* Building facade texture stripe */}
-                  {isUrbanMission && tileRoomType === 'BUILDING' && tileLabel === 'floor' && (
-                    <div
-                      className="absolute inset-0 pointer-events-none opacity-20"
-                      style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(100,116,139,0.4) 0px, rgba(100,116,139,0.4) 1px, transparent 1px, transparent 8px)' }}
-                    />
-                  )}
-                  {/* Failed Action Overlay */}
-                  <AnimatePresence>
-                    {failedAction && failedAction.x === x && failedAction.y === y && (
-                      <motion.div 
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1.1 }}
-                        exit={{ opacity: 0, scale: 1.4 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute inset-0 bg-red-600/60 z-[100] flex flex-col items-center justify-center pointer-events-none rounded-sm border-2 border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.8)]"
-                      >
-                        {failedAction.type === 'BLOCKED' ? <Shield size={18} className="text-white drop-shadow-md" /> : 
-                         failedAction.type === 'NO_AP' ? <Zap size={18} className="text-amber-300 drop-shadow-md" /> :
-                         <X size={18} className="text-white drop-shadow-md" />}
-                        <span className="text-[8px] font-black uppercase text-white mt-0.5 tracking-tighter drop-shadow-lg text-center leading-none">
-                          {failedAction.type.replace('_', ' ')}
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  
-                  {/* Gray out / Blocked Indicators */}
-                  {isInAttackRange && (!hasLos || !hasAp) && (
-                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center pointer-events-none z-20">
-                      {!hasLos ? <Shield size={10} className="text-slate-500" /> : <Zap size={10} className="text-amber-600" />}
-                      <span className="text-[5px] font-black uppercase text-slate-500 mt-0.5">{!hasLos ? 'BLOCKED' : 'NO AP'}</span>
-                    </div>
-                  )}
-
-                  {obsData && !isObstacle && obsData.type === 'door' && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                      <span className="text-[5px] font-black uppercase tracking-widest text-amber-700/50">RUBBLE</span>
-                    </div>
-                  )}
-
-                  {isObstacle && obsData && (
-                    <ObstacleVoxel type={obsData.type} hp={obsData.hp} maxHp={obsData.maxHp} cellSize={CELL_SIZE} orientation={obsData.orientation} />
-                  )}
-
-                  {destruction > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-full h-full bg-[#2d3748]/30 border border-red-900/40 opacity-50" />
-                    </div>
-                  )}
-
-                  {pendingAction && pendingAction.x === x && pendingAction.y === y && (
-                    <div className="absolute inset-0 flex items-center justify-center z-30">
-                      <motion.div 
-                        initial={{ scale: 0, rotate: -90 }}
-                        animate={{ scale: [1, 1.2, 1], rotate: 0 }}
-                        transition={{ repeat: Infinity, duration: 1.5 }}
-                        className={`w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-[0_0_20px_currentColor] pointer-events-none ${
-                          pendingAction.type === 'ATTACK' 
-                            ? 'border-red-500 text-red-500 bg-red-950/90' 
-                            : 'border-cyan-400 text-cyan-400 bg-cyan-950/90'
-                        }`}
-                      >
-                        {pendingAction.type === 'ATTACK' ? <Crosshair size={20} /> : <Move size={20} />}
-                        <div className="absolute -bottom-6 whitespace-nowrap text-[8px] font-black uppercase tracking-widest bg-black/80 px-2 py-0.5 rounded border border-white/20">
-                          Confirm {pendingAction.type}
-                        </div>
-                      </motion.div>
-                    </div>
-                  )}
-
-                  {targetMarkerType && (
-                    <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                      <motion.div
-                        initial={{ scale: 0.8, opacity: 0.6 }}
-                        animate={{ scale: [1, 1.1, 1], opacity: [0.8, 1, 0.8] }}
-                        transition={{ duration: 1.2, repeat: Infinity }}
-                        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center shadow-[0_0_16px_currentColor] ${
-                          targetMarkerType === 'MOVE'
-                            ? 'border-cyan-400 text-cyan-300 bg-cyan-950/80'
-                            : 'border-amber-400 text-amber-300 bg-amber-950/80'
-                        }`}
-                      >
-                        {targetMarkerType === 'MOVE' ? <Move size={16} /> : <Target size={16} />}
-                      </motion.div>
-                    </div>
-                  )}
-
-                  {unit && (
-                    <motion.div
-                      layoutId={unit.id}
-                      className={`w-8 h-8 flex items-center justify-center relative z-10 transition-all ${
-                        unit.faction === 'PLAYER' 
-                          ? isSelected ? 'text-[#4299e1] drop-shadow-[0_0_8px_rgba(66,153,225,0.8)]' : 'text-[#48bb78]'
-                          : 'text-[#f56565] drop-shadow-[0_0_8px_rgba(245,101,101,0.6)]'
-                      }`}
-                      style={{ 
-                        transform: `translateZ(12px) rotateZ(${-rotation}deg) rotateX(${-pitch}deg) translateY(-10px)`,
-                        transformStyle: 'preserve-3d',
-                        zIndex: 20,
-                      }}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ 
-                        scale: (unit.faction === 'ENEMY' && !isPaused) ? 1.2 : 1, 
-                        opacity: 1,
-                        boxShadow: (unit.faction === 'ENEMY' && !isPaused) ? '0 0 20px rgba(245,101,101,0.4)' : 'none'
-                      }}
-                    >
-                      <User size={24} className={unit.faction === 'ENEMY' ? 'animate-pulse' : ''} />
-                      {/* Health bar standing upright & Cover badge */}
-                      <div className="absolute -top-4 flex flex-col items-center gap-0.5">
-                        <div className="w-6 h-0.5 bg-[#0c0e14] overflow-hidden">
-                          <div className="h-full bg-[#f56565]" style={{ width: `${(unit.hp/unit.maxHp)*100}%` }} />
-                        </div>
-                        {getUnitCoverStatus(unit.x, unit.y, obstacles) !== 'NONE' && (
-                          <div className="px-1 text-[6px] font-black uppercase bg-emerald-950/90 text-emerald-300 border border-emerald-500 rounded shadow-md pointer-events-none flex items-center gap-0.5 whitespace-nowrap">
-                            <span>🛡️</span>
-                            <span>{getUnitCoverStatus(unit.x, unit.y, obstacles)} COVER</span>
-                          </div>
-                        )}
-                      </div>
-                      {/* Soldier Behavioral Stance Badge */}
-                      {unit.faction === 'PLAYER' && (
-                        <div className="absolute -bottom-3 px-1 py-0.2 text-[6px] font-black uppercase tracking-tighter bg-black/90 rounded border border-white/20 whitespace-nowrap flex items-center gap-0.5 shadow-md pointer-events-none">
-                          <span>{getStanceIcon(unit.behavior || 'AGGRESSIVE')}</span>
-                          <span className="text-slate-200">{getStanceLabel(unit.behavior || 'AGGRESSIVE')}</span>
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Movement path overlays */}
-            <svg
-              className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
-              style={{ zIndex: 15 }}
-            >
-              {units
-                .filter((unit) => unit.hp > 0 && unit.path && unit.path.length > 0)
-                .map((unit) => {
-                  const points = [{ x: unit.x, y: unit.y }, ...unit.path]
-                    .map((coord) => `${coord.x * CELL_SIZE + CELL_SIZE / 2},${coord.y * CELL_SIZE + CELL_SIZE / 2}`)
-                    .join(' ');
-                  const strokeColor = unit.faction === 'ENEMY' ? '#f56565' : '#38bdf8';
-                  const dash = unit.faction === 'ENEMY' ? '6 4' : '4 3';
-                  const nextStep = unit.path[0];
-
-                  return (
-                    <g key={`movement-${unit.id}`}>
-                      <polyline
-                        points={points}
-                        fill="none"
-                        stroke={strokeColor}
-                        strokeWidth={unit.faction === 'ENEMY' ? 3 : 2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeDasharray={dash}
-                        opacity={unit.faction === 'ENEMY' ? 0.85 : 0.75}
-                      />
-                      {nextStep && (
-                        <circle
-                          cx={nextStep.x * CELL_SIZE + CELL_SIZE / 2}
-                          cy={nextStep.y * CELL_SIZE + CELL_SIZE / 2}
-                          r={unit.faction === 'ENEMY' ? 4 : 3}
-                          fill={strokeColor}
-                          opacity={0.95}
-                        />
-                      )}
-                    </g>
-                  );
-                })}
-            </svg>
-
-            {/* SVG Shot Tracers */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-30 overflow-visible">
-              {shotTracers.map(tracer => (
-                <line
-                  key={tracer.id}
-                  x1={tracer.fromX * CELL_SIZE + CELL_SIZE / 2}
-                  y1={tracer.fromY * CELL_SIZE + CELL_SIZE / 2}
-                  x2={tracer.toX * CELL_SIZE + CELL_SIZE / 2}
-                  y2={tracer.toY * CELL_SIZE + CELL_SIZE / 2}
-                  stroke={tracer.color}
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  className="animate-pulse"
-                  style={{
-                    filter: `drop-shadow(0 0 6px ${tracer.color})`
-                  }}
-                />
-              ))}
-            </svg>
-
-            {/* Floating Damage Popups */}
-            {damagePopups.map(popup => (
-              <motion.div
-                key={popup.id}
-                initial={{ opacity: 1, scale: 1.5, y: 0 }}
-                animate={{ opacity: 0, scale: 1, y: -35 }}
-                transition={{ duration: 0.8 }}
-                className="absolute pointer-events-none text-[13px] font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
-                style={{
-                  left: popup.x * CELL_SIZE + 10,
-                  top: popup.y * CELL_SIZE,
-                  color: popup.color,
-                  transform: `translateZ(16px) rotateZ(${-rotation}deg) rotateX(${-pitch}deg) translateY(-25px)`,
-                  transformStyle: 'preserve-3d',
-                  zIndex: 40,
-                }}
-              >
-                {popup.text}
-              </motion.div>
-            ))}
-           
-          <div className="absolute top-2 right-2 flex flex-col gap-2 z-20">
-            <div className="flex gap-2 justify-end">
-              <button 
-                onClick={() => { setZoom(1); setRotation(45); setPitch(60); setOffset({ x: 0, y: 0 }); }}
-                className="p-1.5 bg-[#1a1f2b] border border-[#2d3748] text-[#718096] hover:text-white text-[8px] uppercase font-bold tracking-tighter transition-colors"
-              >
-                Reset
-              </button>
-            </div>
+              Reset
+            </button>
           </div>
         </div>
-      </div>
-      </div>
       </div>
 
       {/* COMBAT HUD - FALLOUT STYLE */}
