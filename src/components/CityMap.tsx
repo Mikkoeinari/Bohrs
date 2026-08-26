@@ -1190,8 +1190,8 @@ const CityMap = () => {
                           height: height, 
                           top: 0, 
                           left: 0,
-                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateX(-90deg)`,
-                          transformOrigin: 'bottom',
+                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateX(90deg)`,
+                          transformOrigin: 'top',
                           filter: 'brightness(70%)'
                         }}
                       >
@@ -1238,7 +1238,7 @@ const CityMap = () => {
                           height: D, 
                           top: 0, 
                           left: W,
-                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateY(-90deg)`,
+                          transform: `translateZ(${BUILDING_BASE_DEPTH_OFFSET}px) rotateY(90deg)`,
                           transformOrigin: 'left',
                           filter: 'brightness(75%)'
                         }}
