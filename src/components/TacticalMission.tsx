@@ -64,6 +64,7 @@ interface ObstacleData {
   hp: number;
   maxHp: number;
   linkedDoor?: string; // coordinate key of paired door block
+  orientation?: 'ns' | 'ew'; // wall orientation: 'ns' = thin in X (north-south wall), 'ew' = thin in Y (east-west wall)
 }
 
 const MIN_VOXEL_CUBE_SIZE = 24;
@@ -175,14 +176,21 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
   );
 };
 
-const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType; hp: number; maxHp: number; cellSize?: number }) => {
+const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48, orientation }: { type: ObstacleType; hp: number; maxHp: number; cellSize?: number; orientation?: 'ns' | 'ew' }) => {
   const s = Math.max(24, Math.round(cellSize * 0.85));
 
   // Type-specific shapes: width, height (vertical), depth, and colors
   const shapeConfig = useMemo(() => {
     switch (type) {
       case 'wall':
-        // Thin wall slab: full width, tall, thin depth (like 7DTD frame blocks)
+        // Thin wall slab: orientation determines which axis is thin
+        // 'ns' = north-south wall (thin in X, tall depth), 'ew' = east-west wall (thin in Y, wide)
+        if (orientation === 'ns') {
+          return {
+            w: Math.round(s * 0.18), h: Math.round(s * 0.9), d: s,
+            top: '#6b7280', bottom: '#374151', front: '#6b7280', back: '#6b7280', left: '#9ca3af', right: '#4b5563'
+          };
+        }
         return {
           w: s, h: Math.round(s * 0.9), d: Math.round(s * 0.18),
           top: '#6b7280', bottom: '#374151', front: '#9ca3af', back: '#4b5563', left: '#6b7280', right: '#6b7280'
@@ -235,7 +243,7 @@ const ObstacleVoxel = ({ type, hp, maxHp, cellSize = 48 }: { type: ObstacleType;
           top: '#475569', bottom: '#1e293b', front: '#64748b', back: '#334155', left: '#475569', right: '#475569'
         };
     }
-  }, [type, s]);
+  }, [type, s, orientation]);
 
   // Damage tint: darken as HP drops
   const damageOpacity = maxHp > 0 ? Math.max(0, 1 - hp / maxHp) * 0.5 : 0;
@@ -309,7 +317,8 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
           setTile(x, y, 'accessway', 'ROAD');
         } else if (isBoundary) {
           setTile(x, y, 'wall', 'BUILDING');
-          obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+          const isVerticalEdge = (x === 0 || x === MAP_GRID_SIZE - 1) && y > 0 && y < MAP_GRID_SIZE - 1;
+          obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100, orientation: isVerticalEdge ? 'ns' : 'ew' };
         } else if (isRoadRow(y) || isAlleyCol(x)) {
           setTile(x, y, 'accessway', 'ROAD');
         } else if (isSidewalkRow(y) || isSidewalkCol(x)) {
@@ -328,7 +337,8 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
           const isFacade = bx === bx1 || bx === bx2 || by === by1 || by === by2;
           if (isFacade) {
             setTile(bx, by, 'wall', 'BUILDING');
-            obstacles[`${bx},${by}`] = { type: 'wall', hp: 100, maxHp: 100 };
+            const isVerticalEdge = (bx === bx1 || bx === bx2) && by > by1 && by < by2;
+            obstacles[`${bx},${by}`] = { type: 'wall', hp: 100, maxHp: 100, orientation: isVerticalEdge ? 'ns' : 'ew' };
           } else {
             setTile(bx, by, 'floor', 'BUILDING');
           }
@@ -546,7 +556,10 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
         const isBorder = tileX === x1 || tileX === x2 || tileY === y1 || tileY === y2;
         setTile(tileX, tileY, isBorder ? 'wall' : 'floor', roomType, template.name);
         if (isBorder) {
-          obstacles[`${tileX},${tileY}`] = { type: 'wall', hp: 100, maxHp: 100 };
+          // Determine wall orientation: vertical edges (left/right) are 'ns', horizontal edges (top/bottom) are 'ew'
+          const isVerticalEdge = (tileX === x1 || tileX === x2) && tileY > y1 && tileY < y2;
+          const orientation: 'ns' | 'ew' = isVerticalEdge ? 'ns' : 'ew';
+          obstacles[`${tileX},${tileY}`] = { type: 'wall', hp: 100, maxHp: 100, orientation };
         }
       }
     }
@@ -572,7 +585,9 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
       const isBoundary = x === 0 || x === MAP_GRID_SIZE - 1 || y === 0 || y === MAP_GRID_SIZE - 1;
       setTile(x, y, isBoundary ? 'wall' : 'floor');
       if (isBoundary) {
-        obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100 };
+        const isVerticalEdge = (x === 0 || x === MAP_GRID_SIZE - 1) && y > 0 && y < MAP_GRID_SIZE - 1;
+        const orientation: 'ns' | 'ew' = isVerticalEdge ? 'ns' : 'ew';
+        obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100, orientation };
       }
     }
   }
@@ -2522,7 +2537,7 @@ const TacticalMission = () => {
                   )}
 
                   {isObstacle && obsData && (
-                    <ObstacleVoxel type={obsData.type} hp={obsData.hp} maxHp={obsData.maxHp} cellSize={CELL_SIZE} />
+                    <ObstacleVoxel type={obsData.type} hp={obsData.hp} maxHp={obsData.maxHp} cellSize={CELL_SIZE} orientation={obsData.orientation} />
                   )}
 
                   {destruction > 0 && (
