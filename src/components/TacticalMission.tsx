@@ -93,6 +93,7 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         transformStyle: 'preserve-3d'
       }}
     >
+      {/* Top face (X/Y plane, lifted along +Z) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -106,17 +107,19 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         {children}
       </div>
 
+      {/* Bottom face (X/Y plane, lifted along -Z) */}
       <div
         className="absolute border border-black/20"
         style={{
           width: `${w}px`, height: `${d}px`,
           left: 0, top: 0,
           backgroundColor: bottomColor,
-          transform: `translate3d(0, 0, ${-halfH}px) rotateY(180deg)`,
+          transform: `translate3d(0, 0, ${-halfH}px) rotateX(180deg)`,
           boxSizing: 'border-box'
         }}
       />
 
+      {/* Front face (X/Z plane, pushed to +Y edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -129,6 +132,7 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         }}
       />
 
+      {/* Back face (X/Z plane, pushed to -Y edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -141,6 +145,7 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         }}
       />
 
+      {/* Left face (Y/Z plane, pushed to -X edge) */}
       <div
         className="absolute border border-black/20"
         style={{
@@ -153,6 +158,7 @@ const VoxelBox = ({ width = 36, height = 36, depth = 36, topColor, bottomColor, 
         }}
       />
 
+      {/* Right face (Y/Z plane, pushed to +X edge) */}
       <div
         className="absolute border border-black/20"
         style={{
