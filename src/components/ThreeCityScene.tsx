@@ -651,10 +651,13 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       floor.receiveShadow = true;
       scene.add(floor);
 
-      const gridHelper = new THREE.GridHelper(gridSize, gridSize, 0x38bdf8, 0x1e293b);
-      gridHelper.position.y = 0.001;
-      gridHelper.material.transparent = true;
-      gridHelper.material.opacity = 0.3;
+      const gridHelper = new THREE.GridHelper(gridSize, gridSize, 0x38bdf8, 0x334155);
+      gridHelper.position.y = 0.002;
+      const gridMaterial = gridHelper.material as THREE.Material;
+      gridMaterial.transparent = true;
+      gridMaterial.opacity = 0.9;
+      gridMaterial.depthWrite = false;
+      gridMaterial.depthTest = false;
       scene.add(gridHelper);
 
       const floorBorder = new THREE.Mesh(
