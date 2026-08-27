@@ -391,13 +391,24 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const pointerMovedRef = useRef(false);
   const interactiveMeshesRef = useRef<THREE.Object3D[]>([]);
+  const isCombatScene = Boolean(combatLayout);
+  const scenePropsRef = useRef({
+    isCombatScene,
+    combatLayout,
+    onTileSelect,
+  });
+
+  scenePropsRef.current = {
+    isCombatScene,
+    combatLayout,
+    onTileSelect,
+  };
 
   const buildingList = useMemo(() => (buildings || []).slice().sort((a, b) => {
     const aCenter = a.x + a.width / 2 + a.y + a.height / 2;
     const bCenter = b.x + b.width / 2 + b.y + b.height / 2;
     return aCenter - bCenter;
   }), [buildings]);
-  const isCombatScene = Boolean(combatLayout);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -736,24 +747,25 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const intersects = raycasterRef.current.intersectObjects(interactiveMeshesRef.current, true);
       const target = getInteractiveTarget(intersects);
       const buildingId = target?.userData?.buildingId as string | undefined;
+      const { isCombatScene: latestIsCombatScene, combatLayout: latestCombatLayout, onTileSelect: latestOnTileSelect } = scenePropsRef.current;
       if (buildingId && onBuildingSelect) {
         onBuildingSelect(buildingId);
-      } else if (isCombatScene && combatLayout && onTileSelect) {
+      } else if (latestIsCombatScene && latestCombatLayout && latestOnTileSelect) {
         if (target?.userData?.combatUnit) {
           const tileX = target.userData.tileX as number | undefined;
           const tileY = target.userData.tileY as number | undefined;
           if (typeof tileX === 'number' && typeof tileY === 'number') {
-            onTileSelect(tileX, tileY);
+            latestOnTileSelect(tileX, tileY);
           }
         } else if (target?.userData?.combatSelectionSurface) {
           const point = target.intersection?.point;
           if (point) {
-            const gridSize = combatLayout.gridSize ?? 24;
+            const gridSize = latestCombatLayout.gridSize ?? 24;
             const halfGrid = (gridSize - 1) / 2;
             const tileX = Math.round(point.x + halfGrid);
             const tileY = Math.round(point.z + halfGrid);
             if (tileX >= 0 && tileX < gridSize && tileY >= 0 && tileY < gridSize) {
-              onTileSelect(tileX, tileY);
+              latestOnTileSelect(tileX, tileY);
             }
           }
         }
