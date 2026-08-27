@@ -99,6 +99,12 @@ const getCombatObstacleGeometry = (type: string, orientation?: 'ns' | 'ew') => {
         depth: orientation === 'ns' ? 1.0 : 0.22,
         height: 1.2,
       };
+    case 'corner':
+      return {
+        width: 0.9,
+        depth: 0.9,
+        height: 1.2,
+      };
     case 'server':
       return { width: 0.42, depth: 0.28, height: 1.34 };
     case 'vat':
@@ -122,6 +128,8 @@ const getCombatObstacleMaterial = (type: string) => {
   switch (type) {
     case 'wall':
       return { color: '#6b7280' };
+    case 'corner':
+      return { color: '#4b5563' };
     case 'server':
       return { color: '#1d4ed8' };
     case 'vat':

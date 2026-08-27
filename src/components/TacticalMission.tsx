@@ -57,8 +57,8 @@ export interface Room {
   type: string;
 }
 
-type ObstacleType = 'wall' | 'server' | 'vat' | 'crate' | 'desk' | 'generator' | 'bed' | 'door';
-type PlacedObstacleType = Exclude<ObstacleType, 'door'>;
+type ObstacleType = 'wall' | 'corner' | 'server' | 'vat' | 'crate' | 'desk' | 'generator' | 'bed' | 'door';
+type PlacedObstacleType = Exclude<ObstacleType, 'door' | 'corner'>;
 
 interface ObstacleData {
   type: ObstacleType;
@@ -118,9 +118,11 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
         if (isOpenBoundary) {
           setTile(x, y, 'accessway', 'ROAD');
         } else if (isBoundary) {
+          const isCorner = (x === 0 || x === MAP_GRID_SIZE - 1) && (y === 0 || y === MAP_GRID_SIZE - 1);
+          const obstacleType: ObstacleType = isCorner ? 'corner' : 'wall';
           setTile(x, y, 'wall', 'BUILDING');
           const isVerticalEdge = (x === 0 || x === MAP_GRID_SIZE - 1) && y > 0 && y < MAP_GRID_SIZE - 1;
-          obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100, orientation: isVerticalEdge ? 'ns' : 'ew' };
+          obstacles[`${x},${y}`] = { type: obstacleType, hp: 100, maxHp: 100, orientation: obstacleType === 'wall' ? (isVerticalEdge ? 'ns' : 'ew') : undefined };
         } else if (isRoadRow(y) || isAlleyCol(x)) {
           setTile(x, y, 'accessway', 'ROAD');
         } else if (isSidewalkRow(y) || isSidewalkCol(x)) {
@@ -138,9 +140,11 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
           if (isRoadRow(by) || isAlleyCol(bx)) continue; // never overwrite street
           const isFacade = bx === bx1 || bx === bx2 || by === by1 || by === by2;
           if (isFacade) {
+            const isCorner = (bx === bx1 || bx === bx2) && (by === by1 || by === by2);
+            const obstacleType: ObstacleType = isCorner ? 'corner' : 'wall';
             setTile(bx, by, 'wall', 'BUILDING');
             const isVerticalEdge = (bx === bx1 || bx === bx2) && by > by1 && by < by2;
-            obstacles[`${bx},${by}`] = { type: 'wall', hp: 100, maxHp: 100, orientation: isVerticalEdge ? 'ns' : 'ew' };
+            obstacles[`${bx},${by}`] = { type: obstacleType, hp: 100, maxHp: 100, orientation: obstacleType === 'wall' ? (isVerticalEdge ? 'ns' : 'ew') : undefined };
           } else {
             setTile(bx, by, 'floor', 'BUILDING');
           }
@@ -358,10 +362,12 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
         const isBorder = tileX === x1 || tileX === x2 || tileY === y1 || tileY === y2;
         setTile(tileX, tileY, isBorder ? 'wall' : 'floor', roomType, template.name);
         if (isBorder) {
-          // Determine wall orientation: vertical edges (left/right) are 'ns', horizontal edges (top/bottom) are 'ew'
-          const isVerticalEdge = (tileX === x1 || tileX === x2) && tileY > y1 && tileY < y2;
-          const orientation: 'ns' | 'ew' = isVerticalEdge ? 'ns' : 'ew';
-          obstacles[`${tileX},${tileY}`] = { type: 'wall', hp: 100, maxHp: 100, orientation };
+         const isCorner = (tileX === x1 || tileX === x2) && (tileY === y1 || tileY === y2);
+         const obstacleType: ObstacleType = isCorner ? 'corner' : 'wall';
+         // Determine wall orientation: vertical edges (left/right) are 'ns', horizontal edges (top/bottom) are 'ew'
+         const isVerticalEdge = (tileX === x1 || tileX === x2) && tileY > y1 && tileY < y2;
+         const orientation: 'ns' | 'ew' = isVerticalEdge ? 'ns' : 'ew';
+         obstacles[`${tileX},${tileY}`] = { type: obstacleType, hp: 100, maxHp: 100, orientation: obstacleType === 'wall' ? orientation : undefined };
         }
       }
     }
@@ -387,9 +393,11 @@ export const getLayoutForBuildingType = (buildingType: string, sectors: BaseSect
       const isBoundary = x === 0 || x === MAP_GRID_SIZE - 1 || y === 0 || y === MAP_GRID_SIZE - 1;
       setTile(x, y, isBoundary ? 'wall' : 'floor');
       if (isBoundary) {
-        const isVerticalEdge = (x === 0 || x === MAP_GRID_SIZE - 1) && y > 0 && y < MAP_GRID_SIZE - 1;
-        const orientation: 'ns' | 'ew' = isVerticalEdge ? 'ns' : 'ew';
-        obstacles[`${x},${y}`] = { type: 'wall', hp: 100, maxHp: 100, orientation };
+       const isCorner = (x === 0 || x === MAP_GRID_SIZE - 1) && (y === 0 || y === MAP_GRID_SIZE - 1);
+       const obstacleType: ObstacleType = isCorner ? 'corner' : 'wall';
+       const isVerticalEdge = (x === 0 || x === MAP_GRID_SIZE - 1) && y > 0 && y < MAP_GRID_SIZE - 1;
+       const orientation: 'ns' | 'ew' = isVerticalEdge ? 'ns' : 'ew';
+       obstacles[`${x},${y}`] = { type: obstacleType, hp: 100, maxHp: 100, orientation: obstacleType === 'wall' ? orientation : undefined };
       }
     }
   }
