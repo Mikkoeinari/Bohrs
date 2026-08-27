@@ -391,28 +391,24 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const pointerMovedRef = useRef(false);
   const interactiveMeshesRef = useRef<THREE.Object3D[]>([]);
+  const isCombatScene = Boolean(combatLayout);
   const scenePropsRef = useRef({
     isCombatScene,
     combatLayout,
     onTileSelect,
-    pendingAction,
   });
+
+  scenePropsRef.current = {
+    isCombatScene,
+    combatLayout,
+    onTileSelect,
+  };
 
   const buildingList = useMemo(() => (buildings || []).slice().sort((a, b) => {
     const aCenter = a.x + a.width / 2 + a.y + a.height / 2;
     const bCenter = b.x + b.width / 2 + b.y + b.height / 2;
     return aCenter - bCenter;
   }), [buildings]);
-  const isCombatScene = Boolean(combatLayout);
-
-  useEffect(() => {
-    scenePropsRef.current = {
-      isCombatScene,
-      combatLayout,
-      onTileSelect,
-      pendingAction,
-    };
-  }, [combatLayout, isCombatScene, onTileSelect, pendingAction]);
 
   useEffect(() => {
     if (!containerRef.current) {
