@@ -705,6 +705,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         while (current) {
           if (current.userData?.buildingId || current.userData?.combatSelectionSurface || current.userData?.combatUnit) {
             return {
+              intersection,
               object: current,
               userData: current.userData,
             };
@@ -739,7 +740,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
             onTileSelect(tileX, tileY);
           }
         } else if (target?.userData?.combatSelectionSurface) {
-          const point = intersects[0]?.point;
+          const point = target.intersection?.point;
           if (point) {
             const gridSize = combatLayout.gridSize ?? 24;
             const halfGrid = (gridSize - 1) / 2;
