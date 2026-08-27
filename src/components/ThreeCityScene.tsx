@@ -699,6 +699,22 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       }
     };
 
+    const getInteractiveTarget = (intersections: THREE.Intersection[]) => {
+      for (const intersection of intersections) {
+        let current: THREE.Object3D | null | undefined = intersection.object;
+        while (current) {
+          if (current.userData?.buildingId || current.userData?.combatSelectionSurface || current.userData?.combatUnit) {
+            return {
+              object: current,
+              userData: current.userData,
+            };
+          }
+          current = current.parent;
+        }
+      }
+      return null;
+    };
+
     const handleClick = (event: MouseEvent) => {
       if (!cameraObject || pointerMovedRef.current) {
         pointerDownRef.current = null;
@@ -711,19 +727,27 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycasterRef.current.setFromCamera(new THREE.Vector2(x, y), cameraObject);
       const intersects = raycasterRef.current.intersectObjects(interactiveMeshesRef.current, true);
-      const targetMesh = intersects[0]?.object as THREE.Mesh | undefined;
-      const buildingId = targetMesh?.userData?.buildingId as string | undefined;
+      const target = getInteractiveTarget(intersects);
+      const buildingId = target?.userData?.buildingId as string | undefined;
       if (buildingId && onBuildingSelect) {
         onBuildingSelect(buildingId);
-      } else if (isCombatScene && combatLayout && onTileSelect && targetMesh?.userData?.combatSelectionSurface) {
-        const point = intersects[0]?.point;
-        if (point) {
-          const gridSize = combatLayout.gridSize ?? 24;
-          const halfGrid = (gridSize - 1) / 2;
-          const tileX = Math.round(point.x + halfGrid);
-          const tileY = Math.round(point.z + halfGrid);
-          if (tileX >= 0 && tileX < gridSize && tileY >= 0 && tileY < gridSize) {
+      } else if (isCombatScene && combatLayout && onTileSelect) {
+        if (target?.userData?.combatUnit) {
+          const tileX = target.userData.tileX as number | undefined;
+          const tileY = target.userData.tileY as number | undefined;
+          if (typeof tileX === 'number' && typeof tileY === 'number') {
             onTileSelect(tileX, tileY);
+          }
+        } else if (target?.userData?.combatSelectionSurface) {
+          const point = intersects[0]?.point;
+          if (point) {
+            const gridSize = combatLayout.gridSize ?? 24;
+            const halfGrid = (gridSize - 1) / 2;
+            const tileX = Math.round(point.x + halfGrid);
+            const tileY = Math.round(point.z + halfGrid);
+            if (tileX >= 0 && tileX < gridSize && tileY >= 0 && tileY < gridSize) {
+              onTileSelect(tileX, tileY);
+            }
           }
         }
       }
@@ -965,6 +989,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
       combatLayout?.units.forEach((unit) => {
         const unitGroup = new THREE.Group();
+        unitGroup.userData = { combatUnit: true, tileX: unit.x, tileY: unit.y, unitId: unit.id };
         const unitWorldX = (unit.x - halfGrid) * tileSpacing;
         const unitWorldZ = (unit.y - halfGrid) * tileSpacing;
         unitGroup.position.set(unitWorldX, 0.02, unitWorldZ);
@@ -1023,6 +1048,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           unitGroup.add(ring);
         }
 
+        interactiveMeshesRef.current.push(unitGroup);
         buildingGroup.add(unitGroup);
       });
 
