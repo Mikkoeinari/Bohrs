@@ -62,8 +62,6 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 const SCENE_BACKGROUND = '#f6fbff';
 const SCENE_FOG = '#dbeafe';
-const COMBAT_WALL_TILE_SIZE = 0.94;
-const COMBAT_WALL_HEIGHT = 1.2;
 
 const getCombatTileColor = (tileType: CombatSceneTile['tileType'], roomType?: string) => {
   if (tileType === 'wall') {
@@ -927,26 +925,15 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
             emissiveIntensity: 0.08,
           });
 
-          if (tile.obstacle.type === 'wall') {
-            const wall = new THREE.Mesh(
-              new THREE.BoxGeometry(COMBAT_WALL_TILE_SIZE, COMBAT_WALL_HEIGHT, COMBAT_WALL_TILE_SIZE),
-              obstacleMaterial
-            );
-            wall.position.set(tileX, COMBAT_WALL_HEIGHT / 2, tileZ);
-            wall.castShadow = true;
-            wall.receiveShadow = true;
-            buildingGroup.add(wall);
-          } else {
-            const obstacleGeometry = getCombatObstacleGeometry(tile.obstacle.type, tile.obstacle.orientation);
-            const obstacle = new THREE.Mesh(
-              new THREE.BoxGeometry(obstacleGeometry.width, obstacleGeometry.height, obstacleGeometry.depth),
-              obstacleMaterial
-            );
-            obstacle.position.set(tileX, obstacleGeometry.height / 2, tileZ);
-            obstacle.castShadow = true;
-            obstacle.receiveShadow = true;
-            buildingGroup.add(obstacle);
-          }
+          const obstacleGeometry = getCombatObstacleGeometry(tile.obstacle.type, tile.obstacle.orientation);
+          const obstacle = new THREE.Mesh(
+            new THREE.BoxGeometry(obstacleGeometry.width, obstacleGeometry.height, obstacleGeometry.depth),
+            obstacleMaterial
+          );
+          obstacle.position.set(tileX, obstacleGeometry.height / 2, tileZ);
+          obstacle.castShadow = true;
+          obstacle.receiveShadow = true;
+          buildingGroup.add(obstacle);
         }
       });
 
