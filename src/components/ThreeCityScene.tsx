@@ -55,12 +55,15 @@ interface ThreeCitySceneProps {
   markers?: SceneEntityMarker[];
   combatLayout?: CombatSceneLayout;
   onTileSelect?: (x: number, y: number) => void;
+  pendingAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number } | null;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const SCENE_BACKGROUND = '#f6fbff';
 const SCENE_FOG = '#dbeafe';
+const COMBAT_WALL_TILE_SIZE = 0.94;
+const COMBAT_WALL_HEIGHT = 1.2;
 
 const getCombatTileColor = (tileType: CombatSceneTile['tileType'], roomType?: string) => {
   if (tileType === 'wall') {
@@ -377,7 +380,7 @@ const buildLabelTexture = (name: string, accentColor: string, selected: boolean)
   return texture;
 };
 
-const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect }) => {
+const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect, pendingAction = null }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -916,7 +919,6 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         buildingGroup.add(tileMesh);
 
         if (tile.obstacle && tile.obstacle.hp > 0) {
-          const obstacleGeometry = getCombatObstacleGeometry(tile.obstacle.type, tile.obstacle.orientation);
           const obstacleMaterial = new THREE.MeshStandardMaterial({
             color: getCombatObstacleMaterial(tile.obstacle.type).color,
             roughness: 0.8,
@@ -924,16 +926,42 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
             emissive: '#111827',
             emissiveIntensity: 0.08,
           });
-          const obstacle = new THREE.Mesh(
-            new THREE.BoxGeometry(obstacleGeometry.width, obstacleGeometry.height, obstacleGeometry.depth),
-            obstacleMaterial
-          );
-          obstacle.position.set(tileX, obstacleGeometry.height / 2, tileZ);
-          obstacle.castShadow = true;
-          obstacle.receiveShadow = true;
-          buildingGroup.add(obstacle);
+
+          if (tile.obstacle.type === 'wall') {
+            const wall = new THREE.Mesh(
+              new THREE.BoxGeometry(COMBAT_WALL_TILE_SIZE, COMBAT_WALL_HEIGHT, COMBAT_WALL_TILE_SIZE),
+              obstacleMaterial
+            );
+            wall.position.set(tileX, COMBAT_WALL_HEIGHT / 2, tileZ);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            buildingGroup.add(wall);
+          } else {
+            const obstacleGeometry = getCombatObstacleGeometry(tile.obstacle.type, tile.obstacle.orientation);
+            const obstacle = new THREE.Mesh(
+              new THREE.BoxGeometry(obstacleGeometry.width, obstacleGeometry.height, obstacleGeometry.depth),
+              obstacleMaterial
+            );
+            obstacle.position.set(tileX, obstacleGeometry.height / 2, tileZ);
+            obstacle.castShadow = true;
+            obstacle.receiveShadow = true;
+            buildingGroup.add(obstacle);
+          }
         }
       });
+
+      if (pendingAction) {
+        const actionTileX = (pendingAction.x - halfGrid) * tileSpacing;
+        const actionTileZ = (pendingAction.y - halfGrid) * tileSpacing;
+        const actionMaterial = pendingAction.type === 'MOVE'
+          ? new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4, roughness: 0.2, metalness: 0.1 })
+          : new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.1 });
+        const actionRing = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.04, 8, 24), actionMaterial);
+        actionRing.position.set(actionTileX, 0.1, actionTileZ);
+        actionRing.rotation.x = -Math.PI / 2;
+        actionRing.renderOrder = 10;
+        buildingGroup.add(actionRing);
+      }
 
       combatLayout?.units.forEach((unit) => {
         const unitGroup = new THREE.Group();
@@ -967,6 +995,24 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         base.position.set(0, 0.03, 0);
         unitGroup.add(base);
 
+        const healthRatio = unit.maxHp > 0 ? clamp(unit.hp / unit.maxHp, 0, 1) : 1;
+        const healthBarGroup = new THREE.Group();
+        const healthBarBg = new THREE.Mesh(
+          new THREE.BoxGeometry(0.34, 0.06, 0.015),
+          new THREE.MeshBasicMaterial({ color: 0x111827 })
+        );
+        healthBarBg.position.set(0, 0.84, 0.16);
+        healthBarGroup.add(healthBarBg);
+
+        const healthBarFill = new THREE.Mesh(
+          new THREE.BoxGeometry(0.34, 0.06, 0.015),
+          new THREE.MeshBasicMaterial({ color: healthRatio > 0.7 ? 0x4ade80 : healthRatio > 0.35 ? 0xfbbf24 : 0xef4444 })
+        );
+        healthBarFill.scale.x = Math.max(0.04, healthRatio);
+        healthBarFill.position.set(-0.17 * (1 - healthRatio), 0.84, 0.161);
+        healthBarGroup.add(healthBarFill);
+        unitGroup.add(healthBarGroup);
+
         if (unit.isSelected) {
           const ring = new THREE.Mesh(
             new THREE.TorusGeometry(0.3, 0.04, 8, 24),
@@ -990,7 +1036,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       buildingGroup.add(selectionSurface);
       interactiveMeshesRef.current.push(selectionSurface);
     }
-  }, [buildingList, combatLayout, isCombatScene, selectedBuildingId]);
+  }, [buildingList, combatLayout, isCombatScene, pendingAction, selectedBuildingId]);
 
   useEffect(() => {
     if (!entityGroupRef.current) {

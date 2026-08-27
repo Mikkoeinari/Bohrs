@@ -2215,6 +2215,7 @@ const TacticalMission = () => {
             camera={{ zoom, rotation, pitch, offset }}
             combatLayout={combatLayout}
             onTileSelect={handleTileClick}
+            pendingAction={pendingAction}
           />
         </div>
 
