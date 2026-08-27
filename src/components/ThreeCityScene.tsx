@@ -1015,10 +1015,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         actionMarkerGroup.add(actionRing);
 
         if (isConfirmed) {
-          const actionChevron = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 6), actionMaterial);
-          actionChevron.position.set(0, 0.06, 0);
-          actionChevron.rotation.x = Math.PI / 2;
-          actionMarkerGroup.add(actionChevron);
+          const actionCone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 6), actionMaterial);
+          actionCone.position.set(0, 0.06, 0);
+          actionCone.rotation.x = Math.PI / 2;
+          actionMarkerGroup.add(actionCone);
 
           const actionCore = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.025, 8, 16), new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0xf8fafc, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.1 }));
           actionCore.rotation.x = -Math.PI / 2;

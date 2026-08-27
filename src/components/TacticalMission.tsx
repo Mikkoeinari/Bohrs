@@ -1106,6 +1106,7 @@ const TacticalMission = () => {
       setConfirmedAction({ type: pendingAction.type, x, y });
       setPendingAction(null);
       setFailedAction(null);
+      setTimeout(() => setConfirmedAction(null), 900);
       return;
     }
 
