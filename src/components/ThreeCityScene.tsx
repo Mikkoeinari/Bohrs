@@ -671,8 +671,8 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       scene.add(floor);
 
       const gridHelper = new THREE.GridHelper(gridSize, gridSize, 0x475569, 0x334155);
-      gridHelper.position.y = 0.002;
-      gridHelper.renderOrder = -1;
+      gridHelper.position.y = 0.003;
+      gridHelper.renderOrder = 1;
       const gridMaterials = Array.isArray(gridHelper.material)
         ? gridHelper.material
         : [gridHelper.material];
@@ -681,6 +681,9 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         material.opacity = 0.8;
         material.depthWrite = false;
         material.depthTest = true;
+        material.polygonOffset = true;
+        material.polygonOffsetFactor = 1;
+        material.polygonOffsetUnits = 1;
       });
       scene.add(gridHelper);
 
