@@ -682,8 +682,8 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         material.depthWrite = false;
         material.depthTest = true;
         material.polygonOffset = true;
-        material.polygonOffsetFactor = 1;
-        material.polygonOffsetUnits = 1;
+        material.polygonOffsetFactor = -1;
+        material.polygonOffsetUnits = -1;
       });
       scene.add(gridHelper);
 
