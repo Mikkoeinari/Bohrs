@@ -473,6 +473,7 @@ const TacticalMission = () => {
   const [loot, setLoot] = useState<{ id: string; itemId?: string; name: string; type: string; credits?: number; secured: boolean }[]>([]);
   const [isConquerPhase, setIsConquerPhase] = useState(false);
   const [failedAction, setFailedAction] = useState<{ x: number, y: number, type: 'BLOCKED' | 'NO_AP' | 'OBSTRUCTED' } | null>(null);
+  const [confirmedAction, setConfirmedAction] = useState<{ type: 'MOVE' | 'ATTACK'; x: number; y: number } | null>(null);
   const GRID_SIZE = MAP_GRID_SIZE;
 
   const [obstacles, setObstacles] = useState<Record<string, ObstacleData>>({});
@@ -1032,7 +1033,18 @@ const TacticalMission = () => {
 
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
 
-  
+  const getFailedActionMessage = (type: 'BLOCKED' | 'NO_AP' | 'OBSTRUCTED') => {
+    switch (type) {
+      case 'NO_AP':
+        return 'NOT ENOUGH AP';
+      case 'OBSTRUCTED':
+        return 'PATH OBSTRUCTED';
+      case 'BLOCKED':
+      default:
+        return 'TARGET BLOCKED OR OUT OF RANGE';
+    }
+  };
+
   const handleTileClick = (x: number, y: number) => {
     if (!selectedUnit) return;
 
@@ -1087,9 +1099,14 @@ const TacticalMission = () => {
             setLog(prev => [`[ERROR] No valid route.`, ...prev]);
             setFailedAction({ x, y, type: 'BLOCKED' });
             setTimeout(() => setFailedAction(null), 800);
+            setPendingAction(null);
+            return;
          }
       }
+      setConfirmedAction({ type: pendingAction.type, x, y });
       setPendingAction(null);
+      setFailedAction(null);
+      setTimeout(() => setConfirmedAction(null), 900);
       return;
     }
 
@@ -1099,6 +1116,7 @@ const TacticalMission = () => {
       const dist = Math.abs(selectedUnit.x - x) + Math.abs(selectedUnit.y - y);
       const hasLos = hasLineOfSight(selectedUnit.x, selectedUnit.y, x, y);
       if (dist <= 10 && hasLos) {
+        setConfirmedAction(null);
         setPendingAction({ type: 'ATTACK', unitId: selectedUnit.id, x, y });
       } else {
         setLog(prev => ["// ERROR: TARGET BLOCKED OR OUT OF RANGE", ...prev]);
@@ -1109,6 +1127,7 @@ const TacticalMission = () => {
       const dist = Math.abs(selectedUnit.x - x) + Math.abs(selectedUnit.y - y);
       const hasLos = hasLineOfSight(selectedUnit.x, selectedUnit.y, x, y);
       if (dist <= 10 && hasLos) {
+        setConfirmedAction(null);
         setPendingAction({ type: 'ATTACK', unitId: selectedUnit.id, x, y });
       } else {
         setLog(prev => ["// ERROR: OBSTACLE BLOCKED OR OUT OF RANGE", ...prev]);
@@ -1116,10 +1135,12 @@ const TacticalMission = () => {
         setTimeout(() => setFailedAction(null), 800);
       }
     } else if (!targetUnit) {
+      setConfirmedAction(null);
       setPendingAction({ type: 'MOVE', unitId: selectedUnit.id, x, y });
     } else if (targetUnit && targetUnit.faction === 'PLAYER') {
       setSelectedUnitId(targetUnit.id);
       setPendingAction(null);
+      setConfirmedAction(null);
     }
   };
 
@@ -2244,8 +2265,24 @@ const TacticalMission = () => {
             combatLayout={combatLayout}
             onTileSelect={handleTileClick}
             pendingAction={pendingAction}
+            confirmedAction={confirmedAction}
           />
         </div>
+
+        <AnimatePresence>
+          {failedAction && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+            >
+              <div className="rounded border border-red-400/50 bg-black/80 px-3 py-2 text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-red-300 shadow-[0_0_24px_rgba(248,113,113,0.25)]">
+                {getFailedActionMessage(failedAction.type)}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="absolute top-2 right-2 z-20 flex flex-col gap-2">
           <div className="flex gap-2 justify-end">

@@ -56,6 +56,7 @@ interface ThreeCitySceneProps {
   combatLayout?: CombatSceneLayout;
   onTileSelect?: (x: number, y: number) => void;
   pendingAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number } | null;
+  confirmedAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number } | null;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -386,7 +387,7 @@ const buildLabelTexture = (name: string, accentColor: string, selected: boolean)
   return texture;
 };
 
-const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect, pendingAction = null }) => {
+const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect, pendingAction = null, confirmedAction = null }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -399,6 +400,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
   const pointerMovedRef = useRef(false);
   const interactiveMeshesRef = useRef<THREE.Object3D[]>([]);
+  const actionMarkerGroupRef = useRef<THREE.Group | null>(null);
   const isCombatScene = Boolean(combatLayout);
   const scenePropsRef = useRef({
     isCombatScene,
@@ -693,6 +695,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
     const animate = () => {
       frameRef.current = window.requestAnimationFrame(animate);
+      if (actionMarkerGroupRef.current) {
+        actionMarkerGroupRef.current.rotation.y += 0.04;
+        actionMarkerGroupRef.current.rotation.z = Math.sin(Date.now() * 0.002) * 0.18;
+      }
       renderer.render(scene, cameraObject);
     };
     animate();
@@ -830,6 +836,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
     buildingGroup.clear();
 
     interactiveMeshesRef.current = [];
+    actionMarkerGroupRef.current = null;
 
     if (!isCombatScene) {
       const selectedMaterial = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7, metalness: 0.2, emissive: 0x60a5fa, emissiveIntensity: 0.3 });
@@ -990,17 +997,37 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         }
       });
 
-      if (pendingAction) {
-        const actionTileX = (pendingAction.x - halfGrid) * tileSpacing;
-        const actionTileZ = (pendingAction.y - halfGrid) * tileSpacing;
-        const actionMaterial = pendingAction.type === 'MOVE'
-          ? new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4, roughness: 0.2, metalness: 0.1 })
-          : new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.1 });
-        const actionRing = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.04, 8, 24), actionMaterial);
-        actionRing.position.set(actionTileX, 0.1, actionTileZ);
+      const activeAction = confirmedAction ?? pendingAction;
+      if (activeAction) {
+        const actionTileX = (activeAction.x - halfGrid) * tileSpacing;
+        const actionTileZ = (activeAction.y - halfGrid) * tileSpacing;
+        const isConfirmed = Boolean(confirmedAction);
+        const actionMaterial = isConfirmed
+          ? new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x4ade80, emissiveIntensity: 0.45, roughness: 0.2, metalness: 0.1 })
+          : activeAction.type === 'MOVE'
+            ? new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4, roughness: 0.2, metalness: 0.1 })
+            : new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.1 });
+        const actionMarkerGroup = new THREE.Group();
+        actionMarkerGroup.position.set(actionTileX, 0.12, actionTileZ);
+        const actionRing = new THREE.Mesh(new THREE.TorusGeometry(isConfirmed ? 0.34 : 0.3, isConfirmed ? 0.05 : 0.04, 8, 24), actionMaterial);
         actionRing.rotation.x = -Math.PI / 2;
         actionRing.renderOrder = 10;
-        buildingGroup.add(actionRing);
+        actionMarkerGroup.add(actionRing);
+
+        if (isConfirmed) {
+          const actionCone = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.24, 6), actionMaterial);
+          actionCone.position.set(0, 0.06, 0);
+          actionCone.rotation.x = Math.PI / 2;
+          actionMarkerGroup.add(actionCone);
+
+          const actionCore = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.025, 8, 16), new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0xf8fafc, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.1 }));
+          actionCore.rotation.x = -Math.PI / 2;
+          actionCore.position.set(0, 0.04, 0);
+          actionMarkerGroup.add(actionCore);
+        }
+
+        buildingGroup.add(actionMarkerGroup);
+        actionMarkerGroupRef.current = actionMarkerGroup;
       }
 
       combatLayout?.units.forEach((unit) => {
@@ -1078,7 +1105,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       buildingGroup.add(selectionSurface);
       interactiveMeshesRef.current.push(selectionSurface);
     }
-  }, [buildingList, combatLayout, isCombatScene, pendingAction, selectedBuildingId]);
+  }, [buildingList, combatLayout, confirmedAction, isCombatScene, pendingAction, selectedBuildingId]);
 
   useEffect(() => {
     if (!entityGroupRef.current) {
