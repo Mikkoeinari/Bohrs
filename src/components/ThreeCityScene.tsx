@@ -150,6 +150,18 @@ const getCombatObstacleMaterial = (type: string) => {
   }
 };
 
+const getCombatActionMarkerMaterial = (actionType: 'MOVE' | 'ATTACK', isConfirmed: boolean) => {
+  if (isConfirmed) {
+    return actionType === 'MOVE'
+      ? { color: 0x22c55e, emissive: 0x4ade80 }
+      : { color: 0xdc2626, emissive: 0xef4444 };
+  }
+
+  return actionType === 'MOVE'
+    ? { color: 0x38bdf8, emissive: 0x38bdf8 }
+    : { color: 0xf97316, emissive: 0xf97316 };
+};
+
 const getBuildingTypeTheme = (buildingType: Building['type']) => {
   switch (buildingType) {
     case 'BASE':
@@ -1008,11 +1020,14 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const actionTileX = ((actionTargetUnit?.x ?? activeAction.x) - halfGrid) * tileSpacing;
         const actionTileZ = ((actionTargetUnit?.y ?? activeAction.y) - halfGrid) * tileSpacing;
         const isConfirmed = Boolean(confirmedAction);
-        const actionMaterial = isConfirmed
-          ? new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x4ade80, emissiveIntensity: 0.45, roughness: 0.2, metalness: 0.1 })
-          : activeAction.type === 'MOVE'
-            ? new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4, roughness: 0.2, metalness: 0.1 })
-            : new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.1 });
+        const markerColors = getCombatActionMarkerMaterial(activeAction.type, isConfirmed);
+        const actionMaterial = new THREE.MeshStandardMaterial({
+          color: markerColors.color,
+          emissive: markerColors.emissive,
+          emissiveIntensity: 0.45,
+          roughness: 0.2,
+          metalness: 0.1,
+        });
         const actionMarkerGroup = new THREE.Group();
         actionMarkerGroup.position.set(actionTileX, 0.12, actionTileZ);
         const actionRing = new THREE.Mesh(new THREE.TorusGeometry(isConfirmed ? 0.34 : 0.3, isConfirmed ? 0.05 : 0.04, 8, 24), actionMaterial);
