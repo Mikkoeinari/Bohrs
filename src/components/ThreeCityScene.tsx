@@ -56,7 +56,7 @@ interface ThreeCitySceneProps {
   combatLayout?: CombatSceneLayout;
   onTileSelect?: (x: number, y: number) => void;
   pendingAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number } | null;
-  confirmedAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number } | null;
+  confirmedAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number; targetUnitId?: string } | null;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -1002,8 +1002,11 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
       const activeAction = confirmedAction ?? pendingAction;
       if (activeAction) {
-        const actionTileX = (activeAction.x - halfGrid) * tileSpacing;
-        const actionTileZ = (activeAction.y - halfGrid) * tileSpacing;
+        const actionTargetUnit = confirmedAction?.targetUnitId
+          ? combatLayout?.units.find((unit) => unit.id === confirmedAction.targetUnitId)
+          : undefined;
+        const actionTileX = ((actionTargetUnit?.x ?? activeAction.x) - halfGrid) * tileSpacing;
+        const actionTileZ = ((actionTargetUnit?.y ?? activeAction.y) - halfGrid) * tileSpacing;
         const isConfirmed = Boolean(confirmedAction);
         const actionMaterial = isConfirmed
           ? new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x4ade80, emissiveIntensity: 0.45, roughness: 0.2, metalness: 0.1 })

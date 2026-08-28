@@ -46,6 +46,16 @@ interface PendingAction {
   y: number;
 }
 
+interface ConfirmedAction {
+  type: 'MOVE' | 'ATTACK';
+  unitId: string;
+  x: number;
+  y: number;
+  startX?: number;
+  startY?: number;
+  targetUnitId?: string;
+}
+
 export interface Room {
   name: string;
   x1: number;
@@ -473,7 +483,7 @@ const TacticalMission = () => {
   const [loot, setLoot] = useState<{ id: string; itemId?: string; name: string; type: string; credits?: number; secured: boolean }[]>([]);
   const [isConquerPhase, setIsConquerPhase] = useState(false);
   const [failedAction, setFailedAction] = useState<{ x: number, y: number, type: 'BLOCKED' | 'NO_AP' | 'OBSTRUCTED' } | null>(null);
-  const [confirmedAction, setConfirmedAction] = useState<{ type: 'MOVE' | 'ATTACK'; x: number; y: number } | null>(null);
+  const [confirmedAction, setConfirmedAction] = useState<ConfirmedAction | null>(null);
   const GRID_SIZE = MAP_GRID_SIZE;
 
   const [obstacles, setObstacles] = useState<Record<string, ObstacleData>>({});
@@ -871,6 +881,39 @@ const TacticalMission = () => {
 
   const selectedUnit = units.find(u => u.id === selectedUnitId);
 
+  useEffect(() => {
+    if (!confirmedAction) {
+      return;
+    }
+
+    if (confirmedAction.type === 'MOVE') {
+      const actingUnit = units.find((unit) => unit.id === confirmedAction.unitId);
+      const hasReachedDestination = actingUnit?.x === confirmedAction.x && actingUnit?.y === confirmedAction.y;
+      const hasMovedAwayFromStart = typeof confirmedAction.startX === 'number' && typeof confirmedAction.startY === 'number' && actingUnit
+        ? actingUnit.x !== confirmedAction.startX || actingUnit.y !== confirmedAction.startY
+        : false;
+
+      if (!actingUnit || (hasMovedAwayFromStart && hasReachedDestination)) {
+        setConfirmedAction(null);
+      }
+      return;
+    }
+
+    if (confirmedAction.type === 'ATTACK') {
+      if (confirmedAction.targetUnitId) {
+        const targetUnit = units.find((unit) => unit.id === confirmedAction.targetUnitId);
+        if (!targetUnit || targetUnit.hp <= 0) {
+          setConfirmedAction(null);
+        }
+      } else {
+        const targetObstacle = obstacles[`${confirmedAction.x},${confirmedAction.y}`];
+        if (!targetObstacle || targetObstacle.hp <= 0) {
+          setConfirmedAction(null);
+        }
+      }
+    }
+  }, [confirmedAction, obstacles, units]);
+
   const switchWeapon = () => {
     if (!selectedUnit) return;
     const currentIdx = selectedUnit.weapons.indexOf(selectedUnit.activeWeaponId);
@@ -1061,6 +1104,7 @@ const TacticalMission = () => {
 
     const obs = obstacles[`${x},${y}`];
     const isObstacle = !!(obs && obs.hp > 0);
+    const clickedUnit = units.find(u => u.x === x && u.y === y && u.hp > 0);
 
     if (pendingAction && pendingAction.unitId === selectedUnitId && pendingAction.x === x && pendingAction.y === y) {
       if (pendingAction.type === 'ATTACK') {
@@ -1103,20 +1147,24 @@ const TacticalMission = () => {
             return;
          }
       }
-      setConfirmedAction({ type: pendingAction.type, x, y });
+      setConfirmedAction({
+        type: pendingAction.type,
+        unitId: selectedUnit.id,
+        x,
+        y,
+        startX: selectedUnit.x,
+        startY: selectedUnit.y,
+        targetUnitId: pendingAction.type === 'ATTACK' ? clickedUnit?.id : undefined,
+      });
       setPendingAction(null);
       setFailedAction(null);
-      setTimeout(() => setConfirmedAction(null), 900);
       return;
     }
 
-    const targetUnit = units.find(u => u.x === x && u.y === y && u.hp > 0);
-    
-    if (targetUnit && targetUnit.faction === 'ENEMY') {
+    if (clickedUnit && clickedUnit.faction === 'ENEMY') {
       const dist = Math.abs(selectedUnit.x - x) + Math.abs(selectedUnit.y - y);
       const hasLos = hasLineOfSight(selectedUnit.x, selectedUnit.y, x, y);
       if (dist <= 10 && hasLos) {
-        setConfirmedAction(null);
         setPendingAction({ type: 'ATTACK', unitId: selectedUnit.id, x, y });
       } else {
         setLog(prev => ["// ERROR: TARGET BLOCKED OR OUT OF RANGE", ...prev]);
@@ -1127,20 +1175,17 @@ const TacticalMission = () => {
       const dist = Math.abs(selectedUnit.x - x) + Math.abs(selectedUnit.y - y);
       const hasLos = hasLineOfSight(selectedUnit.x, selectedUnit.y, x, y);
       if (dist <= 10 && hasLos) {
-        setConfirmedAction(null);
         setPendingAction({ type: 'ATTACK', unitId: selectedUnit.id, x, y });
       } else {
         setLog(prev => ["// ERROR: OBSTACLE BLOCKED OR OUT OF RANGE", ...prev]);
         setFailedAction({ x, y, type: 'BLOCKED' });
         setTimeout(() => setFailedAction(null), 800);
       }
-    } else if (!targetUnit) {
-      setConfirmedAction(null);
+    } else if (!clickedUnit) {
       setPendingAction({ type: 'MOVE', unitId: selectedUnit.id, x, y });
-    } else if (targetUnit && targetUnit.faction === 'PLAYER') {
-      setSelectedUnitId(targetUnit.id);
+    } else if (clickedUnit && clickedUnit.faction === 'PLAYER') {
+      setSelectedUnitId(clickedUnit.id);
       setPendingAction(null);
-      setConfirmedAction(null);
     }
   };
 
