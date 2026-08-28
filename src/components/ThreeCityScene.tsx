@@ -153,13 +153,13 @@ const getCombatObstacleMaterial = (type: string) => {
 const getCombatActionMarkerMaterial = (actionType: 'MOVE' | 'ATTACK', isConfirmed: boolean) => {
   if (isConfirmed) {
     return actionType === 'MOVE'
-      ? { color: 0x22c55e, emissive: 0x4ade80 }
-      : { color: 0xdc2626, emissive: 0xef4444 };
+      ? { color: 0x22c55e, emissive: 0x4ade80, emissiveIntensity: 0.45 }
+      : { color: 0xdc2626, emissive: 0xef4444, emissiveIntensity: 0.45 };
   }
 
   return actionType === 'MOVE'
-    ? { color: 0x38bdf8, emissive: 0x38bdf8 }
-    : { color: 0xf97316, emissive: 0xf97316 };
+    ? { color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4 }
+    : { color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.35 };
 };
 
 const getBuildingTypeTheme = (buildingType: Building['type']) => {
@@ -1024,7 +1024,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const actionMaterial = new THREE.MeshStandardMaterial({
           color: markerColors.color,
           emissive: markerColors.emissive,
-          emissiveIntensity: 0.45,
+          emissiveIntensity: markerColors.emissiveIntensity,
           roughness: 0.2,
           metalness: 0.1,
         });
