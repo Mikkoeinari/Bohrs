@@ -1076,6 +1076,13 @@ const TacticalMission = () => {
 
   const handleContextMenu = (e: React.MouseEvent) => e.preventDefault();
 
+  const createCombatEventId = (prefix: string) => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return `${prefix}-${crypto.randomUUID()}`;
+    }
+    return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
   const getFailedActionMessage = (type: 'BLOCKED' | 'NO_AP' | 'OBSTRUCTED') => {
     switch (type) {
       case 'NO_AP':
@@ -1803,6 +1810,46 @@ const TacticalMission = () => {
 
           if (dist <= maxWeaponRange && hasLos) {
             const isPlayer = u.faction === 'PLAYER';
+            const cover = getCoverLevel(target.x, target.y, u.x, u.y, obstacles);
+            const baseHitChance = 0.58;
+            const accuracyBonus = (u.accuracy - 50) / 160;
+            const coverModifier = cover === 'NONE' ? 0.15 : cover === 'HALF' ? -0.02 : -0.26;
+            const hitChance = Math.max(0.12, Math.min(0.92, baseHitChance + accuracyBonus + coverModifier));
+            const didHit = Math.random() < hitChance;
+
+            const tracerColor = isPlayer ? '#38bdf8' : '#ef4444';
+            const popupColor = isPlayer ? '#48bb78' : '#ef4444';
+
+            if (!didHit) {
+              const dx = target.x - u.x;
+              const dy = target.y - u.y;
+              const vectorLength = Math.max(1, Math.hypot(dx, dy));
+              const scatter = (Math.random() - 0.5) * 2.4;
+              const lateralX = -dy / vectorLength;
+              const lateralY = dx / vectorLength;
+              const missX = target.x + (dx === 0 ? scatter : dx * 0.65 + lateralX * scatter);
+              const missY = target.y + (dy === 0 ? scatter : dy * 0.65 + lateralY * scatter);
+              newTracers.push({
+                id: createCombatEventId('miss-tracer'),
+                fromX: u.x,
+                fromY: u.y,
+                toX: Math.max(0, Math.min(GRID_SIZE - 1, missX)),
+                toY: Math.max(0, Math.min(GRID_SIZE - 1, missY)),
+                color: '#cbd5e1'
+              });
+              newPopups.push({
+                id: createCombatEventId('miss-popup'),
+                x: target.x,
+                y: target.y,
+                text: 'MISS',
+                color: '#cbd5e1'
+              });
+              logs.push(`[${isPlayer ? 'RETURN FIRE' : 'HOSTILE FIRE'}] ${u.name} fired at ${target.name} and missed.`);
+              u.ap -= 4;
+              u.cooldown = 4;
+              return u;
+            }
+
             const baseDamage = Math.floor((weaponBaseDmg * 0.75) + Math.random() * (weaponBaseDmg * 0.5));
             const accuracyFactor = 0.85 + (u.accuracy / 100) * 0.45; // Higher accuracy deals higher precision damage
             let damage = Math.round(baseDamage * accuracyFactor);
@@ -1830,7 +1877,6 @@ const TacticalMission = () => {
               }
             }
 
-            const cover = getCoverLevel(target.x, target.y, u.x, u.y, obstacles);
             if (cover === 'FULL') damage = Math.max(3, Math.round(damage * 0.5));
             else if (cover === 'HALF') damage = Math.max(5, Math.round(damage * 0.7));
 
@@ -1852,11 +1898,8 @@ const TacticalMission = () => {
             u.ap -= 4;
             u.cooldown = 4;
 
-            const tracerColor = isPlayer ? '#38bdf8' : '#ef4444';
-            const popupColor = isPlayer ? '#48bb78' : '#ef4444';
-
             newTracers.push({
-              id: `${Date.now()}-${Math.random()}`,
+              id: createCombatEventId('hit-tracer'),
               fromX: u.x,
               fromY: u.y,
               toX: target.x,
@@ -1865,7 +1908,7 @@ const TacticalMission = () => {
             });
 
             newPopups.push({
-              id: `${Date.now()}-${Math.random()}`,
+              id: createCombatEventId('hit-popup'),
               x: target.x,
               y: target.y,
               text: `-${damage}${cover !== 'NONE' ? ` (${cover} COVER)` : ''}${specLog}`,
@@ -2311,6 +2354,8 @@ const TacticalMission = () => {
             onTileSelect={handleTileClick}
             pendingAction={pendingAction}
             confirmedAction={confirmedAction}
+            shotTracers={shotTracers}
+            damagePopups={damagePopups}
           />
         </div>
 
