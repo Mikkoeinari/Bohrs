@@ -57,6 +57,7 @@ export interface CombatSceneDamagePopup {
   y: number;
   text: string;
   color: string;
+  createdAt?: number;
 }
 
 interface ThreeCitySceneProps {
@@ -1156,6 +1157,31 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         base.position.set(0, 0.03, 0);
         unitGroup.add(base);
 
+        const coverNeighbors = [
+          { x: unit.x + 1, y: unit.y },
+          { x: unit.x - 1, y: unit.y },
+          { x: unit.x, y: unit.y + 1 },
+          { x: unit.x, y: unit.y - 1 },
+        ];
+        const hasCover = coverNeighbors.some(({ x, y }) =>
+          combatLayout?.tiles.some((tile) => tile.x === x && tile.y === y && tile.obstacle && tile.obstacle.hp > 0)
+        );
+        if (hasCover) {
+          const coverRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.38, 0.025, 8, 24),
+            new THREE.MeshStandardMaterial({
+              color: 0x60a5fa,
+              emissive: 0x60a5fa,
+              emissiveIntensity: 0.4,
+              roughness: 0.2,
+              metalness: 0.12,
+            })
+          );
+          coverRing.position.set(0, 0.72, 0);
+          coverRing.rotation.x = Math.PI / 2;
+          unitGroup.add(coverRing);
+        }
+
         const healthRatio = unit.maxHp > 0 ? clamp(unit.hp / unit.maxHp, 0, 1) : 1;
         const healthBarGroup = new THREE.Group();
         const healthBarBg = new THREE.Mesh(
@@ -1197,45 +1223,12 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const effectsGroup = new THREE.Group();
       effectsGroup.name = 'combat-effects-group';
 
-      const tracerGroup = new THREE.Group();
-      shotTracers.forEach((tracer) => {
-        const from = new THREE.Vector3((tracer.fromX - halfGrid) * tileSpacing, 0.52, (tracer.fromY - halfGrid) * tileSpacing);
-        const to = new THREE.Vector3((tracer.toX - halfGrid) * tileSpacing, 0.52, (tracer.toY - halfGrid) * tileSpacing);
-        const direction = to.clone().sub(from);
-        const length = direction.length();
-        if (length <= 0.001) {
-          return;
-        }
-
-        const tracerMat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(tracer.color),
-          emissive: new THREE.Color(tracer.color),
-          emissiveIntensity: 0.65,
-          roughness: 0.25,
-          metalness: 0.12,
-        });
-        const tracerBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, length, 8), tracerMat);
-        tracerBeam.position.copy(from.clone().add(to).multiplyScalar(0.5));
-        tracerBeam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
-        tracerGroup.add(tracerBeam);
-
-        const impact = new THREE.Mesh(
-          new THREE.SphereGeometry(0.08, 12, 12),
-          new THREE.MeshStandardMaterial({
-            color: new THREE.Color(tracer.color),
-            emissive: new THREE.Color(tracer.color),
-            emissiveIntensity: 0.9,
-          })
-        );
-        impact.position.copy(to);
-        tracerGroup.add(impact);
-      });
-      if (tracerGroup.children.length > 0) {
-        effectsGroup.add(tracerGroup);
-      }
-
       const popupGroup = new THREE.Group();
-      damagePopups.forEach((popup) => {
+      const visiblePopups = damagePopups.filter((popup) => {
+        const createdAt = popup.createdAt ?? Date.now();
+        return Date.now() - createdAt < 3000;
+      });
+      visiblePopups.forEach((popup) => {
         const sprite = createFloatingTextSprite(popup.text, popup.color, 'rgba(15, 23, 42, 0.42)');
         if (!sprite) {
           return;

@@ -979,8 +979,8 @@ const TacticalMission = () => {
   const [spottedEnemyIds, setSpottedEnemyIds] = useState<Set<string>>(new Set());
 
   // Visual Effects
-  const [shotTracers, setShotTracers] = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number; color: string }[]>([]);
-  const [damagePopups, setDamagePopups] = useState<{ id: string; x: number; y: number; text: string; color: string }[]>([]);
+  const [shotTracers, setShotTracers] = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt?: number }[]>([]);
+  const [damagePopups, setDamagePopups] = useState<{ id: string; x: number; y: number; text: string; color: string; createdAt: number }[]>([]);
 
   // Camera State
   const [zoom, setZoom] = useState(1);
@@ -1224,7 +1224,8 @@ const TacticalMission = () => {
                 x: u.x,
                 y: u.y,
                 text: `-${dmg} HE!`,
-                color: '#ef4444'
+                color: '#ef4444',
+                createdAt: Date.now(),
               }
             ]);
             
@@ -1269,7 +1270,8 @@ const TacticalMission = () => {
                   x: nx,
                   y: ny,
                   text: `-${dmg} HP`,
-                  color: '#fbbf24'
+                  color: '#fbbf24',
+                  createdAt: Date.now(),
                 }
               ]);
 
@@ -1323,8 +1325,8 @@ const TacticalMission = () => {
       setTick(t => t + 1);
 
       // Fade older shot tracers & damage popups
-      setShotTracers(prev => prev.slice(-3));
-      setDamagePopups(prev => prev.slice(-5));
+      setShotTracers(prev => prev.filter((tracer) => Date.now() - (tracer.createdAt ?? Date.now()) < 1200).slice(-3));
+      setDamagePopups(prev => prev.filter((popup) => Date.now() - popup.createdAt < 3000).slice(-5));
 
       setUnits(prevUnits => {
         let newUnits = [...prevUnits];
@@ -1435,7 +1437,8 @@ const TacticalMission = () => {
                   x: u.x,
                   y: u.y,
                   text: `+${healAmount} HP`,
-                  color: '#48bb78'
+                  color: '#48bb78',
+                  createdAt: Date.now(),
                 });
               } 
               // B. Ally Healing with Medkit on adjacent wounded squadmates
@@ -1459,7 +1462,8 @@ const TacticalMission = () => {
                     x: woundedAlly.x,
                     y: woundedAlly.y,
                     text: `+${healAmount} HP`,
-                    color: '#48bb78'
+                    color: '#48bb78',
+                    createdAt: Date.now(),
                   });
                 }
               }
@@ -1474,7 +1478,8 @@ const TacticalMission = () => {
                   x: u.x,
                   y: u.y,
                   text: '+6 AP',
-                  color: '#60a5fa'
+                  color: '#60a5fa',
+                  createdAt: Date.now(),
                 });
               }
 
@@ -1492,7 +1497,8 @@ const TacticalMission = () => {
                         x: be.x,
                         y: be.y,
                         text: '-35 BOOM!',
-                        color: '#fbbf24'
+                        color: '#fbbf24',
+                        createdAt: Date.now(),
                       });
                       if (be.hp <= 0) {
                         logs.push(`[NEUTRALIZED] ${be.name} destroyed by grenade blast!`);
@@ -1695,7 +1701,8 @@ const TacticalMission = () => {
                   x: nextStep.x,
                   y: nextStep.y,
                   text: `-${reactionDmg}${cover !== 'NONE' ? ` (${cover} COVER)` : ''}`,
-                  color: popupColor
+                  color: popupColor,
+                  createdAt: Date.now(),
                 });
 
                 logs.push(`[REACTION SHOT] ⚡ ${reactor.name} ambushed ${u.name} moving into sight for ${reactionDmg} DMG${cover !== 'NONE' ? ` (${cover} COVER)` : ''}!`);
@@ -1777,7 +1784,8 @@ const TacticalMission = () => {
               x: obsX,
               y: obsY,
               text: `-${damage} HP`,
-              color: '#fbbf24'
+              color: '#fbbf24',
+              createdAt: Date.now(),
             });
 
             logs.push(`[BREACH FIRE] 💥 ${u.name} blasted the ${obs.type.toUpperCase()} wall for ${damage} DMG.`);
@@ -1842,7 +1850,8 @@ const TacticalMission = () => {
                 x: target.x,
                 y: target.y,
                 text: 'MISS',
-                color: '#cbd5e1'
+                color: '#cbd5e1',
+                createdAt: Date.now(),
               });
               logs.push(`[${isPlayer ? 'RETURN FIRE' : 'HOSTILE FIRE'}] ${u.name} fired at ${target.name} and missed.`);
               u.ap -= 4;
@@ -1912,7 +1921,8 @@ const TacticalMission = () => {
               x: target.x,
               y: target.y,
               text: `-${damage}${cover !== 'NONE' ? ` (${cover} COVER)` : ''}${specLog}`,
-              color: popupColor
+              color: popupColor,
+              createdAt: Date.now(),
             });
 
             logs.push(`[${isPlayer ? 'RETURN FIRE' : 'HOSTILE FIRE'}] ${u.name} shot ${target.name} for ${damage} DMG${cover !== 'NONE' ? ` (${cover} COVER)` : ''}${specLog}!`);
