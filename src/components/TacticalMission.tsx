@@ -978,6 +978,10 @@ const TacticalMission = () => {
   const [autoPauseOnDamage, setAutoPauseOnDamage] = useState<boolean>(true);
   const [spottedEnemyIds, setSpottedEnemyIds] = useState<Set<string>>(new Set());
 
+  // Visual Effects
+  const [shotTracers, setShotTracers] = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt?: number }[]>([]);
+  const [damagePopups, setDamagePopups] = useState<{ id: string; x: number; y: number; text: string; color: string; createdAt: number }[]>([]);
+
   // Camera State
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(45);
@@ -1212,6 +1216,17 @@ const TacticalMission = () => {
             const dmg = dist === 0 ? 80 : dist === 1 ? 50 : 25;
             const updatedHp = Math.max(0, u.hp - dmg);
             
+            setDamagePopups(pop => [
+              ...pop,
+              {
+                id: `mortar-u-${Date.now()}-${Math.random()}`,
+                x: u.x,
+                y: u.y,
+                text: `-${dmg} HE!`,
+                color: '#ef4444',
+                createdAt: Date.now(),
+              }
+            ]);
             logs.push(`[MORTAR STRIKE] 💥 ${u.name} caught in blast radius for ${dmg} HE DMG!`);
             if (updatedHp <= 0) {
               logs.push(`[NEUTRALIZED] ${u.name} vaporized by tactical mortar bombardment.`);
@@ -1246,6 +1261,18 @@ const TacticalMission = () => {
               const nextHp = Math.max(0, obs.hp - dmg);
               nextObs[key] = { ...obs, hp: nextHp };
               
+              setDamagePopups(pop => [
+                ...pop,
+                {
+                  id: `mortar-obs-${Date.now()}-${Math.random()}`,
+                  x: nx,
+                  y: ny,
+                  text: `-${dmg} HP`,
+                  color: '#fbbf24',
+                  createdAt: Date.now(),
+                }
+              ]);
+
               if (nextHp <= 0) {
                 rubbleLogs.push(`[MORTAR DEMOLITION] 💥 The ${obs.type.toUpperCase()} at (${nx},${ny}) collapsed into rubble under heavy bombardment!`);
                 // Destroy linked door block
@@ -1263,6 +1290,20 @@ const TacticalMission = () => {
         }
         return nextObs;
       });
+
+      const explosionTracers = Array.from({ length: 8 }).map((_, i) => {
+        const angle = (i * Math.PI) / 4;
+        return {
+          id: `mortar-explode-${i}-${Date.now()}`,
+          fromX: targetX,
+          fromY: targetY,
+          toX: Math.max(0, Math.min(11, targetX + Math.round(Math.cos(angle) * 2))),
+          toY: Math.max(0, Math.min(11, targetY + Math.round(Math.sin(angle) * 2))),
+          color: '#f59e0b',
+          createdAt: Date.now(),
+        };
+      });
+      setShotTracers(prev => [...prev, ...explosionTracers]);
 
     }, 500);
   };
@@ -1282,10 +1323,15 @@ const TacticalMission = () => {
     const interval = setInterval(() => {
       setTick(t => t + 1);
 
+      setShotTracers(prev => prev.filter((tracer) => Date.now() - (tracer.createdAt ?? Date.now()) < 3000).slice(-12));
+      setDamagePopups(prev => prev.filter((popup) => Date.now() - popup.createdAt < 3000).slice(-12));
+
       setUnits(prevUnits => {
         let newUnits = [...prevUnits];
         let logs: string[] = [];
         let destroyed: Record<string, number> = {};
+        let newTracers: { id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt?: number }[] = [];
+        let newPopups: { id: string; x: number; y: number; text: string; color: string; createdAt: number }[] = [];
         let shouldAutoPause = false;
         let autoPauseReason = '';
 
@@ -1384,6 +1430,14 @@ const TacticalMission = () => {
                 u.ap -= 3;
                 u.inventory = u.inventory.filter((id, idx) => id !== 'medkit' || idx !== u.inventory.indexOf('medkit'));
                 logs.push(`[AUTO-MEDIC] 💉 ${u.name} automatically applied Medi-Patch on self (+${healAmount} HP).`);
+                newPopups.push({
+                  id: `heal-${Date.now()}-${Math.random()}`,
+                  x: u.x,
+                  y: u.y,
+                  text: `+${healAmount} HP`,
+                  color: '#48bb78',
+                  createdAt: Date.now(),
+                });
               } 
               // B. Ally Healing with Medkit on adjacent wounded squadmates
               else if (u.inventory.includes('medkit') && (stance === 'SUPPORT' || stance === 'DEFENSIVE' || stance === 'AGGRESSIVE')) {
@@ -1401,6 +1455,14 @@ const TacticalMission = () => {
                   u.ap -= 3;
                   u.inventory = u.inventory.filter((id, idx) => id !== 'medkit' || idx !== u.inventory.indexOf('medkit'));
                   logs.push(`[AUTO-MEDIC] 💉 ${u.name} treated wounded squadmate ${woundedAlly.name} (+${healAmount} HP).`);
+                  newPopups.push({
+                    id: `heal-${Date.now()}-${Math.random()}`,
+                    x: woundedAlly.x,
+                    y: woundedAlly.y,
+                    text: `+${healAmount} HP`,
+                    color: '#48bb78',
+                    createdAt: Date.now(),
+                  });
                 }
               }
 
@@ -1409,6 +1471,14 @@ const TacticalMission = () => {
                 u.ap += 6;
                 u.inventory = u.inventory.filter((id, idx) => id !== 'stim' || idx !== u.inventory.indexOf('stim'));
                 logs.push(`[AUTO-STIM] 🧪 ${u.name} administered Neuro-Stim (+6 AP surge).`);
+                newPopups.push({
+                  id: `stim-${Date.now()}-${Math.random()}`,
+                  x: u.x,
+                  y: u.y,
+                  text: '+6 AP',
+                  color: '#60a5fa',
+                  createdAt: Date.now(),
+                });
               }
 
               // D. Tactical Grenade usage if target is grouped or in cover
@@ -1420,6 +1490,14 @@ const TacticalMission = () => {
                     const blastEnemies = aliveEnemies.filter(e => Math.abs(e.x - targetEnemy.x) + Math.abs(e.y - targetEnemy.y) <= 2);
                     blastEnemies.forEach(be => {
                       be.hp = Math.max(0, be.hp - 35);
+                      newPopups.push({
+                        id: `boom-${Date.now()}-${Math.random()}`,
+                        x: be.x,
+                        y: be.y,
+                        text: '-35 BOOM!',
+                        color: '#fbbf24',
+                        createdAt: Date.now(),
+                      });
                       if (be.hp <= 0) {
                         logs.push(`[NEUTRALIZED] ${be.name} destroyed by grenade blast!`);
                         setUnitKills(prev => ({ ...prev, [u.id]: (prev[u.id] || 0) + 1 }));
@@ -1604,6 +1682,28 @@ const TacticalMission = () => {
                 reactor.ap -= 4;
                 reactor.cooldown = 4;
 
+                const tracerColor = isReactorPlayer ? '#38bdf8' : '#ef4444';
+                const popupColor = isReactorPlayer ? '#48bb78' : '#ef4444';
+
+                newTracers.push({
+                  id: `react-${Date.now()}-${Math.random()}`,
+                  fromX: reactor.x,
+                  fromY: reactor.y,
+                  toX: nextStep.x,
+                  toY: nextStep.y,
+                  color: tracerColor,
+                  createdAt: Date.now(),
+                });
+
+                newPopups.push({
+                  id: `react-${Date.now()}-${Math.random()}`,
+                  x: nextStep.x,
+                  y: nextStep.y,
+                  text: `-${reactionDmg}${cover !== 'NONE' ? ` (${cover} COVER)` : ''}`,
+                  color: popupColor,
+                  createdAt: Date.now(),
+                });
+
                 logs.push(`[REACTION SHOT] ⚡ ${reactor.name} ambushed ${u.name} moving into sight for ${reactionDmg} DMG${cover !== 'NONE' ? ` (${cover} COVER)` : ''}!`);
 
                 if (!isReactorPlayer && u.faction === 'PLAYER' && autoPauseOnDamage) {
@@ -1669,6 +1769,25 @@ const TacticalMission = () => {
             u.ap -= 4;
             u.cooldown = 4;
 
+            newTracers.push({
+              id: `obs-shoot-${Date.now()}-${Math.random()}`,
+              fromX: u.x,
+              fromY: u.y,
+              toX: obsX,
+              toY: obsY,
+              color: '#f59e0b',
+              createdAt: Date.now(),
+            });
+
+            newPopups.push({
+              id: `obs-dmg-${Date.now()}-${Math.random()}`,
+              x: obsX,
+              y: obsY,
+              text: `-${damage} HP`,
+              color: '#fbbf24',
+              createdAt: Date.now(),
+            });
+
             logs.push(`[BREACH FIRE] 💥 ${u.name} blasted the ${obs.type.toUpperCase()} wall for ${damage} DMG.`);
 
             if (obs.hp - damage <= 0) {
@@ -1706,7 +1825,35 @@ const TacticalMission = () => {
             const hitChance = Math.max(0.12, Math.min(0.92, baseHitChance + accuracyBonus + coverModifier));
             const didHit = Math.random() < hitChance;
 
+            const tracerColor = isPlayer ? '#38bdf8' : '#ef4444';
+            const popupColor = isPlayer ? '#48bb78' : '#ef4444';
+
             if (!didHit) {
+              const dx = target.x - u.x;
+              const dy = target.y - u.y;
+              const vectorLength = Math.max(1, Math.hypot(dx, dy));
+              const scatter = (Math.random() - 0.5) * 2.4;
+              const lateralX = -dy / vectorLength;
+              const lateralY = dx / vectorLength;
+              const missX = target.x + (dx === 0 ? scatter : dx * 0.65 + lateralX * scatter);
+              const missY = target.y + (dy === 0 ? scatter : dy * 0.65 + lateralY * scatter);
+              newTracers.push({
+                id: createCombatEventId('miss-tracer'),
+                fromX: u.x,
+                fromY: u.y,
+                toX: Math.max(0, Math.min(GRID_SIZE - 1, missX)),
+                toY: Math.max(0, Math.min(GRID_SIZE - 1, missY)),
+                color: '#cbd5e1',
+                createdAt: Date.now(),
+              });
+              newPopups.push({
+                id: createCombatEventId('miss-popup'),
+                x: target.x,
+                y: target.y,
+                text: 'MISS',
+                color: '#cbd5e1',
+                createdAt: Date.now(),
+              });
               logs.push(`[${isPlayer ? 'RETURN FIRE' : 'HOSTILE FIRE'}] ${u.name} fired at ${target.name} and missed.`);
               u.ap -= 4;
               u.cooldown = 4;
@@ -1761,6 +1908,25 @@ const TacticalMission = () => {
             u.ap -= 4;
             u.cooldown = 4;
 
+            newTracers.push({
+              id: createCombatEventId('hit-tracer'),
+              fromX: u.x,
+              fromY: u.y,
+              toX: target.x,
+              toY: target.y,
+              color: tracerColor,
+              createdAt: Date.now(),
+            });
+
+            newPopups.push({
+              id: createCombatEventId('hit-popup'),
+              x: target.x,
+              y: target.y,
+              text: `-${damage}${cover !== 'NONE' ? ` (${cover} COVER)` : ''}${specLog}`,
+              color: popupColor,
+              createdAt: Date.now(),
+            });
+
             logs.push(`[${isPlayer ? 'RETURN FIRE' : 'HOSTILE FIRE'}] ${u.name} shot ${target.name} for ${damage} DMG${cover !== 'NONE' ? ` (${cover} COVER)` : ''}${specLog}!`);
             destroyed[`${target.x},${target.y}`] = (destroyed[`${target.x},${target.y}`] || 0) + 1;
 
@@ -1781,6 +1947,13 @@ const TacticalMission = () => {
 
           return u;
         });
+
+        if (newTracers.length > 0) {
+          setShotTracers(prev => [...prev, ...newTracers]);
+        }
+        if (newPopups.length > 0) {
+          setDamagePopups(prev => [...prev, ...newPopups]);
+        }
 
         if (logs.length > 0) {
           setLog(prev => [...logs.reverse(), ...prev]);
