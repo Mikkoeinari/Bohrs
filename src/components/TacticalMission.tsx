@@ -979,7 +979,7 @@ const TacticalMission = () => {
   const [spottedEnemyIds, setSpottedEnemyIds] = useState<Set<string>>(new Set());
 
   // Visual Effects
-  const [shotTracers, setShotTracers] = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt?: number }[]>([]);
+  const [shotTracers, setShotTracers] = useState<{ id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt: number }[]>([]);
   const [damagePopups, setDamagePopups] = useState<{ id: string; x: number; y: number; text: string; color: string; createdAt: number }[]>([]);
 
   // Camera State
@@ -1321,16 +1321,17 @@ const TacticalMission = () => {
     const intervalMs = Math.round(400 / gameSpeed);
 
     const interval = setInterval(() => {
+      const now = Date.now();
       setTick(t => t + 1);
 
-      setShotTracers(prev => prev.filter((tracer) => Date.now() - (tracer.createdAt ?? Date.now()) < 3000).slice(-12));
-      setDamagePopups(prev => prev.filter((popup) => Date.now() - popup.createdAt < 3000).slice(-12));
+      setShotTracers(prev => prev.filter((tracer) => now - tracer.createdAt < 3000));
+      setDamagePopups(prev => prev.filter((popup) => now - popup.createdAt < 3000));
 
       setUnits(prevUnits => {
         let newUnits = [...prevUnits];
         let logs: string[] = [];
         let destroyed: Record<string, number> = {};
-        let newTracers: { id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt?: number }[] = [];
+        let newTracers: { id: string; fromX: number; fromY: number; toX: number; toY: number; color: string; createdAt: number }[] = [];
         let newPopups: { id: string; x: number; y: number; text: string; color: string; createdAt: number }[] = [];
         let shouldAutoPause = false;
         let autoPauseReason = '';
@@ -2363,6 +2364,8 @@ const TacticalMission = () => {
           <ThreeCityScene
             camera={{ zoom, rotation, pitch, offset }}
             combatLayout={combatLayout}
+            shotTracers={shotTracers}
+            damagePopups={damagePopups}
             onTileSelect={handleTileClick}
             pendingAction={pendingAction}
             confirmedAction={confirmedAction}
