@@ -42,24 +42,6 @@ export interface CombatSceneLayout {
   units: CombatSceneUnit[];
 }
 
-export interface CombatSceneTracer {
-  id: string;
-  fromX: number;
-  fromY: number;
-  toX: number;
-  toY: number;
-  color: string;
-}
-
-export interface CombatSceneDamagePopup {
-  id: string;
-  x: number;
-  y: number;
-  text: string;
-  color: string;
-  createdAt?: number;
-}
-
 interface ThreeCitySceneProps {
   buildings?: Building[];
   selectedBuildingId?: string | null;
@@ -75,8 +57,6 @@ interface ThreeCitySceneProps {
   onTileSelect?: (x: number, y: number) => void;
   pendingAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number } | null;
   confirmedAction?: { type: 'MOVE' | 'ATTACK'; x: number; y: number; targetUnitId?: string } | null;
-  shotTracers?: CombatSceneTracer[];
-  damagePopups?: CombatSceneDamagePopup[];
 }
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -180,45 +160,6 @@ const getCombatActionMarkerMaterial = (actionType: 'MOVE' | 'ATTACK', isConfirme
   return actionType === 'MOVE'
     ? { color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.4 }
     : { color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 0.35 };
-};
-
-const createFloatingTextSprite = (text: string, color: string, backgroundColor: string) => {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 180;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return null;
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = backgroundColor;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 12;
-  ctx.beginPath();
-  ctx.roundRect(16, 18, canvas.width - 32, canvas.height - 36, 26);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = 'bold 88px sans-serif';
-  ctx.fillStyle = color;
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 8);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-
-  const material = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthWrite: false,
-    depthTest: false,
-  });
-
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set(1.5, 0.55, 1);
-  return sprite;
 };
 
 const getBuildingTypeTheme = (buildingType: Building['type']) => {
@@ -465,7 +406,7 @@ const buildLabelTexture = (name: string, accentColor: string, selected: boolean)
   return texture;
 };
 
-const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect, pendingAction = null, confirmedAction = null, shotTracers = [], damagePopups = [] }) => {
+const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuildingId, camera, onBuildingSelect, markers = [], combatLayout, onTileSelect, pendingAction = null, confirmedAction = null }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -1124,6 +1065,13 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         actionMarkerGroupRef.current = actionMarkerGroup;
       }
 
+      const obstacleTileSet = new Set<string>();
+      combatLayout?.tiles.forEach((tile) => {
+        if (tile.obstacle && tile.obstacle.hp > 0) {
+          obstacleTileSet.add(`${tile.x},${tile.y}`);
+        }
+      });
+
       combatLayout?.units.forEach((unit) => {
         const unitGroup = new THREE.Group();
         unitGroup.userData = { combatUnit: true, tileX: unit.x, tileY: unit.y, unitId: unit.id };
@@ -1163,9 +1111,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           { x: unit.x, y: unit.y + 1 },
           { x: unit.x, y: unit.y - 1 },
         ];
-        const hasCover = coverNeighbors.some(({ x, y }) =>
-          combatLayout?.tiles.some((tile) => tile.x === x && tile.y === y && tile.obstacle && tile.obstacle.hp > 0)
-        );
+        const hasCover = coverNeighbors.some(({ x, y }) => obstacleTileSet.has(`${x},${y}`));
         if (hasCover) {
           const coverRing = new THREE.Mesh(
             new THREE.TorusGeometry(0.38, 0.025, 8, 24),
@@ -1213,37 +1159,6 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         interactiveMeshesRef.current.push(unitGroup);
         buildingGroup.add(unitGroup);
       });
-
-      const existingEffectsGroup = buildingGroup.userData.combatEffectsGroup as THREE.Group | undefined;
-      if (existingEffectsGroup) {
-        disposeMarkerResources(existingEffectsGroup);
-        buildingGroup.remove(existingEffectsGroup);
-      }
-
-      const effectsGroup = new THREE.Group();
-      effectsGroup.name = 'combat-effects-group';
-
-      const popupGroup = new THREE.Group();
-      const visiblePopups = damagePopups.filter((popup) => {
-        const createdAt = popup.createdAt ?? Date.now();
-        return Date.now() - createdAt < 3000;
-      });
-      visiblePopups.forEach((popup) => {
-        const sprite = createFloatingTextSprite(popup.text, popup.color, 'rgba(15, 23, 42, 0.42)');
-        if (!sprite) {
-          return;
-        }
-        sprite.position.set((popup.x - halfGrid) * tileSpacing, 1.2, (popup.y - halfGrid) * tileSpacing);
-        sprite.renderOrder = 20;
-        popupGroup.add(sprite);
-      });
-      if (popupGroup.children.length > 0) {
-        effectsGroup.add(popupGroup);
-      }
-      if (effectsGroup.children.length > 0) {
-        buildingGroup.add(effectsGroup);
-        buildingGroup.userData.combatEffectsGroup = effectsGroup;
-      }
 
       const selectionSurface = new THREE.Mesh(
         new THREE.PlaneGeometry(gridSize, gridSize),
