@@ -54,47 +54,73 @@ const distanceToSegment = (x: number, y: number, start: RoutePoint, end: RoutePo
   return Math.hypot(x - nearestX, y - nearestY);
 };
 
-const buildRoadRoutes = (gridSize: number): RoutePoint[][] => [
-  [
+const buildRoadRoutes = (gridSize: number): RoutePoint[][] => {
+  const outerRing = [
     { x: 0, y: 7 },
-    { x: 8, y: 8 },
+    { x: 8, y: 9 },
     { x: 16, y: 12 },
-    { x: 22, y: 15 },
-    { x: gridSize - 1, y: 17 },
-  ],
-  [
-    { x: 5, y: 0 },
-    { x: 10, y: 10 },
-    { x: 16, y: 18 },
-    { x: 24, y: 24 },
-    { x: gridSize - 2, y: gridSize - 1 },
-  ],
-  [
-    { x: 18, y: 0 },
-    { x: 20, y: 12 },
-    { x: 26, y: 20 },
-    { x: 29, y: gridSize - 1 },
-  ],
-  [
+    { x: 24, y: 15 },
+    { x: 30, y: 17 },
+    { x: gridSize - 1, y: 20 },
+    { x: gridSize - 2, y: 28 },
+    { x: 26, y: gridSize - 2 },
+    { x: 18, y: gridSize - 3 },
+    { x: 10, y: gridSize - 1 },
+    { x: 2, y: 30 },
+    { x: 0, y: 18 },
+    { x: 0, y: 7 },
+  ];
+
+  const industrialLoop = [
+    { x: 22, y: 4 },
+    { x: 30, y: 5 },
+    { x: 34, y: 12 },
+    { x: 31, y: 20 },
+    { x: 24, y: 23 },
+    { x: 18, y: 20 },
+    { x: 16, y: 12 },
+    { x: 22, y: 4 },
+  ];
+
+  const suburbanLoop = [
+    { x: 4, y: 0 },
+    { x: 11, y: 4 },
+    { x: 15, y: 11 },
+    { x: 13, y: 18 },
+    { x: 6, y: 22 },
+    { x: 2, y: 16 },
+    { x: 0, y: 8 },
+    { x: 4, y: 0 },
+  ];
+
+  const oldTownAlleys = [
+    { x: 8, y: 18 },
+    { x: 10, y: 24 },
+    { x: 15, y: 28 },
+    { x: 20, y: 24 },
+    { x: 18, y: 18 },
+    { x: 12, y: 14 },
+    { x: 8, y: 18 },
+  ];
+
+  const spineRoads = [
     { x: 0, y: 23 },
     { x: 9, y: 22 },
     { x: 18, y: 25 },
     { x: 28, y: 27 },
     { x: gridSize - 1, y: 30 },
-  ],
-  [
-    { x: 24, y: 5 },
+  ];
+
+  const serviceBranch = [
+    { x: 24, y: 6 },
     { x: 26, y: 9 },
     { x: 24, y: 14 },
-    { x: 26, y: 18 },
-  ],
-  [
-    { x: 7, y: 28 },
-    { x: 9, y: 24 },
-    { x: 12, y: 20 },
-    { x: 10, y: 15 },
-  ],
-];
+    { x: 27, y: 18 },
+    { x: 25, y: 23 },
+  ];
+
+  return [outerRing, industrialLoop, suburbanLoop, oldTownAlleys, spineRoads, serviceBranch];
+};
 
 const isRoadCell = (x: number, y: number, gridSize: number) => {
   if (x <= 0 || y <= 0 || x >= gridSize - 1 || y >= gridSize - 1) {
