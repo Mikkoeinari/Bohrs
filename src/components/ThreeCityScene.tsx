@@ -917,80 +917,38 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       };
 
       const roadMargin = 2.5;
-      const districtRoads = [
-        {
-          name: 'industrial-west',
-          points: [
-            { x: (minX - roadMargin - centerX) * lotScale, z: (minY + 4.0 - centerY) * lotScale },
-            { x: (minX + 2.4 - centerX) * lotScale, z: (minY + 1.2 - centerY) * lotScale },
-            { x: (minX + 5.6 - centerX) * lotScale, z: (centerY - 1.2) * lotScale },
-            { x: (centerX - 3.4) * lotScale, z: (centerY + 3.2) * lotScale },
-            { x: (centerX - 1.0) * lotScale, z: (maxY * 0.54 - centerY) * lotScale },
-            { x: (minX + 2.8 - centerX) * lotScale, z: (maxY - 2.0 - centerY) * lotScale },
-            { x: (minX - roadMargin - centerX) * lotScale, z: (maxY * 0.72 - centerY) * lotScale },
-          ],
-          width: roadWidth * 1.04,
-        },
-        {
-          name: 'suburbs-north',
-          points: [
-            { x: (minX - 0.8 - centerX) * lotScale, z: (minY - 1.0 - centerY) * lotScale },
-            { x: (minX + 6.0 - centerX) * lotScale, z: (minY + 4.2 - centerY) * lotScale },
-            { x: (centerX + 1.0) * lotScale, z: (centerY - 4.6) * lotScale },
-            { x: (maxX - 6.5 - centerX) * lotScale, z: (maxY * 0.22 - centerY) * lotScale },
-            { x: (maxX - 1.5 - centerX) * lotScale, z: (maxY * 0.46 - centerY) * lotScale },
-            { x: (maxX - 9.5 - centerX) * lotScale, z: (maxY * 0.12 - centerY) * lotScale },
-            { x: (minX - 0.8 - centerX) * lotScale, z: (minY - 1.0 - centerY) * lotScale },
-          ],
-          width: roadWidth * 0.9,
-        },
-        {
-          name: 'old-town-center',
-          points: [
-            { x: (minX + 3.3 - centerX) * lotScale, z: (centerY + 6.3) * lotScale },
-            { x: (minX + 8.6 - centerX) * lotScale, z: (centerY + 8.2) * lotScale },
-            { x: (centerX - 0.6) * lotScale, z: (centerY + 9.8) * lotScale },
-            { x: (centerX + 4.3) * lotScale, z: (centerY + 5.4) * lotScale },
-            { x: (maxX - 4.5 - centerX) * lotScale, z: (centerY + 7.0) * lotScale },
-            { x: (maxX - 2.0 - centerX) * lotScale, z: (centerY + 2.5) * lotScale },
-            { x: (minX + 3.3 - centerX) * lotScale, z: (centerY + 6.3) * lotScale },
-          ],
-          width: roadWidth * 0.74,
-        },
-        {
-          name: 'government-east',
-          points: [
-            { x: (maxX + roadMargin - centerX) * lotScale, z: (minY - 0.5 - centerY) * lotScale },
-            { x: (maxX - 4.0 - centerX) * lotScale, z: (minY + 2.8 - centerY) * lotScale },
-            { x: (centerX + 6.0) * lotScale, z: (centerY - 0.5) * lotScale },
-            { x: (maxX - 2.4 - centerX) * lotScale, z: (maxY * 0.44 - centerY) * lotScale },
-            { x: (maxX + roadMargin - centerX) * lotScale, z: (maxY + 1.8 - centerY) * lotScale },
-          ],
-          width: roadWidth * 0.98,
-        },
+      const xRoadBands = Array.from(new Set<number>(buildingList.map((building) => Math.round(Number(building.x))))).sort((left, right) => left - right);
+      const yRoadBands = Array.from(new Set<number>(buildingList.map((building) => Math.round(Number(building.y))))).sort((left, right) => left - right);
+
+      const addLineRoad = (xBand: number, yBand: number, isVertical: boolean) => {
+        const startX = (xBand - centerX) * lotScale;
+        const endX = (xBand - centerX) * lotScale;
+        const startZ = (minY - roadMargin - centerY) * lotScale;
+        const endZ = (maxY + roadMargin - centerY) * lotScale;
+        const startY = (minX - roadMargin - centerX) * lotScale;
+        const endY = (maxX + roadMargin - centerX) * lotScale;
+
+        addCurvedRoad([
+          { x: isVertical ? startX : startY, z: isVertical ? startZ : (yBand - centerY) * lotScale },
+          { x: isVertical ? endX : endY, z: isVertical ? endZ : (yBand - centerY) * lotScale },
+        ], roadWidth * 0.94);
+      };
+
+      xRoadBands.forEach((xBand) => {
+        addLineRoad(xBand, -1, true);
+      });
+      yRoadBands.forEach((yBand) => {
+        addLineRoad(-1, yBand, false);
+      });
+
+      const outerRing = [
+        { x: (minX - roadMargin - centerX) * lotScale, z: (minY - roadMargin - centerY) * lotScale },
+        { x: (maxX + roadMargin - centerX) * lotScale, z: (minY - roadMargin - centerY) * lotScale },
+        { x: (maxX + roadMargin - centerX) * lotScale, z: (maxY + roadMargin - centerY) * lotScale },
+        { x: (minX - roadMargin - centerX) * lotScale, z: (maxY + roadMargin - centerY) * lotScale },
+        { x: (minX - roadMargin - centerX) * lotScale, z: (minY - roadMargin - centerY) * lotScale },
       ];
-
-      districtRoads.forEach(({ points, width }) => addCurvedRoad(points, width));
-
-      const culDeSacRoads = [
-        [
-          { x: (minX + 5.3 - centerX) * lotScale, z: (centerY + 6.0) * lotScale },
-          { x: (minX + 7.3 - centerX) * lotScale, z: (centerY + 9.2) * lotScale },
-          { x: (minX + 5.5 - centerX) * lotScale, z: (centerY + 11.8) * lotScale },
-        ],
-        [
-          { x: (maxX - 6.5 - centerX) * lotScale, z: (centerY + 4.3) * lotScale },
-          { x: (maxX - 9.8 - centerX) * lotScale, z: (centerY + 7.1) * lotScale },
-          { x: (maxX - 6.2 - centerX) * lotScale, z: (centerY + 10.8) * lotScale },
-        ],
-        [
-          { x: (centerX + 1.2) * lotScale, z: (maxY * 0.74 - centerY) * lotScale },
-          { x: (centerX + 4.4) * lotScale, z: (maxY * 0.88 - centerY) * lotScale },
-          { x: (centerX + 1.8) * lotScale, z: (maxY * 0.98 - centerY) * lotScale },
-        ],
-      ];
-
-      culDeSacRoads.forEach((path) => addCurvedRoad(path, roadWidth * 0.82));
+      addCurvedRoad(outerRing, roadWidth * 0.96);
 
       scene.add(roadGroup);
     } else {
