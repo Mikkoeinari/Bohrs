@@ -220,40 +220,79 @@ function makeCityRng(initialSeed: number) {
 type BuildingType = 'BASE' | 'WAREHOUSE' | 'FACTORY' | 'CLUB' | 'OFFICE';
 type FacilityType = 'EMPTY' | 'COMMAND' | 'LAB' | 'ARMORY' | 'INFIRMARY' | 'QUARTERS' | 'WORKSHOP' | 'POWER' | 'HYDROPONICS' | 'GARAGE';
 
+type DistrictStyle = 'SUBURBS' | 'INDUSTRIAL' | 'OLD_TOWN' | 'GOVERNMENT' | 'COMMERCIAL';
+
+function getDistrictStyle(col: number, row: number): DistrictStyle {
+  const isNorth = row <= 2;
+  const isWest = col <= 2;
+  const isCenter = col >= 3 && col <= 5 && row >= 3 && row <= 5;
+  const isEast = col >= 6;
+  const isSouth = row >= 6;
+
+  if (isNorth && !isEast) return 'SUBURBS';
+  if (isWest || (isSouth && col <= 4)) return 'INDUSTRIAL';
+  if (isCenter || (col >= 3 && col <= 5 && row >= 3 && row <= 5)) return 'OLD_TOWN';
+  if (isEast && row >= 4) return 'GOVERNMENT';
+  if (isSouth && col >= 5) return 'COMMERCIAL';
+  return 'OLD_TOWN';
+}
+
 // Weighted faction selection tables per city zone (col, row in 0-7 range)
 function getZoneFaction(col: number, row: number, rng: ReturnType<typeof makeCityRng>): string {
+  const district = getDistrictStyle(col, row);
   const roll = rng.next();
-  // Player / suburbs zone (top-left quadrant)
-  if (col <= 2 && row <= 2) {
-    return roll < 0.55 ? 'rivals' : roll < 0.80 ? 'corps' : 'police';
+
+  if (district === 'SUBURBS') {
+    return roll < 0.62 ? 'player' : roll < 0.84 ? 'police' : 'corps';
   }
-  // Industrial corridor (right half, upper)
-  if (col >= 5 && row <= 3) {
-    return roll < 0.65 ? 'corps' : roll < 0.85 ? 'rivals' : 'police';
+
+  if (district === 'INDUSTRIAL') {
+    return roll < 0.70 ? 'corps' : roll < 0.90 ? 'rivals' : 'police';
   }
-  // Government quarter (center-right, mid-lower)
-  if (col >= 4 && row >= 4) {
-    return roll < 0.45 ? 'police' : roll < 0.75 ? 'corps' : 'rivals';
+
+  if (district === 'GOVERNMENT') {
+    return roll < 0.52 ? 'police' : roll < 0.82 ? 'corps' : 'rivals';
   }
-  // Underworld district (bottom-left)
-  if (col <= 3 && row >= 5) {
-    return roll < 0.70 ? 'rivals' : roll < 0.90 ? 'corps' : 'police';
+
+  if (district === 'COMMERCIAL') {
+    return roll < 0.44 ? 'rivals' : roll < 0.72 ? 'corps' : 'police';
   }
-  // Central mixed zone
-  return roll < 0.40 ? 'rivals' : roll < 0.70 ? 'corps' : 'police';
+
+  // Old town mixed zone
+  return roll < 0.38 ? 'rivals' : roll < 0.70 ? 'corps' : 'police';
 }
 
 function getZoneBuildingType(factionId: string, col: number, row: number, rng: ReturnType<typeof makeCityRng>): BuildingType {
+  const district = getDistrictStyle(col, row);
   const roll = rng.next();
+
+  if (district === 'INDUSTRIAL') {
+    if (factionId === 'corps') return roll < 0.58 ? 'FACTORY' : roll < 0.84 ? 'WAREHOUSE' : 'OFFICE';
+    if (factionId === 'police') return roll < 0.36 ? 'OFFICE' : roll < 0.7 ? 'FACTORY' : 'WAREHOUSE';
+    return roll < 0.5 ? 'WAREHOUSE' : roll < 0.8 ? 'FACTORY' : 'CLUB';
+  }
+
+  if (district === 'SUBURBS') {
+    if (factionId === 'player') return roll < 0.55 ? 'BASE' : roll < 0.82 ? 'OFFICE' : 'CLUB';
+    if (factionId === 'police') return roll < 0.5 ? 'OFFICE' : roll < 0.78 ? 'WAREHOUSE' : 'CLUB';
+    return roll < 0.46 ? 'WAREHOUSE' : roll < 0.75 ? 'OFFICE' : 'CLUB';
+  }
+
+  if (district === 'GOVERNMENT') {
+    return roll < 0.58 ? 'OFFICE' : roll < 0.8 ? 'BASE' : 'WAREHOUSE';
+  }
+
+  if (district === 'COMMERCIAL') {
+    return roll < 0.42 ? 'CLUB' : roll < 0.7 ? 'OFFICE' : roll < 0.9 ? 'WAREHOUSE' : 'FACTORY';
+  }
+
   if (factionId === 'corps') {
-    // Industrial/tech-heavy
     if (col >= 4) return roll < 0.45 ? 'FACTORY' : roll < 0.80 ? 'OFFICE' : 'WAREHOUSE';
     return roll < 0.35 ? 'FACTORY' : roll < 0.65 ? 'OFFICE' : roll < 0.85 ? 'WAREHOUSE' : 'CLUB';
   }
   if (factionId === 'police') {
     return roll < 0.55 ? 'OFFICE' : roll < 0.80 ? 'FACTORY' : 'WAREHOUSE';
   }
-  // rivals — street-level, mixed
   if (row <= 2) return roll < 0.45 ? 'WAREHOUSE' : roll < 0.70 ? 'FACTORY' : roll < 0.88 ? 'OFFICE' : 'CLUB';
   return roll < 0.40 ? 'WAREHOUSE' : roll < 0.60 ? 'CLUB' : roll < 0.80 ? 'FACTORY' : 'OFFICE';
 }
