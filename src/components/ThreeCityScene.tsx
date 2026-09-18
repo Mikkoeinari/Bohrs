@@ -337,6 +337,169 @@ const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY
   };
 };
 
+const getFactionStreetFurnitureStyle = (ownerId?: string) => {
+  switch (ownerId) {
+    case 'corps':
+      return {
+        terrain: 'industrial-grid',
+        furniture: 'pipes',
+        primary: '#64748b',
+        secondary: '#94a3b8',
+        accent: '#cbd5e1',
+      };
+    case 'police':
+      return {
+        terrain: 'police-concrete',
+        furniture: 'barriers',
+        primary: '#94a3b8',
+        secondary: '#e2e8f0',
+        accent: '#60a5fa',
+      };
+    case 'rivals':
+      return {
+        terrain: 'ruined-scrap',
+        furniture: 'slum-huts',
+        primary: '#7c2d12',
+        secondary: '#b45309',
+        accent: '#fca5a5',
+      };
+    case 'player':
+      return {
+        terrain: 'suburban-lawn',
+        furniture: 'fence',
+        primary: '#9db7ae',
+        secondary: '#d9f99d',
+        accent: '#7dd3fc',
+      };
+    default:
+      return {
+        terrain: 'district-paving',
+        furniture: 'pits',
+        primary: '#94a3b8',
+        secondary: '#cbd5e1',
+        accent: '#e2e8f0',
+      };
+  }
+};
+
+const createFactionStreetFurniture = ({ x, z, ownerId, width, depth }: { x: number; z: number; ownerId?: string; width: number; depth: number }) => {
+  const group = new THREE.Group();
+  const style = getFactionStreetFurnitureStyle(ownerId);
+  const footprintInset = Math.min(width, depth) * 0.18;
+  const baseY = 0.12;
+
+  if (style.furniture === 'pipes') {
+    const grate = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.76), 0.05, Math.max(0.8, depth * 0.52)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.7, metalness: 0.32 })
+    );
+    grate.position.set(x, baseY + 0.02, z);
+    group.add(grate);
+
+    const pipeMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.5, metalness: 0.7 });
+    const pipeOffsets = [-0.42, 0, 0.42];
+    pipeOffsets.forEach((offset) => {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, Math.max(0.7, width * 0.8), 10), pipeMaterial);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.position.set(x + offset, baseY + 0.12, z);
+      group.add(pipe);
+    });
+  } else if (style.furniture === 'barriers') {
+    const barrierMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.85, metalness: 0.12 });
+    [0, 1, 2].forEach((index) => {
+      const barrier = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.12), barrierMaterial);
+      barrier.position.set(x + (index - 1) * 0.42, baseY + 0.15, z + (index % 2 === 0 ? 0.22 : -0.22));
+      group.add(barrier);
+    });
+
+    const pad = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.9, width * 0.44), 0.04, Math.max(0.9, depth * 0.4)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.92, metalness: 0.08 })
+    );
+    pad.position.set(x, baseY + 0.02, z);
+    group.add(pad);
+  } else if (style.furniture === 'slum-huts') {
+    const hutMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.95, metalness: 0.04 });
+    const hutRoofMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.86, metalness: 0.05 });
+    const hutOffsets = [
+      { dx: -0.38, dz: -0.18 },
+      { dx: 0.18, dz: 0.26 },
+      { dx: 0.52, dz: -0.12 },
+    ];
+    hutOffsets.forEach(({ dx, dz }) => {
+      const hut = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.28, 0.3), hutMaterial);
+      hut.position.set(x + dx, baseY + 0.14, z + dz);
+      group.add(hut);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.2, 4), hutRoofMaterial);
+      roof.rotation.y = Math.PI / 4;
+      roof.position.set(x + dx, baseY + 0.36, z + dz);
+      group.add(roof);
+    });
+
+    const scrap = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.5, width * 0.26), 0.18, Math.max(0.5, depth * 0.22)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.accent), roughness: 0.9, metalness: 0.02 })
+    );
+    scrap.position.set(x - 0.08, baseY + 0.09, z + 0.12);
+    group.add(scrap);
+  } else if (style.furniture === 'fence') {
+    const fenceMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.9, metalness: 0.08 });
+    const postMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.8, metalness: 0.02 });
+    for (let step = -2; step <= 2; step += 1) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.06), postMaterial);
+      post.position.set(x + step * 0.22, baseY + 0.2, z - footprintInset * 0.24);
+      group.add(post);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), fenceMaterial);
+      rail.position.set(x + step * 0.22, baseY + 0.28, z - footprintInset * 0.24);
+      group.add(rail);
+    }
+
+    const lawn = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.58), 0.04, Math.max(0.8, depth * 0.52)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.96, metalness: 0.02 })
+    );
+    lawn.position.set(x, baseY + 0.02, z);
+    group.add(lawn);
+  } else {
+    const patch = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.9, width * 0.72), 0.04, Math.max(0.9, depth * 0.7)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.88, metalness: 0.12 })
+    );
+    patch.position.set(x, baseY + 0.02, z);
+    group.add(patch);
+  }
+
+  if (style.terrain === 'industrial-grid') {
+    const gridMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.65, metalness: 0.32 });
+    const grid = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.7, width * 0.44), 0.02, Math.max(0.7, depth * 0.2)), gridMaterial);
+    grid.position.set(x, baseY + 0.05, z + 0.1);
+    group.add(grid);
+  } else if (style.terrain === 'police-concrete') {
+    const stripMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.9, metalness: 0.08 });
+    const stripe1 = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.7, width * 0.28), 0.02, Math.max(0.7, depth * 0.42)), stripMaterial);
+    stripe1.position.set(x - 0.1, baseY + 0.04, z);
+    const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.7, width * 0.28), 0.02, Math.max(0.7, depth * 0.42)), stripMaterial);
+    stripe2.position.set(x + 0.2, baseY + 0.04, z);
+    group.add(stripe1, stripe2);
+  } else if (style.terrain === 'ruined-scrap') {
+    const ruinedPatch = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.7), 0.03, Math.max(0.8, depth * 0.62)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 1, metalness: 0.02 })
+    );
+    ruinedPatch.position.set(x, baseY + 0.03, z);
+    group.add(ruinedPatch);
+  } else if (style.terrain === 'suburban-lawn') {
+    const turfPatch = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.86), 0.03, Math.max(0.8, depth * 0.8)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.96, metalness: 0.02 })
+    );
+    turfPatch.position.set(x, baseY + 0.02, z);
+    group.add(turfPatch);
+  }
+
+  return group;
+};
+
 export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
     const bounds = getBuildingLotBounds(building);
@@ -1098,6 +1261,15 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         base.position.set(x, 0.09, z);
         base.receiveShadow = true;
         buildingGroup.add(base);
+
+        const terrainDetail = createFactionStreetFurniture({
+          x,
+          z,
+          ownerId: building.ownerId,
+          width,
+          depth,
+        });
+        buildingGroup.add(terrainDetail);
 
         const shellGroup = createBuildingShell({
           width,
