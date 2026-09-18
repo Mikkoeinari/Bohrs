@@ -224,11 +224,59 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
   }
 };
 
-const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY: number) => {
+const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY: number, ownerId?: string) => {
   const north = y < centerY - 2.5;
   const west = x < centerX - 2.5;
   const east = x > centerX + 2.5;
   const south = y > centerY + 2.5;
+
+  if (ownerId === 'player') {
+    return {
+      body: '#314a43',
+      accent: '#7dd3fc',
+      roof: '#1b2d2a',
+      window: '#ecfeff',
+      base: '#9db7ae',
+      density: 0.72,
+      terrain: '#cfe8d0',
+    };
+  }
+
+  if (ownerId === 'corps') {
+    return {
+      body: '#2d2e2f',
+      accent: '#a78bfa',
+      roof: '#0f172a',
+      window: '#e2e8f0',
+      base: '#6b7280',
+      density: 1.24,
+      terrain: '#cbd5e1',
+    };
+  }
+
+  if (ownerId === 'police') {
+    return {
+      body: '#27354b',
+      accent: '#60a5fa',
+      roof: '#0f172a',
+      window: '#eff6ff',
+      base: '#64748b',
+      density: 1.06,
+      terrain: '#dfeaf6',
+    };
+  }
+
+  if (ownerId === 'rivals') {
+    return {
+      body: '#3a2625',
+      accent: '#f87171',
+      roof: '#7f1d1d',
+      window: '#fef2f2',
+      base: '#7c2d12',
+      density: 1.16,
+      terrain: '#e5c6a3',
+    };
+  }
 
   if (west) {
     return {
@@ -238,6 +286,7 @@ const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY
       window: '#dbeafe',
       base: '#6b7280',
       density: 1.2,
+      terrain: '#d7dfe7',
     };
   }
 
@@ -249,6 +298,7 @@ const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY
       window: '#ecfccb',
       base: '#94a3b8',
       density: 0.78,
+      terrain: '#d5e8bf',
     };
   }
 
@@ -260,6 +310,7 @@ const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY
       window: '#eff6ff',
       base: '#64748b',
       density: 1.06,
+      terrain: '#dfeaf6',
     };
   }
 
@@ -271,6 +322,7 @@ const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY
       window: '#fef3c7',
       base: '#7c2d12',
       density: 1.08,
+      terrain: '#e7d5b5',
     };
   }
 
@@ -281,6 +333,7 @@ const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY
     window: '#f8fafc',
     base: '#4b5563',
     density: 0.9,
+    terrain: '#d8d1c5',
   };
 };
 
@@ -975,7 +1028,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const footprintW = Math.max(1, metrics.footprintW);
         const footprintH = Math.max(1, metrics.footprintH);
         const lotCenter = getBuildingLotCenter(building);
-        const districtPalette = getDistrictVisualPalette(lotCenter.x, lotCenter.y, centerX, centerY);
+        const districtPalette = getDistrictVisualPalette(lotCenter.x, lotCenter.y, centerX, centerY, building.ownerId);
         const footprintScale = 1.7 * districtPalette.density;
         const footprintWidth = Math.max(1.2, Math.min(10, footprintW * footprintScale));
         const footprintDepth = Math.max(1.2, Math.min(10, footprintH * footprintScale));
@@ -1032,7 +1085,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
         const footprint = new THREE.Mesh(
           new THREE.BoxGeometry(footprintWidth, 0.08, footprintDepth),
-          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.95, metalness: 0.02 })
+          new THREE.MeshStandardMaterial({ color: new THREE.Color(districtPalette.terrain), roughness: 0.95, metalness: 0.02 })
         );
         footprint.position.set(x, 0.04, z);
         footprint.receiveShadow = true;
@@ -1040,7 +1093,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
         const base = new THREE.Mesh(
           new THREE.BoxGeometry(width * 1.02, 0.18, depth * 1.02),
-          new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.95, metalness: 0.03 })
+          new THREE.MeshStandardMaterial({ color: new THREE.Color(districtPalette.base), roughness: 0.95, metalness: 0.03 })
         );
         base.position.set(x, 0.09, z);
         base.receiveShadow = true;
