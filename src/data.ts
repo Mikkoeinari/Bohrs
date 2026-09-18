@@ -220,40 +220,90 @@ function makeCityRng(initialSeed: number) {
 type BuildingType = 'BASE' | 'WAREHOUSE' | 'FACTORY' | 'CLUB' | 'OFFICE';
 type FacilityType = 'EMPTY' | 'COMMAND' | 'LAB' | 'ARMORY' | 'INFIRMARY' | 'QUARTERS' | 'WORKSHOP' | 'POWER' | 'HYDROPONICS' | 'GARAGE';
 
+type DistrictStyle = 'SUBURBS' | 'INDUSTRIAL' | 'OLD_TOWN' | 'GOVERNMENT' | 'COMMERCIAL';
+
+function getDistrictStyle(col: number, row: number): DistrictStyle {
+  const isNorth = row <= 2;
+  const isWest = col <= 2;
+  const isCenter = col >= 3 && col <= 5 && row >= 3 && row <= 5;
+  const isEast = col >= 6;
+  const isSouth = row >= 6;
+
+  if (isNorth && !isEast) return 'SUBURBS';
+  if (isWest || (isSouth && col <= 4)) return 'INDUSTRIAL';
+  if (isCenter || (col >= 3 && col <= 5 && row >= 3 && row <= 5)) return 'OLD_TOWN';
+  if (isEast && row >= 4) return 'GOVERNMENT';
+  if (isSouth && col >= 5) return 'COMMERCIAL';
+  return 'OLD_TOWN';
+}
+
+function getDistrictDensityBias(style: DistrictStyle): number {
+  switch (style) {
+    case 'SUBURBS': return 0.16;
+    case 'INDUSTRIAL': return -0.12;
+    case 'OLD_TOWN': return -0.24;
+    case 'GOVERNMENT': return 0.04;
+    case 'COMMERCIAL': return -0.06;
+    default: return 0;
+  }
+}
+
 // Weighted faction selection tables per city zone (col, row in 0-7 range)
 function getZoneFaction(col: number, row: number, rng: ReturnType<typeof makeCityRng>): string {
+  const district = getDistrictStyle(col, row);
   const roll = rng.next();
-  // Player / suburbs zone (top-left quadrant)
-  if (col <= 2 && row <= 2) {
-    return roll < 0.55 ? 'rivals' : roll < 0.80 ? 'corps' : 'police';
+
+  if (district === 'SUBURBS') {
+    return roll < 0.62 ? 'player' : roll < 0.84 ? 'police' : 'corps';
   }
-  // Industrial corridor (right half, upper)
-  if (col >= 5 && row <= 3) {
-    return roll < 0.65 ? 'corps' : roll < 0.85 ? 'rivals' : 'police';
+
+  if (district === 'INDUSTRIAL') {
+    return roll < 0.70 ? 'corps' : roll < 0.90 ? 'rivals' : 'police';
   }
-  // Government quarter (center-right, mid-lower)
-  if (col >= 4 && row >= 4) {
-    return roll < 0.45 ? 'police' : roll < 0.75 ? 'corps' : 'rivals';
+
+  if (district === 'GOVERNMENT') {
+    return roll < 0.52 ? 'police' : roll < 0.82 ? 'corps' : 'rivals';
   }
-  // Underworld district (bottom-left)
-  if (col <= 3 && row >= 5) {
-    return roll < 0.70 ? 'rivals' : roll < 0.90 ? 'corps' : 'police';
+
+  if (district === 'COMMERCIAL') {
+    return roll < 0.44 ? 'rivals' : roll < 0.72 ? 'corps' : 'police';
   }
-  // Central mixed zone
-  return roll < 0.40 ? 'rivals' : roll < 0.70 ? 'corps' : 'police';
+
+  // Old town mixed zone
+  return roll < 0.38 ? 'rivals' : roll < 0.70 ? 'corps' : 'police';
 }
 
 function getZoneBuildingType(factionId: string, col: number, row: number, rng: ReturnType<typeof makeCityRng>): BuildingType {
+  const district = getDistrictStyle(col, row);
   const roll = rng.next();
+
+  if (district === 'INDUSTRIAL') {
+    if (factionId === 'corps') return roll < 0.58 ? 'FACTORY' : roll < 0.84 ? 'WAREHOUSE' : 'OFFICE';
+    if (factionId === 'police') return roll < 0.36 ? 'OFFICE' : roll < 0.7 ? 'FACTORY' : 'WAREHOUSE';
+    return roll < 0.5 ? 'WAREHOUSE' : roll < 0.8 ? 'FACTORY' : 'CLUB';
+  }
+
+  if (district === 'SUBURBS') {
+    if (factionId === 'player') return roll < 0.55 ? 'BASE' : roll < 0.82 ? 'OFFICE' : 'CLUB';
+    if (factionId === 'police') return roll < 0.5 ? 'OFFICE' : roll < 0.78 ? 'WAREHOUSE' : 'CLUB';
+    return roll < 0.46 ? 'WAREHOUSE' : roll < 0.75 ? 'OFFICE' : 'CLUB';
+  }
+
+  if (district === 'GOVERNMENT') {
+    return roll < 0.58 ? 'OFFICE' : roll < 0.8 ? 'BASE' : 'WAREHOUSE';
+  }
+
+  if (district === 'COMMERCIAL') {
+    return roll < 0.42 ? 'CLUB' : roll < 0.7 ? 'OFFICE' : roll < 0.9 ? 'WAREHOUSE' : 'FACTORY';
+  }
+
   if (factionId === 'corps') {
-    // Industrial/tech-heavy
     if (col >= 4) return roll < 0.45 ? 'FACTORY' : roll < 0.80 ? 'OFFICE' : 'WAREHOUSE';
     return roll < 0.35 ? 'FACTORY' : roll < 0.65 ? 'OFFICE' : roll < 0.85 ? 'WAREHOUSE' : 'CLUB';
   }
   if (factionId === 'police') {
     return roll < 0.55 ? 'OFFICE' : roll < 0.80 ? 'FACTORY' : 'WAREHOUSE';
   }
-  // rivals — street-level, mixed
   if (row <= 2) return roll < 0.45 ? 'WAREHOUSE' : roll < 0.70 ? 'FACTORY' : roll < 0.88 ? 'OFFICE' : 'CLUB';
   return roll < 0.40 ? 'WAREHOUSE' : roll < 0.60 ? 'CLUB' : roll < 0.80 ? 'FACTORY' : 'OFFICE';
 }
@@ -376,28 +426,33 @@ function generateProceduralBuildings(): Record<string, Building> {
     '2,2', '14,14', '18,18', '22,18', '26,18', '30,22', '18,16', '28,18', '24,18', '34,24', '36,30',
   ]);
 
-  const cityGridCols = 10;
-  const cityGridRows = 10;
-  const cityLotSpacing = 5;
-  const cityOccupancyChance = 0.82;
+  const cityGridCols = 9;
+  const cityGridRows = 9;
+  const cityLotSpacing = 6;
+  const cityOccupancyChance = 0.76;
   const placedLotKeys = new Set<string>([...reservedLots]);
 
-  // A boulevard-heavy grid: the main arteries are every ~5 cells, while a small offset on alternating rows
-  // creates old-town blocks and irregular parcels that feel more like central European urban districts.
+  // Bend the city away from a uniform block grid: each district has a subtle drift so alleys, cul-de-sacs,
+  // and ring roads feel like a lived-in post-collapse town instead of a CAD-perfect checkerboard.
   for (let row = 0; row < cityGridRows; row++) {
     for (let col = 0; col < cityGridCols; col++) {
       const baseX = col * cityLotSpacing + 2;
       const baseY = row * cityLotSpacing + 2;
-      const staggerX = (row + col) % 3 === 0 ? 1 : (row % 2 === 0 ? 0 : -1);
-      const staggerY = (row % 2 === 0 && col % 2 === 1) ? 1 : (col % 2 === 0 ? -1 : 0);
-      const x = Math.max(2, baseX + staggerX);
-      const y = Math.max(2, baseY + staggerY);
+      const districtDriftX = Math.sin((row + 1) * 1.47 + col * 0.85) * 1.2;
+      const districtDriftY = Math.cos((col + 1) * 1.64 - row * 0.9) * 1.1;
+      const jitterX = rng.next() * 1.8 - 0.9;
+      const jitterY = rng.next() * 1.6 - 0.8;
+      const district = getDistrictStyle(col, row);
+      const districtDensityBias = getDistrictDensityBias(district);
+      const x = Math.round(Math.max(2, baseX + districtDriftX + jitterX));
+      const y = Math.round(Math.max(2, baseY + districtDriftY + jitterY));
       const lotKey = `${x},${y}`;
 
       if (placedLotKeys.has(lotKey)) continue;
 
-      const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.14 : 0;
-      if (rng.next() > cityOccupancyChance - edgeSparsityReduction) continue;
+      const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.18 : 0;
+      const occupancyThreshold = Math.min(0.95, Math.max(0.45, cityOccupancyChance + districtDensityBias - edgeSparsityReduction));
+      if (rng.next() > occupancyThreshold) continue;
       placedLotKeys.add(lotKey);
 
       const factionId = getZoneFaction(col, row, rng);
@@ -407,12 +462,14 @@ function generateProceduralBuildings(): Record<string, Building> {
 
       const id = `b-${x}-${y}`;
       const layout = getProceduralBuildingLayout(type, facilities.length, false);
+      const districtScale = district === 'SUBURBS' ? 1.36 : district === 'OLD_TOWN' ? 0.78 : district === 'INDUSTRIAL' ? 1.12 : 1.04;
       buildings[id] = {
         id,
         name: buildBuildingName(id),
         ownerId: factionId,
         x, y,
-        width: layout.width, height: layout.height,
+        width: Math.max(layout.width, 1) * districtScale,
+        height: Math.max(layout.height, 1) * districtScale,
         type,
         health: hp,
         maxHealth: hp,

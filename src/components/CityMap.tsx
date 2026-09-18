@@ -27,12 +27,99 @@ type RoutePoint = {
 
 const getRoadAxes = (gridSize: number) => {
   const axes = new Set<number>();
-  for (let axis = 0; axis < gridSize; axis += 5) {
-    axes.add(axis);
-  }
-  axes.add(0);
-  axes.add(gridSize - 1);
+  const roadRoutes = buildRoadRoutes(gridSize);
+
+  roadRoutes.forEach((route) => {
+    route.forEach(({ x, y }) => {
+      axes.add(Math.round(x));
+      axes.add(Math.round(y));
+    });
+  });
+
   return axes;
+};
+
+const distanceToSegment = (x: number, y: number, start: RoutePoint, end: RoutePoint) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) {
+    return Math.hypot(x - start.x, y - start.y);
+  }
+
+  const projection = ((x - start.x) * dx + (y - start.y) * dy) / lengthSquared;
+  const clamped = Math.max(0, Math.min(1, projection));
+  const nearestX = start.x + clamped * dx;
+  const nearestY = start.y + clamped * dy;
+  return Math.hypot(x - nearestX, y - nearestY);
+};
+
+const buildRoadRoutes = (gridSize: number): RoutePoint[][] => {
+  const outerRing = [
+    { x: 0, y: 7 },
+    { x: 8, y: 9 },
+    { x: 16, y: 12 },
+    { x: 24, y: 15 },
+    { x: 30, y: 17 },
+    { x: gridSize - 1, y: 20 },
+    { x: gridSize - 2, y: 28 },
+    { x: 26, y: gridSize - 2 },
+    { x: 18, y: gridSize - 3 },
+    { x: 10, y: gridSize - 1 },
+    { x: 2, y: 30 },
+    { x: 0, y: 18 },
+    { x: 0, y: 7 },
+  ];
+
+  const industrialLoop = [
+    { x: 22, y: 4 },
+    { x: 30, y: 5 },
+    { x: 34, y: 12 },
+    { x: 31, y: 20 },
+    { x: 24, y: 23 },
+    { x: 18, y: 20 },
+    { x: 16, y: 12 },
+    { x: 22, y: 4 },
+  ];
+
+  const suburbanLoop = [
+    { x: 4, y: 0 },
+    { x: 11, y: 4 },
+    { x: 15, y: 11 },
+    { x: 13, y: 18 },
+    { x: 6, y: 22 },
+    { x: 2, y: 16 },
+    { x: 0, y: 8 },
+    { x: 4, y: 0 },
+  ];
+
+  const oldTownAlleys = [
+    { x: 8, y: 18 },
+    { x: 10, y: 24 },
+    { x: 15, y: 28 },
+    { x: 20, y: 24 },
+    { x: 18, y: 18 },
+    { x: 12, y: 14 },
+    { x: 8, y: 18 },
+  ];
+
+  const spineRoads = [
+    { x: 0, y: 23 },
+    { x: 9, y: 22 },
+    { x: 18, y: 25 },
+    { x: 28, y: 27 },
+    { x: gridSize - 1, y: 30 },
+  ];
+
+  const serviceBranch = [
+    { x: 24, y: 6 },
+    { x: 26, y: 9 },
+    { x: 24, y: 14 },
+    { x: 27, y: 18 },
+    { x: 25, y: 23 },
+  ];
+
+  return [outerRing, industrialLoop, suburbanLoop, oldTownAlleys, spineRoads, serviceBranch];
 };
 
 const isRoadCell = (x: number, y: number, gridSize: number) => {
@@ -40,9 +127,17 @@ const isRoadCell = (x: number, y: number, gridSize: number) => {
     return true;
   }
 
-  const majorRoad = x % 5 === 0 || y % 5 === 0;
-  const secondaryRoad = (x % 3 === 0 && y % 2 !== 0) || (y % 3 === 0 && x % 2 !== 0);
-  return majorRoad || secondaryRoad;
+  const routes = buildRoadRoutes(gridSize);
+  return routes.some((route) => {
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < route.length - 1; index += 1) {
+      closestDistance = Math.min(
+        closestDistance,
+        distanceToSegment(x + 0.5, y + 0.5, route[index], route[index + 1])
+      );
+    }
+    return closestDistance < 1.25;
+  });
 };
 
 function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {

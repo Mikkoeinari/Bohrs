@@ -224,6 +224,282 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
   }
 };
 
+const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY: number, ownerId?: string) => {
+  const north = y < centerY - 2.5;
+  const west = x < centerX - 2.5;
+  const east = x > centerX + 2.5;
+  const south = y > centerY + 2.5;
+
+  if (ownerId === 'player') {
+    return {
+      body: '#314a43',
+      accent: '#7dd3fc',
+      roof: '#1b2d2a',
+      window: '#ecfeff',
+      base: '#9db7ae',
+      density: 0.72,
+      terrain: '#cfe8d0',
+    };
+  }
+
+  if (ownerId === 'corps') {
+    return {
+      body: '#2d2e2f',
+      accent: '#a78bfa',
+      roof: '#0f172a',
+      window: '#e2e8f0',
+      base: '#6b7280',
+      density: 1.24,
+      terrain: '#cbd5e1',
+    };
+  }
+
+  if (ownerId === 'police') {
+    return {
+      body: '#27354b',
+      accent: '#60a5fa',
+      roof: '#0f172a',
+      window: '#eff6ff',
+      base: '#64748b',
+      density: 1.06,
+      terrain: '#dfeaf6',
+    };
+  }
+
+  if (ownerId === 'rivals') {
+    return {
+      body: '#3a2625',
+      accent: '#f87171',
+      roof: '#7f1d1d',
+      window: '#fef2f2',
+      base: '#7c2d12',
+      density: 1.16,
+      terrain: '#e5c6a3',
+    };
+  }
+
+  if (west) {
+    return {
+      body: '#2a3038',
+      accent: '#9ca3af',
+      roof: '#111827',
+      window: '#dbeafe',
+      base: '#6b7280',
+      density: 1.2,
+      terrain: '#d7dfe7',
+    };
+  }
+
+  if (north) {
+    return {
+      body: '#3e4a3d',
+      accent: '#a3e635',
+      roof: '#1f2937',
+      window: '#ecfccb',
+      base: '#94a3b8',
+      density: 0.78,
+      terrain: '#d5e8bf',
+    };
+  }
+
+  if (east) {
+    return {
+      body: '#2d3d52',
+      accent: '#60a5fa',
+      roof: '#172033',
+      window: '#eff6ff',
+      base: '#64748b',
+      density: 1.06,
+      terrain: '#dfeaf6',
+    };
+  }
+
+  if (south) {
+    return {
+      body: '#4b2a2a',
+      accent: '#f59e0b',
+      roof: '#1f2937',
+      window: '#fef3c7',
+      base: '#7c2d12',
+      density: 1.08,
+      terrain: '#e7d5b5',
+    };
+  }
+
+  return {
+    body: '#362b29',
+    accent: '#d4a373',
+    roof: '#1a1a1a',
+    window: '#f8fafc',
+    base: '#4b5563',
+    density: 0.9,
+    terrain: '#d8d1c5',
+  };
+};
+
+const getFactionStreetFurnitureStyle = (ownerId?: string) => {
+  switch (ownerId) {
+    case 'corps':
+      return {
+        terrain: 'industrial-grid',
+        furniture: 'pipes',
+        primary: '#64748b',
+        secondary: '#94a3b8',
+        accent: '#cbd5e1',
+      };
+    case 'police':
+      return {
+        terrain: 'police-concrete',
+        furniture: 'barriers',
+        primary: '#94a3b8',
+        secondary: '#e2e8f0',
+        accent: '#60a5fa',
+      };
+    case 'rivals':
+      return {
+        terrain: 'ruined-scrap',
+        furniture: 'slum-huts',
+        primary: '#7c2d12',
+        secondary: '#b45309',
+        accent: '#fca5a5',
+      };
+    case 'player':
+      return {
+        terrain: 'suburban-lawn',
+        furniture: 'fence',
+        primary: '#9db7ae',
+        secondary: '#d9f99d',
+        accent: '#7dd3fc',
+      };
+    default:
+      return {
+        terrain: 'district-paving',
+        furniture: 'pits',
+        primary: '#94a3b8',
+        secondary: '#cbd5e1',
+        accent: '#e2e8f0',
+      };
+  }
+};
+
+const createFactionStreetFurniture = ({ x, z, ownerId, width, depth }: { x: number; z: number; ownerId?: string; width: number; depth: number }) => {
+  const group = new THREE.Group();
+  const style = getFactionStreetFurnitureStyle(ownerId);
+  const footprintInset = Math.min(width, depth) * 0.18;
+  const baseY = 0.12;
+
+  if (style.furniture === 'pipes') {
+    const grate = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.76), 0.05, Math.max(0.8, depth * 0.52)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.7, metalness: 0.32 })
+    );
+    grate.position.set(x, baseY + 0.02, z);
+    group.add(grate);
+
+    const pipeMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.5, metalness: 0.7 });
+    const pipeOffsets = [-0.42, 0, 0.42];
+    pipeOffsets.forEach((offset) => {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, Math.max(0.7, width * 0.8), 10), pipeMaterial);
+      pipe.rotation.z = Math.PI / 2;
+      pipe.position.set(x + offset, baseY + 0.12, z);
+      group.add(pipe);
+    });
+  } else if (style.furniture === 'barriers') {
+    const barrierMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.85, metalness: 0.12 });
+    [0, 1, 2].forEach((index) => {
+      const barrier = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.12), barrierMaterial);
+      barrier.position.set(x + (index - 1) * 0.42, baseY + 0.15, z + (index % 2 === 0 ? 0.22 : -0.22));
+      group.add(barrier);
+    });
+
+    const pad = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.9, width * 0.44), 0.04, Math.max(0.9, depth * 0.4)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.92, metalness: 0.08 })
+    );
+    pad.position.set(x, baseY + 0.02, z);
+    group.add(pad);
+  } else if (style.furniture === 'slum-huts') {
+    const hutMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.95, metalness: 0.04 });
+    const hutRoofMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.86, metalness: 0.05 });
+    const hutOffsets = [
+      { dx: -0.38, dz: -0.18 },
+      { dx: 0.18, dz: 0.26 },
+      { dx: 0.52, dz: -0.12 },
+    ];
+    hutOffsets.forEach(({ dx, dz }) => {
+      const hut = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.28, 0.3), hutMaterial);
+      hut.position.set(x + dx, baseY + 0.14, z + dz);
+      group.add(hut);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.2, 4), hutRoofMaterial);
+      roof.rotation.y = Math.PI / 4;
+      roof.position.set(x + dx, baseY + 0.36, z + dz);
+      group.add(roof);
+    });
+
+    const scrap = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.5, width * 0.26), 0.18, Math.max(0.5, depth * 0.22)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.accent), roughness: 0.9, metalness: 0.02 })
+    );
+    scrap.position.set(x - 0.08, baseY + 0.09, z + 0.12);
+    group.add(scrap);
+  } else if (style.furniture === 'fence') {
+    const fenceMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.9, metalness: 0.08 });
+    const postMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.8, metalness: 0.02 });
+    for (let step = -2; step <= 2; step += 1) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.4, 0.06), postMaterial);
+      post.position.set(x + step * 0.22, baseY + 0.2, z - footprintInset * 0.24);
+      group.add(post);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), fenceMaterial);
+      rail.position.set(x + step * 0.22, baseY + 0.28, z - footprintInset * 0.24);
+      group.add(rail);
+    }
+
+    const lawn = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.58), 0.04, Math.max(0.8, depth * 0.52)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.96, metalness: 0.02 })
+    );
+    lawn.position.set(x, baseY + 0.02, z);
+    group.add(lawn);
+  } else {
+    const patch = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.9, width * 0.72), 0.04, Math.max(0.9, depth * 0.7)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 0.88, metalness: 0.12 })
+    );
+    patch.position.set(x, baseY + 0.02, z);
+    group.add(patch);
+  }
+
+  if (style.terrain === 'industrial-grid') {
+    const gridMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.65, metalness: 0.32 });
+    const grid = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.7, width * 0.44), 0.02, Math.max(0.7, depth * 0.2)), gridMaterial);
+    grid.position.set(x, baseY + 0.05, z + 0.1);
+    group.add(grid);
+  } else if (style.terrain === 'police-concrete') {
+    const stripMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.9, metalness: 0.08 });
+    const stripe1 = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.7, width * 0.28), 0.02, Math.max(0.7, depth * 0.42)), stripMaterial);
+    stripe1.position.set(x - 0.1, baseY + 0.04, z);
+    const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.7, width * 0.28), 0.02, Math.max(0.7, depth * 0.42)), stripMaterial);
+    stripe2.position.set(x + 0.2, baseY + 0.04, z);
+    group.add(stripe1, stripe2);
+  } else if (style.terrain === 'ruined-scrap') {
+    const ruinedPatch = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.7), 0.03, Math.max(0.8, depth * 0.62)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.primary), roughness: 1, metalness: 0.02 })
+    );
+    ruinedPatch.position.set(x, baseY + 0.03, z);
+    group.add(ruinedPatch);
+  } else if (style.terrain === 'suburban-lawn') {
+    const turfPatch = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.8, width * 0.86), 0.03, Math.max(0.8, depth * 0.8)),
+      new THREE.MeshStandardMaterial({ color: new THREE.Color(style.secondary), roughness: 0.96, metalness: 0.02 })
+    );
+    turfPatch.position.set(x, baseY + 0.02, z);
+    group.add(turfPatch);
+  }
+
+  return group;
+};
+
 export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
     const bounds = getBuildingLotBounds(building);
@@ -610,143 +886,111 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         emissiveIntensity: 0.12,
       });
       const roadWidth = 0.82;
-      const roadThickness = 0.12;
       const roadGroup = new THREE.Group();
-      const streetLines = new Map<string, boolean>();
 
-      const addRoadSegment = ({
-        x,
-        z,
-        length,
-        axis,
-        laneOffset = 0,
-      }: {
-        x: number;
-        z: number;
-        length: number;
-        axis: 'x' | 'z';
-        laneOffset?: number;
-      }) => {
-        if (length <= 0.001) {
+      const addCurvedRoad = (points: Array<{ x: number; z: number }>, width = roadWidth) => {
+        if (points.length < 2) {
           return;
         }
 
-        if (axis === 'x') {
-          const road = new THREE.Mesh(
-            new THREE.BoxGeometry(length, roadThickness, roadWidth),
-            roadMaterial
-          );
-          road.position.set(x, 0.1, z);
-          road.receiveShadow = true;
-          roadGroup.add(road);
-
-          const centerline = new THREE.Mesh(
-            new THREE.BoxGeometry(length * 0.82, roadThickness * 0.18, roadWidth * 0.16),
-            centerlineMaterial
-          );
-          centerline.position.set(x, 0.12 + laneOffset, z);
-          centerline.receiveShadow = true;
-          roadGroup.add(centerline);
-          return;
-        }
+        const curve = new THREE.CatmullRomCurve3(
+          points.map(({ x, z }) => new THREE.Vector3(x, 0.1, z)),
+          false,
+          'catmullrom',
+          0.32
+        );
 
         const road = new THREE.Mesh(
-          new THREE.BoxGeometry(roadWidth, roadThickness, length),
+          new THREE.TubeGeometry(curve, 48, width * 0.5, 8, false),
           roadMaterial
         );
-        road.position.set(x, 0.1, z);
         road.receiveShadow = true;
         roadGroup.add(road);
 
         const centerline = new THREE.Mesh(
-          new THREE.BoxGeometry(roadWidth * 0.16, roadThickness * 0.18, length * 0.82),
+          new THREE.TubeGeometry(curve, 48, width * 0.08, 6, false),
           centerlineMaterial
         );
-        centerline.position.set(x, 0.12 + laneOffset, z);
+        centerline.position.y = 0.12;
         centerline.receiveShadow = true;
         roadGroup.add(centerline);
       };
 
-      const addStreetLine = ({
-        lotCoord,
-        axis,
-      }: {
-        lotCoord: number;
-        axis: 'x' | 'z';
-      }) => {
-        const worldCoord = (lotCoord - (axis === 'x' ? centerX : centerY)) * lotScale;
-        const key = `${axis}:${lotCoord.toFixed(3)}`;
-        if (streetLines.has(key)) {
-          return;
-        }
-        streetLines.set(key, true);
+      const roadMargin = 2.5;
+      const districtRoads = [
+        {
+          name: 'industrial-west',
+          points: [
+            { x: (minX - roadMargin - centerX) * lotScale, z: (minY + 4.0 - centerY) * lotScale },
+            { x: (minX + 2.4 - centerX) * lotScale, z: (minY + 1.2 - centerY) * lotScale },
+            { x: (minX + 5.6 - centerX) * lotScale, z: (centerY - 1.2) * lotScale },
+            { x: (centerX - 3.4) * lotScale, z: (centerY + 3.2) * lotScale },
+            { x: (centerX - 1.0) * lotScale, z: (maxY * 0.54 - centerY) * lotScale },
+            { x: (minX + 2.8 - centerX) * lotScale, z: (maxY - 2.0 - centerY) * lotScale },
+            { x: (minX - roadMargin - centerX) * lotScale, z: (maxY * 0.72 - centerY) * lotScale },
+          ],
+          width: roadWidth * 1.04,
+        },
+        {
+          name: 'suburbs-north',
+          points: [
+            { x: (minX - 0.8 - centerX) * lotScale, z: (minY - 1.0 - centerY) * lotScale },
+            { x: (minX + 6.0 - centerX) * lotScale, z: (minY + 4.2 - centerY) * lotScale },
+            { x: (centerX + 1.0) * lotScale, z: (centerY - 4.6) * lotScale },
+            { x: (maxX - 6.5 - centerX) * lotScale, z: (maxY * 0.22 - centerY) * lotScale },
+            { x: (maxX - 1.5 - centerX) * lotScale, z: (maxY * 0.46 - centerY) * lotScale },
+            { x: (maxX - 9.5 - centerX) * lotScale, z: (maxY * 0.12 - centerY) * lotScale },
+            { x: (minX - 0.8 - centerX) * lotScale, z: (minY - 1.0 - centerY) * lotScale },
+          ],
+          width: roadWidth * 0.9,
+        },
+        {
+          name: 'old-town-center',
+          points: [
+            { x: (minX + 3.3 - centerX) * lotScale, z: (centerY + 6.3) * lotScale },
+            { x: (minX + 8.6 - centerX) * lotScale, z: (centerY + 8.2) * lotScale },
+            { x: (centerX - 0.6) * lotScale, z: (centerY + 9.8) * lotScale },
+            { x: (centerX + 4.3) * lotScale, z: (centerY + 5.4) * lotScale },
+            { x: (maxX - 4.5 - centerX) * lotScale, z: (centerY + 7.0) * lotScale },
+            { x: (maxX - 2.0 - centerX) * lotScale, z: (centerY + 2.5) * lotScale },
+            { x: (minX + 3.3 - centerX) * lotScale, z: (centerY + 6.3) * lotScale },
+          ],
+          width: roadWidth * 0.74,
+        },
+        {
+          name: 'government-east',
+          points: [
+            { x: (maxX + roadMargin - centerX) * lotScale, z: (minY - 0.5 - centerY) * lotScale },
+            { x: (maxX - 4.0 - centerX) * lotScale, z: (minY + 2.8 - centerY) * lotScale },
+            { x: (centerX + 6.0) * lotScale, z: (centerY - 0.5) * lotScale },
+            { x: (maxX - 2.4 - centerX) * lotScale, z: (maxY * 0.44 - centerY) * lotScale },
+            { x: (maxX + roadMargin - centerX) * lotScale, z: (maxY + 1.8 - centerY) * lotScale },
+          ],
+          width: roadWidth * 0.98,
+        },
+      ];
 
-        if (axis === 'x') {
-          addRoadSegment({ x: 0, z: worldCoord, length: terrainSize, axis: 'x' });
-          return;
-        }
+      districtRoads.forEach(({ points, width }) => addCurvedRoad(points, width));
 
-        addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
-      };
+      const culDeSacRoads = [
+        [
+          { x: (minX + 5.3 - centerX) * lotScale, z: (centerY + 6.0) * lotScale },
+          { x: (minX + 7.3 - centerX) * lotScale, z: (centerY + 9.2) * lotScale },
+          { x: (minX + 5.5 - centerX) * lotScale, z: (centerY + 11.8) * lotScale },
+        ],
+        [
+          { x: (maxX - 6.5 - centerX) * lotScale, z: (centerY + 4.3) * lotScale },
+          { x: (maxX - 9.8 - centerX) * lotScale, z: (centerY + 7.1) * lotScale },
+          { x: (maxX - 6.2 - centerX) * lotScale, z: (centerY + 10.8) * lotScale },
+        ],
+        [
+          { x: (centerX + 1.2) * lotScale, z: (maxY * 0.74 - centerY) * lotScale },
+          { x: (centerX + 4.4) * lotScale, z: (maxY * 0.88 - centerY) * lotScale },
+          { x: (centerX + 1.8) * lotScale, z: (maxY * 0.98 - centerY) * lotScale },
+        ],
+      ];
 
-      const primaryRoadSpacing = 5;
-      const secondaryRoadSpacing = 3;
-      const secondaryRoadOffset = 2;
-      const roadStart = Math.floor(Math.min(minX, minY) - 3);
-      const roadEnd = Math.ceil(Math.max(maxX, maxY) + 3);
-      const primaryRoadPositions = new Set<number>();
-
-      for (let lotCoord = roadStart; lotCoord <= roadEnd; lotCoord += primaryRoadSpacing) {
-        primaryRoadPositions.add(lotCoord);
-        addStreetLine({ lotCoord, axis: 'x' });
-        addStreetLine({ lotCoord, axis: 'z' });
-      }
-
-      for (let lotCoord = roadStart + secondaryRoadOffset; lotCoord <= roadEnd; lotCoord += secondaryRoadSpacing) {
-        if (primaryRoadPositions.has(lotCoord)) {
-          continue;
-        }
-        const offset = ((Math.round(lotCoord / secondaryRoadSpacing) % 2) === 0 ? 0.35 : -0.35);
-        // Use the same directional bias for both axes so the secondary streets stay balanced and read as
-        // a coherent old-town street grid instead of a one-sided patchwork.
-        addStreetLine({ lotCoord: lotCoord + offset, axis: 'x' });
-        addStreetLine({ lotCoord: lotCoord + offset, axis: 'z' });
-      }
-
-      const ringRoadPaddingLots = 2.25;
-      const ringMinLotX = minX - ringRoadPaddingLots;
-      const ringMaxLotX = maxX + ringRoadPaddingLots;
-      const ringMinLotZ = minY - ringRoadPaddingLots;
-      const ringMaxLotZ = maxY + ringRoadPaddingLots;
-      const ringWorldMinX = (ringMinLotX - centerX) * lotScale;
-      const ringWorldMaxX = (ringMaxLotX - centerX) * lotScale;
-      const ringWorldMinZ = (ringMinLotZ - centerY) * lotScale;
-      const ringWorldMaxZ = (ringMaxLotZ - centerY) * lotScale;
-
-      addRoadSegment({
-        x: (ringWorldMinX + ringWorldMaxX) / 2,
-        z: ringWorldMinZ,
-        length: ringWorldMaxX - ringWorldMinX + roadWidth,
-        axis: 'x',
-      });
-      addRoadSegment({
-        x: (ringWorldMinX + ringWorldMaxX) / 2,
-        z: ringWorldMaxZ,
-        length: ringWorldMaxX - ringWorldMinX + roadWidth,
-        axis: 'x',
-      });
-      addRoadSegment({
-        x: ringWorldMinX,
-        z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-        length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
-        axis: 'z',
-      });
-      addRoadSegment({
-        x: ringWorldMaxX,
-        z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-        length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
-        axis: 'z',
-      });
+      culDeSacRoads.forEach((path) => addCurvedRoad(path, roadWidth * 0.82));
 
       scene.add(roadGroup);
     } else {
@@ -946,8 +1190,9 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const metrics = getBuildingVisualMetrics(building);
         const footprintW = Math.max(1, metrics.footprintW);
         const footprintH = Math.max(1, metrics.footprintH);
-        const footprintScale = 1.7;
-        const heightScale = 0.6;
+        const lotCenter = getBuildingLotCenter(building);
+        const districtPalette = getDistrictVisualPalette(lotCenter.x, lotCenter.y, centerX, centerY, building.ownerId);
+        const footprintScale = 1.7 * districtPalette.density;
         const footprintWidth = Math.max(1.2, Math.min(10, footprintW * footprintScale));
         const footprintDepth = Math.max(1.2, Math.min(10, footprintH * footprintScale));
         const width = Math.max(1.2, Math.min(8.4, footprintWidth * 0.84));
@@ -955,8 +1200,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const buildingType = building.type ?? 'OFFICE';
         const typeTheme = getBuildingTypeTheme(buildingType);
         const baseHeight = metrics.heightMeters;
-        const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
-        const lotCenter = getBuildingLotCenter(building);
+        const height = Math.max(3.2, Math.min(18, baseHeight * (0.6 * districtPalette.density)));
         const x = (lotCenter.x - centerX) * lotScale;
         const z = (lotCenter.y - centerY) * lotScale;
         const isSelected = building.id === selectedBuildingId;
@@ -970,36 +1214,32 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
                 ? '#a78bfa'
                 : '#94a3b8';
         const accentColor = new THREE.Color(accentColorHex);
+        const districtBase = new THREE.Color(districtPalette.body);
+        const districtAccent = new THREE.Color(districtPalette.accent);
+        const districtRoof = new THREE.Color(districtPalette.roof);
+        const districtWindow = new THREE.Color(districtPalette.window);
         const bodyColor = new THREE.Color(
-          isSelected ? '#1d4ed8' : building.ownerId === 'player'
-            ? '#16354f'
-            : building.ownerId === 'rivals'
-              ? '#5a2020'
-              : building.ownerId === 'police'
-                ? '#18355a'
-                : building.ownerId === 'corps'
-                  ? '#352260'
-                  : '#334155'
+          isSelected ? '#1d4ed8' : districtBase.clone().lerp(new THREE.Color(typeTheme.body), 0.42)
         );
         const bodyMaterial = new THREE.MeshStandardMaterial({
-          color: bodyColor.clone().lerp(new THREE.Color(typeTheme.body), 0.35),
+          color: bodyColor,
           roughness: 0.82,
           metalness: 0.08,
         });
         const accentMaterial = new THREE.MeshStandardMaterial({
-          color: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
+          color: accentColor.clone().lerp(districtAccent, 0.38),
           roughness: 0.56,
           metalness: 0.18,
-          emissive: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
+          emissive: accentColor.clone().lerp(districtAccent, 0.38),
           emissiveIntensity: 0.24,
         });
         const roofMaterial = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(typeTheme.roof),
+          color: districtRoof.clone().lerp(new THREE.Color(typeTheme.roof), 0.34),
           roughness: 0.72,
           metalness: 0.14,
         });
         const windowMaterial = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(typeTheme.detail),
+          color: districtWindow.clone().lerp(new THREE.Color(typeTheme.detail), 0.26),
           roughness: 0.28,
           metalness: 0.12,
           emissive: 0x38bdf8,
@@ -1008,7 +1248,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
         const footprint = new THREE.Mesh(
           new THREE.BoxGeometry(footprintWidth, 0.08, footprintDepth),
-          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.95, metalness: 0.02 })
+          new THREE.MeshStandardMaterial({ color: new THREE.Color(districtPalette.terrain), roughness: 0.95, metalness: 0.02 })
         );
         footprint.position.set(x, 0.04, z);
         footprint.receiveShadow = true;
@@ -1016,11 +1256,20 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
         const base = new THREE.Mesh(
           new THREE.BoxGeometry(width * 1.02, 0.18, depth * 1.02),
-          new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.95, metalness: 0.03 })
+          new THREE.MeshStandardMaterial({ color: new THREE.Color(districtPalette.base), roughness: 0.95, metalness: 0.03 })
         );
         base.position.set(x, 0.09, z);
         base.receiveShadow = true;
         buildingGroup.add(base);
+
+        const terrainDetail = createFactionStreetFurniture({
+          x,
+          z,
+          ownerId: building.ownerId,
+          width,
+          depth,
+        });
+        buildingGroup.add(terrainDetail);
 
         const shellGroup = createBuildingShell({
           width,
