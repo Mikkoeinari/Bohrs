@@ -55,7 +55,13 @@ const distanceToSegment = (x: number, y: number, start: RoutePoint, end: RoutePo
 };
 
 const buildRoadRoutes = (gridSize: number): RoutePoint[][] => {
-  const regularBands = [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, gridSize - 1];
+  // Keep roads aligned to the city lot cadence so they connect adjacent blocks instead of
+  // creating a dense every-4-cell grid that runs underneath building footprints.
+  const lotBandStep = 6;
+  const regularBands = Array.from(
+    { length: Math.floor((gridSize - 1) / lotBandStep) + 1 },
+    (_, index) => index * lotBandStep
+  );
   const routes: RoutePoint[][] = [];
 
   regularBands.forEach((band) => {
