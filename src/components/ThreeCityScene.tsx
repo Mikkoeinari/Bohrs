@@ -613,9 +613,6 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       const roadThickness = 0.12;
       const roadGroup = new THREE.Group();
       const streetLines = new Map<string, boolean>();
-      const majorRoadSpacing = 4;
-      const firstRoadCoord = Math.ceil(Math.min(minX, minY) / majorRoadSpacing) * majorRoadSpacing;
-      const lastRoadCoord = Math.floor(Math.max(maxX, maxY) / majorRoadSpacing) * majorRoadSpacing;
 
       const addRoadSegment = ({
         x,
@@ -692,9 +689,28 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
       };
 
-      for (let lotCoord = firstRoadCoord; lotCoord <= lastRoadCoord; lotCoord += majorRoadSpacing) {
+      const primaryRoadSpacing = 5;
+      const secondaryRoadSpacing = 3;
+      const secondaryRoadOffset = 2;
+      const roadStart = Math.floor(Math.min(minX, minY) - 3);
+      const roadEnd = Math.ceil(Math.max(maxX, maxY) + 3);
+      const primaryRoadPositions = new Set<number>();
+
+      for (let lotCoord = roadStart; lotCoord <= roadEnd; lotCoord += primaryRoadSpacing) {
+        primaryRoadPositions.add(lotCoord);
         addStreetLine({ lotCoord, axis: 'x' });
         addStreetLine({ lotCoord, axis: 'z' });
+      }
+
+      for (let lotCoord = roadStart + secondaryRoadOffset; lotCoord <= roadEnd; lotCoord += secondaryRoadSpacing) {
+        if (primaryRoadPositions.has(lotCoord)) {
+          continue;
+        }
+        const offset = ((Math.round(lotCoord / secondaryRoadSpacing) % 2) === 0 ? 0.35 : -0.35);
+        // Use the same directional bias for both axes so the secondary streets stay balanced and read as
+        // a coherent old-town street grid instead of a one-sided patchwork.
+        addStreetLine({ lotCoord: lotCoord + offset, axis: 'x' });
+        addStreetLine({ lotCoord: lotCoord + offset, axis: 'z' });
       }
 
       const ringRoadPaddingLots = 2.25;

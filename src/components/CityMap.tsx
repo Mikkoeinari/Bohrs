@@ -27,7 +27,7 @@ type RoutePoint = {
 
 const getRoadAxes = (gridSize: number) => {
   const axes = new Set<number>();
-  for (let axis = 0; axis < gridSize; axis += 4) {
+  for (let axis = 0; axis < gridSize; axis += 5) {
     axes.add(axis);
   }
   axes.add(0);
@@ -40,7 +40,9 @@ const isRoadCell = (x: number, y: number, gridSize: number) => {
     return true;
   }
 
-  return x % 4 === 0 || y % 4 === 0;
+  const majorRoad = x % 5 === 0 || y % 5 === 0;
+  const secondaryRoad = (x % 3 === 0 && y % 2 !== 0) || (y % 3 === 0 && x % 2 !== 0);
+  return majorRoad || secondaryRoad;
 };
 
 function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {

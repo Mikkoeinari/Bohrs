@@ -370,28 +370,35 @@ function generateProceduralBuildings(): Record<string, Building> {
     presetFacilities: ['COMMAND', 'ARMORY', 'INFIRMARY', 'QUARTERS'],
   };
 
-  // Lots occupied by special buildings (x,y lot centers)
+  // Lots occupied by special buildings (x,y lot centers). Keep the landmark anchors, but let the rest
+  // of the city follow a more European-style block pattern with broad avenues and slightly staggered lots.
   const reservedLots = new Set([
-    '2,2', '14,14', '18,18', '22,18', '26,18', '30,22',
+    '2,2', '14,14', '18,18', '22,18', '26,18', '30,22', '18,16', '28,18', '24,18', '34,24', '36,30',
   ]);
 
   const cityGridCols = 10;
   const cityGridRows = 10;
-  const cityLotSpacing = 4;
+  const cityLotSpacing = 5;
   const cityOccupancyChance = 0.82;
+  const placedLotKeys = new Set<string>([...reservedLots]);
 
-  // Grid: 10 columns × 10 rows of 4-cell lots (lot centers at col*4+2, row*4+2)
+  // A boulevard-heavy grid: the main arteries are every ~5 cells, while a small offset on alternating rows
+  // creates old-town blocks and irregular parcels that feel more like central European urban districts.
   for (let row = 0; row < cityGridRows; row++) {
     for (let col = 0; col < cityGridCols; col++) {
-      const x = col * cityLotSpacing + 2;
-      const y = row * cityLotSpacing + 2;
+      const baseX = col * cityLotSpacing + 2;
+      const baseY = row * cityLotSpacing + 2;
+      const staggerX = (row + col) % 3 === 0 ? 1 : (row % 2 === 0 ? 0 : -1);
+      const staggerY = (row % 2 === 0 && col % 2 === 1) ? 1 : (col % 2 === 0 ? -1 : 0);
+      const x = Math.max(2, baseX + staggerX);
+      const y = Math.max(2, baseY + staggerY);
       const lotKey = `${x},${y}`;
 
-      if (reservedLots.has(lotKey)) continue;
+      if (placedLotKeys.has(lotKey)) continue;
 
-      // ~82% of non-reserved lots get a building — outer edge lots are slightly sparser
       const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.14 : 0;
       if (rng.next() > cityOccupancyChance - edgeSparsityReduction) continue;
+      placedLotKeys.add(lotKey);
 
       const factionId = getZoneFaction(col, row, rng);
       const type = getZoneBuildingType(factionId, col, row, rng);
