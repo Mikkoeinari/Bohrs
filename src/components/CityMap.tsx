@@ -27,22 +27,91 @@ type RoutePoint = {
 
 const getRoadAxes = (gridSize: number) => {
   const axes = new Set<number>();
-  for (let axis = 0; axis < gridSize; axis += 5) {
-    axes.add(axis);
-  }
-  axes.add(0);
-  axes.add(gridSize - 1);
+  const roadRoutes = buildRoadRoutes(gridSize);
+
+  roadRoutes.forEach((route) => {
+    route.forEach(({ x, y }) => {
+      axes.add(Math.round(x));
+      axes.add(Math.round(y));
+    });
+  });
+
   return axes;
 };
+
+const distanceToSegment = (x: number, y: number, start: RoutePoint, end: RoutePoint) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) {
+    return Math.hypot(x - start.x, y - start.y);
+  }
+
+  const projection = ((x - start.x) * dx + (y - start.y) * dy) / lengthSquared;
+  const clamped = Math.max(0, Math.min(1, projection));
+  const nearestX = start.x + clamped * dx;
+  const nearestY = start.y + clamped * dy;
+  return Math.hypot(x - nearestX, y - nearestY);
+};
+
+const buildRoadRoutes = (gridSize: number): RoutePoint[][] => [
+  [
+    { x: 0, y: 7 },
+    { x: 8, y: 8 },
+    { x: 16, y: 12 },
+    { x: 22, y: 15 },
+    { x: gridSize - 1, y: 17 },
+  ],
+  [
+    { x: 5, y: 0 },
+    { x: 10, y: 10 },
+    { x: 16, y: 18 },
+    { x: 24, y: 24 },
+    { x: gridSize - 2, y: gridSize - 1 },
+  ],
+  [
+    { x: 18, y: 0 },
+    { x: 20, y: 12 },
+    { x: 26, y: 20 },
+    { x: 29, y: gridSize - 1 },
+  ],
+  [
+    { x: 0, y: 23 },
+    { x: 9, y: 22 },
+    { x: 18, y: 25 },
+    { x: 28, y: 27 },
+    { x: gridSize - 1, y: 30 },
+  ],
+  [
+    { x: 24, y: 5 },
+    { x: 26, y: 9 },
+    { x: 24, y: 14 },
+    { x: 26, y: 18 },
+  ],
+  [
+    { x: 7, y: 28 },
+    { x: 9, y: 24 },
+    { x: 12, y: 20 },
+    { x: 10, y: 15 },
+  ],
+];
 
 const isRoadCell = (x: number, y: number, gridSize: number) => {
   if (x <= 0 || y <= 0 || x >= gridSize - 1 || y >= gridSize - 1) {
     return true;
   }
 
-  const majorRoad = x % 5 === 0 || y % 5 === 0;
-  const secondaryRoad = (x % 3 === 0 && y % 2 !== 0) || (y % 3 === 0 && x % 2 !== 0);
-  return majorRoad || secondaryRoad;
+  const routes = buildRoadRoutes(gridSize);
+  return routes.some((route) => {
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < route.length - 1; index += 1) {
+      closestDistance = Math.min(
+        closestDistance,
+        distanceToSegment(x + 0.5, y + 0.5, route[index], route[index + 1])
+      );
+    }
+    return closestDistance < 1.25;
+  });
 };
 
 function getBuildingCenter(building: Pick<Building, 'x' | 'y' | 'width' | 'height'>): RoutePoint {

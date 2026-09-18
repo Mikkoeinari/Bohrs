@@ -610,143 +610,89 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         emissiveIntensity: 0.12,
       });
       const roadWidth = 0.82;
-      const roadThickness = 0.12;
       const roadGroup = new THREE.Group();
-      const streetLines = new Map<string, boolean>();
 
-      const addRoadSegment = ({
-        x,
-        z,
-        length,
-        axis,
-        laneOffset = 0,
-      }: {
-        x: number;
-        z: number;
-        length: number;
-        axis: 'x' | 'z';
-        laneOffset?: number;
-      }) => {
-        if (length <= 0.001) {
+      const addCurvedRoad = (points: Array<{ x: number; z: number }>, width = roadWidth) => {
+        if (points.length < 2) {
           return;
         }
 
-        if (axis === 'x') {
-          const road = new THREE.Mesh(
-            new THREE.BoxGeometry(length, roadThickness, roadWidth),
-            roadMaterial
-          );
-          road.position.set(x, 0.1, z);
-          road.receiveShadow = true;
-          roadGroup.add(road);
-
-          const centerline = new THREE.Mesh(
-            new THREE.BoxGeometry(length * 0.82, roadThickness * 0.18, roadWidth * 0.16),
-            centerlineMaterial
-          );
-          centerline.position.set(x, 0.12 + laneOffset, z);
-          centerline.receiveShadow = true;
-          roadGroup.add(centerline);
-          return;
-        }
+        const curve = new THREE.CatmullRomCurve3(
+          points.map(({ x, z }) => new THREE.Vector3(x, 0.1, z)),
+          false,
+          'catmullrom',
+          0.32
+        );
 
         const road = new THREE.Mesh(
-          new THREE.BoxGeometry(roadWidth, roadThickness, length),
+          new THREE.TubeGeometry(curve, 48, width * 0.5, 8, false),
           roadMaterial
         );
-        road.position.set(x, 0.1, z);
         road.receiveShadow = true;
         roadGroup.add(road);
 
         const centerline = new THREE.Mesh(
-          new THREE.BoxGeometry(roadWidth * 0.16, roadThickness * 0.18, length * 0.82),
+          new THREE.TubeGeometry(curve, 48, width * 0.08, 6, false),
           centerlineMaterial
         );
-        centerline.position.set(x, 0.12 + laneOffset, z);
+        centerline.position.y = 0.12;
         centerline.receiveShadow = true;
         roadGroup.add(centerline);
       };
 
-      const addStreetLine = ({
-        lotCoord,
-        axis,
-      }: {
-        lotCoord: number;
-        axis: 'x' | 'z';
-      }) => {
-        const worldCoord = (lotCoord - (axis === 'x' ? centerX : centerY)) * lotScale;
-        const key = `${axis}:${lotCoord.toFixed(3)}`;
-        if (streetLines.has(key)) {
-          return;
-        }
-        streetLines.set(key, true);
+      const roadMargin = 2.5;
+      const roadPattern = [
+        [
+          { x: (minX - roadMargin - centerX) * lotScale, z: (minY - roadMargin - centerY) * lotScale },
+          { x: (minX + 3 - centerX) * lotScale, z: (minY + 1 - centerY) * lotScale },
+          { x: (maxX * 0.3 - centerX) * lotScale, z: (minY + 2 - centerY) * lotScale },
+          { x: (maxX - 3 - centerX) * lotScale, z: (maxY * 0.35 - centerY) * lotScale },
+          { x: (maxX + roadMargin - centerX) * lotScale, z: (maxY - roadMargin - centerY) * lotScale },
+        ],
+        [
+          { x: (minX - roadMargin - centerX) * lotScale, z: (maxY * 0.55 - centerY) * lotScale },
+          { x: (minX + 5 - centerX) * lotScale, z: (minY + 7 - centerY) * lotScale },
+          { x: (centerX - 1) * lotScale, z: (centerY + 1) * lotScale },
+          { x: (maxX - 2 - centerX) * lotScale, z: (maxY - 5 - centerY) * lotScale },
+          { x: (maxX + roadMargin - centerX) * lotScale, z: (maxY * 0.7 - centerY) * lotScale },
+        ],
+        [
+          { x: (minX + 1 - centerX) * lotScale, z: (maxY + roadMargin - centerY) * lotScale },
+          { x: (minX + 5 - centerX) * lotScale, z: (centerY + 6) * lotScale },
+          { x: (centerX + 2) * lotScale, z: (centerY + 1) * lotScale },
+          { x: (maxX - 5 - centerX) * lotScale, z: (minY + 9 - centerY) * lotScale },
+          { x: (maxX - 1 - centerX) * lotScale, z: (minY - roadMargin - centerY) * lotScale },
+        ],
+        [
+          { x: (minX + 2 - centerX) * lotScale, z: (maxY * 0.2 - centerY) * lotScale },
+          { x: (minX + 8 - centerX) * lotScale, z: (centerY + 2) * lotScale },
+          { x: (maxX * 0.55 - centerX) * lotScale, z: (centerY - 1) * lotScale },
+          { x: (maxX - 6 - centerX) * lotScale, z: (centerY + 6) * lotScale },
+          { x: (maxX - 1 - centerX) * lotScale, z: (maxY * 0.8 - centerY) * lotScale },
+        ],
+      ];
 
-        if (axis === 'x') {
-          addRoadSegment({ x: 0, z: worldCoord, length: terrainSize, axis: 'x' });
-          return;
-        }
+      roadPattern.forEach((path) => addCurvedRoad(path));
 
-        addRoadSegment({ x: worldCoord, z: 0, length: terrainSize, axis: 'z' });
-      };
+      const culDeSacRoads = [
+        [
+          { x: (minX + 5 - centerX) * lotScale, z: (centerY + 6) * lotScale },
+          { x: (minX + 7 - centerX) * lotScale, z: (centerY + 8.5) * lotScale },
+          { x: (minX + 5.25 - centerX) * lotScale, z: (centerY + 10.75) * lotScale },
+        ],
+        [
+          { x: (maxX - 7 - centerX) * lotScale, z: (centerY + 4) * lotScale },
+          { x: (maxX - 9.5 - centerX) * lotScale, z: (centerY + 7.5) * lotScale },
+          { x: (maxX - 7.25 - centerX) * lotScale, z: (centerY + 10.5) * lotScale },
+        ],
+        [
+          { x: (centerX + 2) * lotScale, z: (maxY * 0.7 - centerY) * lotScale },
+          { x: (centerX + 4.2) * lotScale, z: (maxY * 0.82 - centerY) * lotScale },
+          { x: (centerX + 2.1) * lotScale, z: (maxY * 0.94 - centerY) * lotScale },
+        ],
+      ];
 
-      const primaryRoadSpacing = 5;
-      const secondaryRoadSpacing = 3;
-      const secondaryRoadOffset = 2;
-      const roadStart = Math.floor(Math.min(minX, minY) - 3);
-      const roadEnd = Math.ceil(Math.max(maxX, maxY) + 3);
-      const primaryRoadPositions = new Set<number>();
-
-      for (let lotCoord = roadStart; lotCoord <= roadEnd; lotCoord += primaryRoadSpacing) {
-        primaryRoadPositions.add(lotCoord);
-        addStreetLine({ lotCoord, axis: 'x' });
-        addStreetLine({ lotCoord, axis: 'z' });
-      }
-
-      for (let lotCoord = roadStart + secondaryRoadOffset; lotCoord <= roadEnd; lotCoord += secondaryRoadSpacing) {
-        if (primaryRoadPositions.has(lotCoord)) {
-          continue;
-        }
-        const offset = ((Math.round(lotCoord / secondaryRoadSpacing) % 2) === 0 ? 0.35 : -0.35);
-        // Use the same directional bias for both axes so the secondary streets stay balanced and read as
-        // a coherent old-town street grid instead of a one-sided patchwork.
-        addStreetLine({ lotCoord: lotCoord + offset, axis: 'x' });
-        addStreetLine({ lotCoord: lotCoord + offset, axis: 'z' });
-      }
-
-      const ringRoadPaddingLots = 2.25;
-      const ringMinLotX = minX - ringRoadPaddingLots;
-      const ringMaxLotX = maxX + ringRoadPaddingLots;
-      const ringMinLotZ = minY - ringRoadPaddingLots;
-      const ringMaxLotZ = maxY + ringRoadPaddingLots;
-      const ringWorldMinX = (ringMinLotX - centerX) * lotScale;
-      const ringWorldMaxX = (ringMaxLotX - centerX) * lotScale;
-      const ringWorldMinZ = (ringMinLotZ - centerY) * lotScale;
-      const ringWorldMaxZ = (ringMaxLotZ - centerY) * lotScale;
-
-      addRoadSegment({
-        x: (ringWorldMinX + ringWorldMaxX) / 2,
-        z: ringWorldMinZ,
-        length: ringWorldMaxX - ringWorldMinX + roadWidth,
-        axis: 'x',
-      });
-      addRoadSegment({
-        x: (ringWorldMinX + ringWorldMaxX) / 2,
-        z: ringWorldMaxZ,
-        length: ringWorldMaxX - ringWorldMinX + roadWidth,
-        axis: 'x',
-      });
-      addRoadSegment({
-        x: ringWorldMinX,
-        z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-        length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
-        axis: 'z',
-      });
-      addRoadSegment({
-        x: ringWorldMaxX,
-        z: (ringWorldMinZ + ringWorldMaxZ) / 2,
-        length: ringWorldMaxZ - ringWorldMinZ + roadWidth,
-        axis: 'z',
-      });
+      culDeSacRoads.forEach((path) => addCurvedRoad(path, roadWidth * 0.85));
 
       scene.add(roadGroup);
     } else {

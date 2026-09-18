@@ -376,27 +376,29 @@ function generateProceduralBuildings(): Record<string, Building> {
     '2,2', '14,14', '18,18', '22,18', '26,18', '30,22', '18,16', '28,18', '24,18', '34,24', '36,30',
   ]);
 
-  const cityGridCols = 10;
-  const cityGridRows = 10;
-  const cityLotSpacing = 5;
-  const cityOccupancyChance = 0.82;
+  const cityGridCols = 9;
+  const cityGridRows = 9;
+  const cityLotSpacing = 6;
+  const cityOccupancyChance = 0.76;
   const placedLotKeys = new Set<string>([...reservedLots]);
 
-  // A boulevard-heavy grid: the main arteries are every ~5 cells, while a small offset on alternating rows
-  // creates old-town blocks and irregular parcels that feel more like central European urban districts.
+  // Bend the city away from a uniform block grid: each district has a subtle drift so alleys, cul-de-sacs,
+  // and ring roads feel like a lived-in post-collapse town instead of a CAD-perfect checkerboard.
   for (let row = 0; row < cityGridRows; row++) {
     for (let col = 0; col < cityGridCols; col++) {
       const baseX = col * cityLotSpacing + 2;
       const baseY = row * cityLotSpacing + 2;
-      const staggerX = (row + col) % 3 === 0 ? 1 : (row % 2 === 0 ? 0 : -1);
-      const staggerY = (row % 2 === 0 && col % 2 === 1) ? 1 : (col % 2 === 0 ? -1 : 0);
-      const x = Math.max(2, baseX + staggerX);
-      const y = Math.max(2, baseY + staggerY);
+      const districtDriftX = Math.sin((row + 1) * 1.47 + col * 0.85) * 1.2;
+      const districtDriftY = Math.cos((col + 1) * 1.64 - row * 0.9) * 1.1;
+      const jitterX = rng.next() * 1.8 - 0.9;
+      const jitterY = rng.next() * 1.6 - 0.8;
+      const x = Math.round(Math.max(2, baseX + districtDriftX + jitterX));
+      const y = Math.round(Math.max(2, baseY + districtDriftY + jitterY));
       const lotKey = `${x},${y}`;
 
       if (placedLotKeys.has(lotKey)) continue;
 
-      const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.14 : 0;
+      const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.18 : 0;
       if (rng.next() > cityOccupancyChance - edgeSparsityReduction) continue;
       placedLotKeys.add(lotKey);
 
