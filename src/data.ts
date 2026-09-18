@@ -237,6 +237,17 @@ function getDistrictStyle(col: number, row: number): DistrictStyle {
   return 'OLD_TOWN';
 }
 
+function getDistrictDensityBias(style: DistrictStyle): number {
+  switch (style) {
+    case 'SUBURBS': return 0.16;
+    case 'INDUSTRIAL': return -0.12;
+    case 'OLD_TOWN': return -0.24;
+    case 'GOVERNMENT': return 0.04;
+    case 'COMMERCIAL': return -0.06;
+    default: return 0;
+  }
+}
+
 // Weighted faction selection tables per city zone (col, row in 0-7 range)
 function getZoneFaction(col: number, row: number, rng: ReturnType<typeof makeCityRng>): string {
   const district = getDistrictStyle(col, row);
@@ -431,6 +442,8 @@ function generateProceduralBuildings(): Record<string, Building> {
       const districtDriftY = Math.cos((col + 1) * 1.64 - row * 0.9) * 1.1;
       const jitterX = rng.next() * 1.8 - 0.9;
       const jitterY = rng.next() * 1.6 - 0.8;
+      const district = getDistrictStyle(col, row);
+      const districtDensityBias = getDistrictDensityBias(district);
       const x = Math.round(Math.max(2, baseX + districtDriftX + jitterX));
       const y = Math.round(Math.max(2, baseY + districtDriftY + jitterY));
       const lotKey = `${x},${y}`;
@@ -438,7 +451,8 @@ function generateProceduralBuildings(): Record<string, Building> {
       if (placedLotKeys.has(lotKey)) continue;
 
       const edgeSparsityReduction = (col === 0 || col === cityGridCols - 1 || row === 0 || row === cityGridRows - 1) ? 0.18 : 0;
-      if (rng.next() > cityOccupancyChance - edgeSparsityReduction) continue;
+      const occupancyThreshold = Math.min(0.95, Math.max(0.45, cityOccupancyChance + districtDensityBias - edgeSparsityReduction));
+      if (rng.next() > occupancyThreshold) continue;
       placedLotKeys.add(lotKey);
 
       const factionId = getZoneFaction(col, row, rng);
@@ -448,12 +462,14 @@ function generateProceduralBuildings(): Record<string, Building> {
 
       const id = `b-${x}-${y}`;
       const layout = getProceduralBuildingLayout(type, facilities.length, false);
+      const districtScale = district === 'SUBURBS' ? 1.36 : district === 'OLD_TOWN' ? 0.78 : district === 'INDUSTRIAL' ? 1.12 : 1.04;
       buildings[id] = {
         id,
         name: buildBuildingName(id),
         ownerId: factionId,
         x, y,
-        width: layout.width, height: layout.height,
+        width: Math.max(layout.width, 1) * districtScale,
+        height: Math.max(layout.height, 1) * districtScale,
         type,
         health: hp,
         maxHealth: hp,

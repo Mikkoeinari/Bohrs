@@ -224,6 +224,66 @@ const getBuildingTypeTheme = (buildingType: Building['type']) => {
   }
 };
 
+const getDistrictVisualPalette = (x: number, y: number, centerX: number, centerY: number) => {
+  const north = y < centerY - 2.5;
+  const west = x < centerX - 2.5;
+  const east = x > centerX + 2.5;
+  const south = y > centerY + 2.5;
+
+  if (west) {
+    return {
+      body: '#2a3038',
+      accent: '#9ca3af',
+      roof: '#111827',
+      window: '#dbeafe',
+      base: '#6b7280',
+      density: 1.2,
+    };
+  }
+
+  if (north) {
+    return {
+      body: '#3e4a3d',
+      accent: '#a3e635',
+      roof: '#1f2937',
+      window: '#ecfccb',
+      base: '#94a3b8',
+      density: 0.78,
+    };
+  }
+
+  if (east) {
+    return {
+      body: '#2d3d52',
+      accent: '#60a5fa',
+      roof: '#172033',
+      window: '#eff6ff',
+      base: '#64748b',
+      density: 1.06,
+    };
+  }
+
+  if (south) {
+    return {
+      body: '#4b2a2a',
+      accent: '#f59e0b',
+      roof: '#1f2937',
+      window: '#fef3c7',
+      base: '#7c2d12',
+      density: 1.08,
+    };
+  }
+
+  return {
+    body: '#362b29',
+    accent: '#d4a373',
+    roof: '#1a1a1a',
+    window: '#f8fafc',
+    base: '#4b5563',
+    density: 0.9,
+  };
+};
+
 export const getSceneLayout = (buildings: Building[]) => {
   const extents = buildings.map((building) => {
     const bounds = getBuildingLotBounds(building);
@@ -914,8 +974,9 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const metrics = getBuildingVisualMetrics(building);
         const footprintW = Math.max(1, metrics.footprintW);
         const footprintH = Math.max(1, metrics.footprintH);
-        const footprintScale = 1.7;
-        const heightScale = 0.6;
+        const lotCenter = getBuildingLotCenter(building);
+        const districtPalette = getDistrictVisualPalette(lotCenter.x, lotCenter.y, centerX, centerY);
+        const footprintScale = 1.7 * districtPalette.density;
         const footprintWidth = Math.max(1.2, Math.min(10, footprintW * footprintScale));
         const footprintDepth = Math.max(1.2, Math.min(10, footprintH * footprintScale));
         const width = Math.max(1.2, Math.min(8.4, footprintWidth * 0.84));
@@ -923,8 +984,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         const buildingType = building.type ?? 'OFFICE';
         const typeTheme = getBuildingTypeTheme(buildingType);
         const baseHeight = metrics.heightMeters;
-        const height = Math.max(3.2, Math.min(18, baseHeight * heightScale));
-        const lotCenter = getBuildingLotCenter(building);
+        const height = Math.max(3.2, Math.min(18, baseHeight * (0.6 * districtPalette.density)));
         const x = (lotCenter.x - centerX) * lotScale;
         const z = (lotCenter.y - centerY) * lotScale;
         const isSelected = building.id === selectedBuildingId;
@@ -938,36 +998,32 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
                 ? '#a78bfa'
                 : '#94a3b8';
         const accentColor = new THREE.Color(accentColorHex);
+        const districtBase = new THREE.Color(districtPalette.body);
+        const districtAccent = new THREE.Color(districtPalette.accent);
+        const districtRoof = new THREE.Color(districtPalette.roof);
+        const districtWindow = new THREE.Color(districtPalette.window);
         const bodyColor = new THREE.Color(
-          isSelected ? '#1d4ed8' : building.ownerId === 'player'
-            ? '#16354f'
-            : building.ownerId === 'rivals'
-              ? '#5a2020'
-              : building.ownerId === 'police'
-                ? '#18355a'
-                : building.ownerId === 'corps'
-                  ? '#352260'
-                  : '#334155'
+          isSelected ? '#1d4ed8' : districtBase.clone().lerp(new THREE.Color(typeTheme.body), 0.42)
         );
         const bodyMaterial = new THREE.MeshStandardMaterial({
-          color: bodyColor.clone().lerp(new THREE.Color(typeTheme.body), 0.35),
+          color: bodyColor,
           roughness: 0.82,
           metalness: 0.08,
         });
         const accentMaterial = new THREE.MeshStandardMaterial({
-          color: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
+          color: accentColor.clone().lerp(districtAccent, 0.38),
           roughness: 0.56,
           metalness: 0.18,
-          emissive: accentColor.clone().lerp(new THREE.Color(typeTheme.accent), 0.36),
+          emissive: accentColor.clone().lerp(districtAccent, 0.38),
           emissiveIntensity: 0.24,
         });
         const roofMaterial = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(typeTheme.roof),
+          color: districtRoof.clone().lerp(new THREE.Color(typeTheme.roof), 0.34),
           roughness: 0.72,
           metalness: 0.14,
         });
         const windowMaterial = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(typeTheme.detail),
+          color: districtWindow.clone().lerp(new THREE.Color(typeTheme.detail), 0.26),
           roughness: 0.28,
           metalness: 0.12,
           emissive: 0x38bdf8,
