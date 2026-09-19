@@ -885,7 +885,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         emissive: 0xfacc15,
         emissiveIntensity: 0.12,
       });
-      const roadWidth = 0.82;
+      const roadWidth = 1.12;
       const roadGroup = new THREE.Group();
 
       const addCurvedRoad = (points: Array<{ x: number; z: number }>, width = roadWidth) => {
