@@ -900,18 +900,40 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           0.32
         );
 
+        const roadShape = new THREE.Shape();
+        roadShape.moveTo(-width / 2, -0.08);
+        roadShape.lineTo(width / 2, -0.08);
+        roadShape.lineTo(width / 2, 0.08);
+        roadShape.lineTo(-width / 2, 0.08);
+        roadShape.closePath();
+
         const road = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, 48, width * 0.5, 8, false),
+          new THREE.ExtrudeGeometry(roadShape, {
+            steps: 48,
+            bevelEnabled: false,
+            extrudePath: curve,
+          }),
           roadMaterial
         );
         road.receiveShadow = true;
         roadGroup.add(road);
 
+        const centerlineShape = new THREE.Shape();
+        centerlineShape.moveTo(-width * 0.08 / 2, -0.03);
+        centerlineShape.lineTo(width * 0.08 / 2, -0.03);
+        centerlineShape.lineTo(width * 0.08 / 2, 0.03);
+        centerlineShape.lineTo(-width * 0.08 / 2, 0.03);
+        centerlineShape.closePath();
+
         const centerline = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, 48, width * 0.08, 6, false),
+          new THREE.ExtrudeGeometry(centerlineShape, {
+            steps: 48,
+            bevelEnabled: false,
+            extrudePath: curve,
+          }),
           centerlineMaterial
         );
-        centerline.position.y = 0.12;
+        centerline.position.y = 0.06;
         centerline.receiveShadow = true;
         roadGroup.add(centerline);
       };
