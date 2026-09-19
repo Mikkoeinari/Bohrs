@@ -370,9 +370,8 @@ export function getUnitTotalWeight(unit: Unit | any): number {
 
 export function getUnitCarryLimit(unit: Unit | any): number {
   const str = unit?.stats?.strength || unit?.strength || 40;
-  // Light patrol loadouts stay practical for a crew member: a realistic baseline means even
-  // weaker recruits can still carry a sidearm, basic kit, and field rations without dragging.
-  return Math.max(7, Math.floor(str / 5));
+  // Strength 50 => 10 kg unencumbered limit
+  return Math.max(5, Math.floor(str / 5));
 }
 
 const FACILITY_LABEL_NAMES: Record<string, string> = {
@@ -533,12 +532,11 @@ function createReasonableRecruitLoadout(stats: { strength: number; speed: number
     },
   ];
 
-  const validCandidates = candidateLoadouts.filter((candidate) => {
+  const selectedLoadout = candidateLoadouts.find((candidate) => {
     const totalWeight = getUnitTotalWeight({ stats, equipment: candidate });
-    return totalWeight <= carryLimit;
-  });
+    return totalWeight <= carryLimit + 1;
+  }) ?? candidateLoadouts[0];
 
-  const selectedLoadout = validCandidates[0] ?? candidateLoadouts[0];
   const inventory = [...(selectedLoadout.inventory || [])];
   const fallbackLoadout: Unit['equipment'] = {
     ...selectedLoadout,
@@ -547,10 +545,6 @@ function createReasonableRecruitLoadout(stats: { strength: number; speed: number
 
   if (random() < 0.5 && getUnitTotalWeight({ stats, equipment: fallbackLoadout }) <= carryLimit) {
     fallbackLoadout.inventory = [...inventory, 'grenade'];
-  }
-
-  if (getUnitTotalWeight({ stats, equipment: fallbackLoadout }) > carryLimit) {
-    fallbackLoadout.inventory = inventory;
   }
 
   return fallbackLoadout;

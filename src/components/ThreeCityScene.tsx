@@ -919,6 +919,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           }),
           roadMaterial
         );
+        road.rotation.x = -Math.PI / 2;
         road.receiveShadow = true;
         roadGroup.add(road);
 
@@ -937,6 +938,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           }),
           centerlineMaterial
         );
+        centerline.rotation.x = -Math.PI / 2;
         centerline.position.y = roadThickness / 2 + 0.02;
         centerline.receiveShadow = true;
         roadGroup.add(centerline);
