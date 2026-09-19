@@ -900,18 +900,44 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           0.32
         );
 
+        const roadThickness = Math.max(width * 0.12, 0.08);
+        const centerlineThickness = Math.max(width * 0.04, 0.02);
+        const centerlineWidth = width * 0.08;
+
+        const roadShape = new THREE.Shape();
+        roadShape.moveTo(-width / 2, -roadThickness / 2);
+        roadShape.lineTo(width / 2, -roadThickness / 2);
+        roadShape.lineTo(width / 2, roadThickness / 2);
+        roadShape.lineTo(-width / 2, roadThickness / 2);
+        roadShape.closePath();
+
         const road = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, 48, width * 0.5, 8, false),
+          new THREE.ExtrudeGeometry(roadShape, {
+            steps: 48,
+            bevelEnabled: false,
+            extrudePath: curve,
+          }),
           roadMaterial
         );
         road.receiveShadow = true;
         roadGroup.add(road);
 
+        const centerlineShape = new THREE.Shape();
+        centerlineShape.moveTo(-centerlineWidth / 2, -centerlineThickness / 2);
+        centerlineShape.lineTo(centerlineWidth / 2, -centerlineThickness / 2);
+        centerlineShape.lineTo(centerlineWidth / 2, centerlineThickness / 2);
+        centerlineShape.lineTo(-centerlineWidth / 2, centerlineThickness / 2);
+        centerlineShape.closePath();
+
         const centerline = new THREE.Mesh(
-          new THREE.TubeGeometry(curve, 48, width * 0.08, 6, false),
+          new THREE.ExtrudeGeometry(centerlineShape, {
+            steps: 48,
+            bevelEnabled: false,
+            extrudePath: curve,
+          }),
           centerlineMaterial
         );
-        centerline.position.y = 0.12;
+        centerline.position.y = roadThickness / 2 + 0.02;
         centerline.receiveShadow = true;
         roadGroup.add(centerline);
       };
