@@ -893,53 +893,34 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           return;
         }
 
-        const curve = new THREE.CatmullRomCurve3(
-          points.map(({ x, z }) => new THREE.Vector3(x, 0.1, z)),
-          false,
-          'catmullrom',
-          0.32
-        );
-
         const roadThickness = Math.max(width * 0.12, 0.08);
         const centerlineThickness = Math.max(width * 0.04, 0.02);
         const centerlineWidth = width * 0.08;
 
-        const roadShape = new THREE.Shape();
-        roadShape.moveTo(-width / 2, -roadThickness / 2);
-        roadShape.lineTo(width / 2, -roadThickness / 2);
-        roadShape.lineTo(width / 2, roadThickness / 2);
-        roadShape.lineTo(-width / 2, roadThickness / 2);
-        roadShape.closePath();
+        for (let index = 0; index < points.length - 1; index += 1) {
+          const start = points[index];
+          const end = points[index + 1];
+          const dx = end.x - start.x;
+          const dz = end.z - start.z;
+          const length = Math.hypot(dx, dz) || 0.001;
+          const road = new THREE.Mesh(
+            new THREE.BoxGeometry(length + width * 0.35, roadThickness, width),
+            roadMaterial
+          );
+          road.position.set((start.x + end.x) / 2, 0.1, (start.z + end.z) / 2);
+          road.rotation.y = Math.atan2(dz, dx);
+          road.receiveShadow = true;
+          roadGroup.add(road);
 
-        const road = new THREE.Mesh(
-          new THREE.ExtrudeGeometry(roadShape, {
-            steps: 48,
-            bevelEnabled: false,
-            extrudePath: curve,
-          }),
-          roadMaterial
-        );
-        road.receiveShadow = true;
-        roadGroup.add(road);
-
-        const centerlineShape = new THREE.Shape();
-        centerlineShape.moveTo(-centerlineWidth / 2, -centerlineThickness / 2);
-        centerlineShape.lineTo(centerlineWidth / 2, -centerlineThickness / 2);
-        centerlineShape.lineTo(centerlineWidth / 2, centerlineThickness / 2);
-        centerlineShape.lineTo(-centerlineWidth / 2, centerlineThickness / 2);
-        centerlineShape.closePath();
-
-        const centerline = new THREE.Mesh(
-          new THREE.ExtrudeGeometry(centerlineShape, {
-            steps: 48,
-            bevelEnabled: false,
-            extrudePath: curve,
-          }),
-          centerlineMaterial
-        );
-        centerline.position.y = roadThickness / 2 + 0.02;
-        centerline.receiveShadow = true;
-        roadGroup.add(centerline);
+          const centerline = new THREE.Mesh(
+            new THREE.BoxGeometry(length + width * 0.25, centerlineThickness, centerlineWidth),
+            centerlineMaterial
+          );
+          centerline.position.set((start.x + end.x) / 2, 0.1 + roadThickness / 2 + 0.02, (start.z + end.z) / 2);
+          centerline.rotation.y = Math.atan2(dz, dx);
+          centerline.receiveShadow = true;
+          roadGroup.add(centerline);
+        }
       };
 
       const roadMargin = 2.5;
