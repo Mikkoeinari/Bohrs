@@ -80,6 +80,16 @@ const buildRoadRoutes = (gridSize: number): RoutePoint[][] => {
   ];
   routes.push(edgeLoop);
 
+  // Connect the perimeter ring gently to the interior lot-grid roads so the outer road is not a
+  // detached loop. This keeps travel flow intact without introducing a dense every-cell road lattice.
+  const connectorBands = regularBands.filter((band) => band > 0 && band < gridSize - 1);
+  connectorBands.forEach((band) => {
+    routes.push([{ x: 0, y: band }, { x: band, y: band }]);
+    routes.push([{ x: band, y: 0 }, { x: band, y: band }]);
+    routes.push([{ x: gridSize - 1, y: band }, { x: band, y: band }]);
+    routes.push([{ x: band, y: gridSize - 1 }, { x: band, y: band }]);
+  });
+
   return routes;
 };
 
