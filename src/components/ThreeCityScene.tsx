@@ -917,8 +917,54 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
       };
 
       const roadMargin = 2.5;
-      const xRoadBands = Array.from(new Set<number>(buildingList.map((building) => Math.round(Number(building.x))))).sort((left, right) => left - right);
-      const yRoadBands = Array.from(new Set<number>(buildingList.map((building) => Math.round(Number(building.y))))).sort((left, right) => left - right);
+      const roadClearanceFactor = 0.35;
+      const buildInterstitialRoadBands = (
+        axis: 'x' | 'y',
+        clearance: number
+      ) => {
+        const lotBounds = buildingList
+          .map((building) => {
+            const width = Number(building.width || 1);
+            const height = Number(building.height || 1);
+            const minX = Number(building.x) - width / 2;
+            const maxX = Number(building.x) + width / 2;
+            const minY = Number(building.y) - height / 2;
+            const maxY = Number(building.y) + height / 2;
+            return axis === 'x'
+              ? { start: minX, end: maxX }
+              : { start: minY, end: maxY };
+          })
+          .sort((left, right) => left.start - right.start);
+
+        const interstitialBands: number[] = [];
+        let lastOccupiedEnd = Number.NEGATIVE_INFINITY;
+
+        for (const lot of lotBounds) {
+          if (!Number.isFinite(lastOccupiedEnd)) {
+            lastOccupiedEnd = lot.end;
+            continue;
+          }
+
+          if (lot.start <= lastOccupiedEnd) {
+            lastOccupiedEnd = Math.max(lastOccupiedEnd, lot.end);
+            continue;
+          }
+
+          const gapStart = lastOccupiedEnd + clearance;
+          const gapEnd = lot.start - clearance;
+          if (gapEnd > gapStart) {
+            interstitialBands.push((gapStart + gapEnd) / 2);
+          }
+
+          lastOccupiedEnd = Math.max(lastOccupiedEnd, lot.end);
+        }
+
+        return interstitialBands;
+      };
+
+      // Keep the structural avenue in the clear space between lot footprints, not directly through the building footprint.
+      const xRoadCenters = buildInterstitialRoadBands('x', roadMargin * roadClearanceFactor);
+      const yRoadCenters = buildInterstitialRoadBands('y', roadMargin * roadClearanceFactor);
 
       const addLineRoad = (xBand: number, yBand: number, isVertical: boolean) => {
         const startX = (xBand - centerX) * lotScale;
@@ -934,10 +980,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         ], roadWidth * 0.94);
       };
 
-      xRoadBands.forEach((xBand) => {
+      xRoadCenters.forEach((xBand) => {
         addLineRoad(xBand, -1, true);
       });
-      yRoadBands.forEach((yBand) => {
+      yRoadCenters.forEach((yBand) => {
         addLineRoad(-1, yBand, false);
       });
 
