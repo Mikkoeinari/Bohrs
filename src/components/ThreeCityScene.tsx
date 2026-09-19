@@ -900,11 +900,15 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           0.32
         );
 
+        const roadThickness = Math.max(width * 0.12, 0.08);
+        const centerlineThickness = Math.max(width * 0.04, 0.02);
+        const centerlineWidth = width * 0.08;
+
         const roadShape = new THREE.Shape();
-        roadShape.moveTo(-width / 2, -0.08);
-        roadShape.lineTo(width / 2, -0.08);
-        roadShape.lineTo(width / 2, 0.08);
-        roadShape.lineTo(-width / 2, 0.08);
+        roadShape.moveTo(-width / 2, -roadThickness / 2);
+        roadShape.lineTo(width / 2, -roadThickness / 2);
+        roadShape.lineTo(width / 2, roadThickness / 2);
+        roadShape.lineTo(-width / 2, roadThickness / 2);
         roadShape.closePath();
 
         const road = new THREE.Mesh(
@@ -919,10 +923,10 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
         roadGroup.add(road);
 
         const centerlineShape = new THREE.Shape();
-        centerlineShape.moveTo(-width * 0.08 / 2, -0.03);
-        centerlineShape.lineTo(width * 0.08 / 2, -0.03);
-        centerlineShape.lineTo(width * 0.08 / 2, 0.03);
-        centerlineShape.lineTo(-width * 0.08 / 2, 0.03);
+        centerlineShape.moveTo(-centerlineWidth / 2, -centerlineThickness / 2);
+        centerlineShape.lineTo(centerlineWidth / 2, -centerlineThickness / 2);
+        centerlineShape.lineTo(centerlineWidth / 2, centerlineThickness / 2);
+        centerlineShape.lineTo(-centerlineWidth / 2, centerlineThickness / 2);
         centerlineShape.closePath();
 
         const centerline = new THREE.Mesh(
@@ -933,7 +937,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
           }),
           centerlineMaterial
         );
-        centerline.position.y = 0.06;
+        centerline.position.y = roadThickness / 2 + 0.02;
         centerline.receiveShadow = true;
         roadGroup.add(centerline);
       };
