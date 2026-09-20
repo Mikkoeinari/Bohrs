@@ -83,7 +83,6 @@ interface ThreeCitySceneProps {
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 const SCENE_BACKGROUND = '#f6fbff';
-const SCENE_FOG = '#dbeafe';
 
 const getCombatTileColor = (tileType: CombatSceneTile['tileType'], roomType?: string) => {
   if (tileType === 'wall') {
@@ -791,7 +790,7 @@ const ThreeCityScene: React.FC<ThreeCitySceneProps> = ({ buildings, selectedBuil
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(SCENE_BACKGROUND);
-    scene.fog = new THREE.Fog(SCENE_FOG, 24, 80);
+    scene.fog = null;
 
     const cameraObject = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
     cameraObject.position.set(24, 20, 24);
